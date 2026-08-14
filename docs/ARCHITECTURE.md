@@ -108,3 +108,11 @@ DeepSeek Harness 在 Developer Preview 阶段只做隔离实验，不成为第�
 5. 接入 Agent 对话和流式事件。
 6. 逐项迁移现有功能，保持 QQ 行为不回退。
 7. 最后进行 DeepSeek Harness 旁路适配与对比评估。
+
+## 当前实现切片
+
+- `market.query` 类型化契约与真实只读 Warframe.Market 适配器已经实现。
+- `apps/desktop` 已实现 Electron/React/TypeScript/Vite 最小桌面壳。
+- `system.getHealth()` 当前通过安全 preload IPC 暴露桌面构建、OpenClaw 本机端口、WFInfo 配置路径、AlecaFrame 配置路径和 Warframe.Market 公共源的只读健康快照。
+- renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
+- 桌面原生市场查询卡、Agent 对话、个人快照与持久化仍未实现，不得把本节视作这些能力已经交付。

@@ -1,0 +1,35 @@
+{
+  "name": "@warframe-companion/desktop",
+  "productName": "Warframe Companion",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Local-first, read-only Warframe companion desktop application",
+  "author": "Warframe Companion contributors",
+  "type": "commonjs",
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "clean": "node -e \"require('node:fs').rmSync('.vite',{recursive:true,force:true});require('node:fs').rmSync('out',{recursive:true,force:true})\"",
+    "build": "electron-forge package",
+    "make": "electron-forge make",
+    "test": "tsc -p tsconfig.json && vitest run"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "@electron-forge/plugin-vite": "7.11.2",
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "6.0.5",
+    "electron": "43.4.0",
+    "typescript": "5.9.3",
+    "vite": "8.2.1",
+    "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}
