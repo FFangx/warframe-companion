@@ -19,4 +19,6 @@ npm run eval --workspace @warframe-companion/agent-eval
 
 命令会可重复生成 `reports/baseline.json` 与 `reports/baseline.md`；已提交报告使用固定基线时间，避免只因运行时钟产生无意义 diff。当前候选 `reference-contract-oracle` 是评估器的确定性上界自检，不是模型，也不代表 OpenClaw、DeepSeek 或任何真实 Harness 的成绩。真实 Agent 基线要等对应适配器能够导出结构化轨迹后再记录。
 
+同一命令还会生成 `desktop-harness-traces.json`、`desktop-harness-baseline.json` 与 `desktop-harness-baseline.md`。这些文件来自桌面生产 `agent-runtime` 的真实编排路径，工具响应仍为合成夹具。首份基线保留真实失败，不把缺失参数静默补成桌面默认值；它是确定性 Harness 成绩，不是 LLM 成绩。
+
 全部 prompt、时间、身份和事实均为合成值；不得用真实聊天、QQ/账号标识、原始个人快照、令牌或本机日志替换。

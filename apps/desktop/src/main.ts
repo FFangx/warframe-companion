@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
 import { createWarframeMarketQueryService } from '@warframe-companion/market-query-service';
+import { runDesktopAgent, type AgentStreamEvent } from '@warframe-companion/agent-runtime';
 import { getSystemHealth } from './system-health.js';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -8,6 +9,13 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 
 const currentDirectory = __dirname;
 const marketQueryService = createWarframeMarketQueryService();
+
+function validAgentInput(value: unknown): value is { requestId: string; message: string } {
+  if (!value || typeof value !== 'object') return false;
+  const input = value as Record<string, unknown>;
+  return typeof input.requestId === 'string' && /^[a-zA-Z0-9-]{1,80}$/u.test(input.requestId)
+    && typeof input.message === 'string' && input.message.trim().length > 0 && input.message.length <= 500;
+}
 
 function systemHealth(): ReturnType<typeof getSystemHealth> {
   return getSystemHealth({
@@ -48,6 +56,22 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   ipcMain.handle('system:get-health', systemHealth);
   ipcMain.handle('market:query', (_event, request: unknown) => marketQueryService.query(request));
+  ipcMain.on('agent:run', (event, input: unknown) => {
+    if (!validAgentInput(input)) return;
+    const send = (streamEvent: AgentStreamEvent) => {
+      if (!event.sender.isDestroyed()) event.sender.send('agent:event', input.requestId, streamEvent);
+    };
+    void runDesktopAgent({
+      requestId: input.requestId,
+      message: input.message.trim(),
+      context: { channel: 'desktop', trustedOwner: true, now: new Date().toISOString() },
+    }, { marketQuery: (request) => marketQueryService.query(request), onEvent: send }).catch(() => {
+      void send({
+        type: 'completed', message: 'Agent 编排器发生内部错误，请稍后重试。',
+        trace: { caseId: input.requestId, decision: 'answer', toolCalls: [], facts: [], latencyMs: 0 },
+      });
+    });
+  });
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

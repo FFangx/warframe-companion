@@ -74,3 +74,13 @@ test('runner 会拒绝未知轨迹并捕获额外事实', () => {
   const summary = evaluateAgentTraces([testCase], [trace], { candidate: 'negative-control', generatedAt });
   assert.equal(summary.results[0].dimensions.factCorrectness.passed, false);
 });
+
+test('runner 的结构比较不依赖对象键顺序', () => {
+  const testCase = FIRST_AGENT_EVAL_CASES.find((entry) => entry.id === 'evidence-001');
+  assert.ok(testCase);
+  const trace = createReferenceTrace(testCase);
+  const evidence = trace.facts[0].evidence;
+  trace.facts[0].evidence = Object.fromEntries(Object.entries(evidence).reverse());
+  const summary = evaluateAgentTraces([testCase], [trace], { candidate: 'key-order-control', generatedAt });
+  assert.equal(summary.passedCases, 1);
+});

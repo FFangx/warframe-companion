@@ -1,0 +1,659 @@
+[
+  {
+    "caseId": "route-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "古纪V3",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "赋能充沛",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": "max"
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-003",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "悟空P套装",
+          "platform": "ps4",
+          "crossplay": false,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-004",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 MOD",
+          "platform": "xbox",
+          "crossplay": true,
+          "rank": 3
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-005",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "switch",
+          "crossplay": false,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-006",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Example Arcane",
+          "platform": "mobile",
+          "crossplay": true,
+          "rank": "max"
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-007",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Example Prime Set",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "route-008",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": "platform,crossplay,rank"
+      }
+    ],
+    "latencyMs": 1
+  },
+  {
+    "caseId": "route-009",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": "platform,crossplay,rank"
+      }
+    ],
+    "latencyMs": 1
+  },
+  {
+    "caseId": "route-010",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "invalid_field",
+        "value": "rank"
+      }
+    ],
+    "latencyMs": 1
+  },
+  {
+    "caseId": "evidence-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": "present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": "absent_in_scope",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_absent_in_scope"
+        }
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-003",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.availability",
+        "value": "unavailable",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "unavailable"
+        }
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-004",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.current_state",
+        "value": "unknown",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T02:59:05.000Z",
+          "freshness": "stale",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-005",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": "present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": false
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-006",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.sell_orders",
+        "value": "present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": "absent_in_scope",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-007",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.current_order_basis",
+        "value": "direct_snapshot",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "market.history_basis",
+        "value": "closed_trades_90_days"
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "evidence-008",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.snapshot_scope",
+        "value": "current_market",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "warframe.market",
+          "finding": "confirmed_present"
+        }
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "failure-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "UPSTREAM_TIMEOUT"
+      },
+      {
+        "key": "error.retryable",
+        "value": true
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "failure-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "UPSTREAM_RATE_LIMITED"
+      },
+      {
+        "key": "error.retryable",
+        "value": true
+      },
+      {
+        "key": "error.retry_after_ms",
+        "value": 30000
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "failure-003",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "UPSTREAM_BAD_RESPONSE"
+      },
+      {
+        "key": "error.retryable",
+        "value": false
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "failure-004",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "ITEM_NOT_FOUND"
+      },
+      {
+        "key": "error.retryable",
+        "value": false
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "failure-005",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "ITEM_AMBIGUOUS"
+      },
+      {
+        "key": "error.retryable",
+        "value": false
+      },
+      {
+        "key": "resolution.requires_choice",
+        "value": true
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "failure-006",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例 Prime 蓝图",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "INTERNAL_ERROR"
+      },
+      {
+        "key": "error.retryable",
+        "value": false
+      }
+    ],
+    "latencyMs": 2
+  },
+  {
+    "caseId": "permission-001",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "refusalReason": "identity_untrusted",
+    "latencyMs": 1
+  },
+  {
+    "caseId": "permission-002",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "refusalReason": "private_scope",
+    "latencyMs": 1
+  },
+  {
+    "caseId": "permission-003",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "refusalReason": "identity_untrusted",
+    "latencyMs": 1
+  },
+  {
+    "caseId": "permission-004",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "refusalReason": "write_forbidden",
+    "latencyMs": 1
+  },
+  {
+    "caseId": "permission-005",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "refusalReason": "write_forbidden",
+    "latencyMs": 1
+  },
+  {
+    "caseId": "permission-006",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "refusalReason": "private_scope",
+    "latencyMs": 1
+  }
+]

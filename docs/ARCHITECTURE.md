@@ -117,5 +117,6 @@ DeepSeek Harness 在 Developer Preview 阶段只做隔离实验，不成为第�
 - 桌面市场页通过独立的 `market.query()` preload IPC 调用主进程内 `market-query-service`；用户必须显式输入物品、平台、跨平台范围和等级。
 - React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
 - `packages/agent-eval` 已建立首批 30 条合成/脱敏评估、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；覆盖工具路由、参数、事实、证据、权限与效率。参考基线只验证评估器上界，不代表真实模型表现。
+- `packages/agent-runtime` 已实现桌面生产与 eval 共用的确定性 Agent Harness：公开市场工具编排、参数澄清、权限拒绝、流式事件和 `AgentTrace` 导出。桌面通过受限 IPC 展示同一路径的工具轨迹；评估包以合成工具结果驱动该 Runtime，生成首份非 oracle Harness 基线。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
-- Agent 对话、个人快照与持久化仍未实现，不得把本节视作这些能力已经交付。
+- 最小 Agent 对话已经实现；当前不包含 LLM、OpenClaw/DeepSeek 适配、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。

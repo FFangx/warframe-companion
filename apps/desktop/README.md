@@ -1,8 +1,10 @@
 # Warframe Companion Desktop
 
-Electron/React 桌面应用当前提供系统健康页与原生市场查询卡，不包含 Agent 对话或个人数据视图。
+Electron/React 桌面应用当前提供系统健康页、原生市场查询卡与最小 Agent 对话，不包含个人数据视图。
 
 市场页要求显式输入物品、平台、跨平台开关与等级，通过安全 preload IPC 调用真实只读 `market-query-service`。结果分别展示当前买卖挂单、90 日已成交统计、证据时间、来源、警告、空订单和分类故障；不会下单、挂单或发送交易私聊。
+
+Agent 页使用与评估共用的 `@warframe-companion/agent-runtime`。当前确定性 Harness 支持公开市场查询、缺失参数澄清和禁止写操作/不可信个人请求拒绝；事件按“判断 → 工具调用 → 工具结果 → 回答 → `AgentTrace`”流式送到 renderer。它不是 LLM，也没有接入 OpenClaw、DeepSeek、个人快照或订阅写入。
 
 ## 开发
 
@@ -19,4 +21,4 @@ npm run build -w @warframe-companion/desktop
 - `WARFRAME_COMPANION_OPENCLAW_PORT`
 - `WARFRAME_COMPANION_BUILD_ID`
 
-所有探针与市场查询均只读；renderer 仅能通过 preload 暴露的 `system.getHealth()` 与 `market.query()` 调用类型化 IPC，未启用 Node 集成。
+所有探针、市场查询与 Agent 工具均只读；renderer 仅能通过 preload 暴露的 `system.getHealth()`、`market.query()` 与 `agent.run()` 调用类型化 IPC，未启用 Node 集成。

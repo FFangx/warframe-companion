@@ -1,29 +1,21 @@
 export const AGENT_EVAL_SCHEMA_VERSION = '1.0' as const;
 
+export type {
+  AgentDecision,
+  AgentTrace,
+  EvalEvidence,
+  EvalFact,
+  RefusalReason,
+  ToolCallTrace,
+} from '@warframe-companion/agent-runtime';
+import type { AgentDecision, EvalFact, RefusalReason } from '@warframe-companion/agent-runtime';
+
 export type EvalCategory = 'tool-routing' | 'evidence' | 'failure-degradation' | 'permission';
-export type AgentDecision = 'call_tool' | 'clarify' | 'answer' | 'refuse';
-export type RefusalReason = 'identity_untrusted' | 'private_scope' | 'write_forbidden';
 
 export interface EvalContext {
   channel: 'desktop' | 'qq_private' | 'qq_group' | 'untrusted_test';
   trustedOwner: boolean;
   now: string;
-}
-
-export interface EvalEvidence {
-  scope: 'current_market' | 'personal_snapshot';
-  evidenceType: 'direct_snapshot' | 'local_snapshot';
-  asOf: string;
-  expiresAt: string;
-  freshness: 'fresh' | 'stale';
-  finding: 'confirmed_present' | 'confirmed_absent_in_scope' | 'unavailable';
-  source: 'warframe.market' | 'synthetic.local';
-}
-
-export interface EvalFact {
-  key: string;
-  value: string | number | boolean;
-  evidence?: EvalEvidence;
 }
 
 export interface ExpectedTrace {
@@ -45,20 +37,6 @@ export interface AgentEvalCase {
   context: EvalContext;
   availableTools: string[];
   expected: ExpectedTrace;
-}
-
-export interface ToolCallTrace {
-  name: string;
-  arguments: Record<string, unknown>;
-}
-
-export interface AgentTrace {
-  caseId: string;
-  decision: AgentDecision;
-  toolCalls: ToolCallTrace[];
-  facts: EvalFact[];
-  refusalReason?: RefusalReason;
-  latencyMs: number;
 }
 
 export type EvalDimension =
@@ -101,4 +79,5 @@ export interface EvalSummary {
 
 export { FIRST_AGENT_EVAL_CASES } from './cases.js';
 export { createReferenceTrace } from './reference-baseline.js';
+export { createDesktopHarnessTrace } from './desktop-harness-baseline.js';
 export { evaluateAgentTraces, renderMarkdownReport } from './runner.js';

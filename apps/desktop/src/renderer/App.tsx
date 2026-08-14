@@ -9,6 +9,7 @@ import {
   type MarketQuerySuccess,
 } from '@warframe-companion/market-query-contract';
 import type { ComponentHealth, HealthStatus, SystemHealthSnapshot } from '../system-health.js';
+import type { AgentStreamEvent, AgentTrace } from '@warframe-companion/agent-runtime';
 import {
   ERROR_CATEGORY_LABELS,
   PLATFORM_LABELS,
@@ -17,7 +18,7 @@ import {
   parseRankInput,
 } from './market-presentation.js';
 
-type View = 'health' | 'market';
+type View = 'health' | 'market' | 'agent';
 
 const STATUS_COPY: Record<HealthStatus, { label: string; tone: string }> = {
   healthy: { label: '正常', tone: 'good' },
@@ -168,6 +169,53 @@ function MarketView() {
   </>;
 }
 
+interface ChatTurn { id: string; user: string; assistant: string; events: AgentStreamEvent[]; trace?: AgentTrace }
+
+function AgentView() {
+  const [message, setMessage] = useState('查一下古纪V3当前行情，PC 跨平台，0级。');
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [running, setRunning] = useState(false);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const prompt = message.trim();
+    if (!prompt || running) return;
+    const id = `desktop-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    setTurns((current) => [...current, { id, user: prompt, assistant: '', events: [] }]);
+    setRunning(true); setMessage('');
+    let stop = () => {};
+    stop = window.warframeCompanion.agent.run({ requestId: id, message: prompt }, (streamEvent) => {
+      setTurns((current) => current.map((turn) => {
+        if (turn.id !== id) return turn;
+        if (streamEvent.type === 'message_delta') return { ...turn, assistant: turn.assistant + streamEvent.delta, events: [...turn.events, streamEvent] };
+        if (streamEvent.type === 'completed') return { ...turn, assistant: streamEvent.message, trace: streamEvent.trace, events: [...turn.events, streamEvent] };
+        return { ...turn, events: [...turn.events, streamEvent] };
+      }));
+      if (streamEvent.type === 'completed') { setRunning(false); stop(); }
+    });
+  };
+
+  return <div className="agent-view">
+    <header className="hero market-hero"><div><p className="eyebrow">DESKTOP AGENT / STRUCTURED TRACE</p><h1>Agent 对话</h1><p className="hero__copy">公开市场查询、参数澄清与权限拒绝共用同一可评估轨迹。</p></div><span className="readonly-chip">确定性 Harness · 只读</span></header>
+    <section className="agent-layout">
+      <div className="conversation">
+        {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>从一句可验证请求开始</h2><p>例：查一下古纪V3当前行情，PC 跨平台，0级。平台、交易范围和等级必须明确。</p></div> : null}
+        {turns.map((turn) => <article className="chat-turn" key={turn.id}>
+          <div className="bubble bubble--user"><span>你</span><p>{turn.user}</p></div>
+          <div className="bubble bubble--agent"><span>Agent</span><p>{turn.assistant || '正在处理…'}</p></div>
+          <details className="trace-panel" open={turns.at(-1)?.id === turn.id}>
+            <summary>执行轨迹 <small>{turn.trace ? `${turn.trace.decision} · ${turn.trace.latencyMs}ms` : '流式更新中'}</small></summary>
+            <div className="trace-events">{turn.events.filter((entry) => entry.type !== 'message_delta' && entry.type !== 'completed').map((entry, index) => <div key={index}>
+              <b>{entry.type}</b><code>{entry.type === 'status' ? entry.text : entry.type === 'tool_call' ? `${entry.name} ${JSON.stringify(entry.arguments)}` : `${entry.name} · ${entry.summary}`}</code>
+            </div>)}</div>
+          </details>
+        </article>)}
+      </div>
+      <form className="agent-composer" onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="输入公开只读查询…" rows={2} /><button type="submit" disabled={running || !message.trim()}>{running ? '执行中' : '发送'}</button><small>不会操作游戏、交易、聊天或账号资产；个人数据尚未接入。</small></form>
+    </section>
+  </div>;
+}
+
 export function App() {
   const [view, setView] = useState<View>('market');
   return <main className="shell">
@@ -176,10 +224,10 @@ export function App() {
       <nav aria-label="主导航">
         <button className={`nav-item ${view === 'health' ? 'nav-item--active' : ''}`} type="button" onClick={() => setView('health')}><span>⌁</span>系统概览</button>
         <button className={`nav-item ${view === 'market' ? 'nav-item--active' : ''}`} type="button" onClick={() => setView('market')}><span>◇</span>市场查询<small>原生行情卡</small></button>
-        <button className="nav-item" type="button" disabled><span>◌</span>Agent 对话<small>规划中</small></button>
+        <button className={`nav-item ${view === 'agent' ? 'nav-item--active' : ''}`} type="button" onClick={() => setView('agent')}><span>◌</span>Agent 对话<small>流式工具轨迹</small></button>
       </nav>
       <div className="boundary-note"><span>只读模式</span>不操作游戏、交易、聊天或账号资产</div>
     </aside>
-    <section className="content">{view === 'health' ? <HealthView /> : <MarketView />}<footer><span>Session 5 · 桌面原生市场卡</span><span>当前挂单与历史成交明确分离。</span></footer></section>
+    <section className="content">{view === 'health' ? <HealthView /> : view === 'market' ? <MarketView /> : <AgentView />}<footer><span>Session 7 · 桌面 Agent 垂直切片</span><span>同一结构化轨迹用于桌面展示与 Harness 评估。</span></footer></section>
   </main>;
 }
