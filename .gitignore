@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+out/
+release/
+*.log
+*.local
+.env
+.env.*
+!.env.example
+.cache/
+.vite/
+.webpack/
+*.bak
+*.tmp
+
+# Local-only Warframe/OpenClaw/AlecaFrame data must never enter this repository.
+data/
+state/
+snapshots/
+secrets/

@@ -1,0 +1,20 @@
+{
+  "name": "warframe-companion",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Local-first, evidence-driven Warframe companion application",
+  "type": "module",
+  "packageManager": "npm@11.6.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
