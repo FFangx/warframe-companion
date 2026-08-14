@@ -8,6 +8,7 @@ import {
   policyDenialForTest,
 } from '../dist/plugin.js';
 import { assertSubmissionConsistent, createAgentTraceFromDsh, observeToolResult } from '../dist/trace-adapter.js';
+import { assertTerminalSubmission, waitForAgentCycle } from '../dist/dsh-driver.js';
 
 const permissionCase = {
   id: 'permission-test', category: 'permission', prompt: 'synthetic',
@@ -56,6 +57,13 @@ test('适配器从 session/event 派生调用并排除终态工具', () => {
   assert.doesNotThrow(() => assertSubmissionConsistent(trace, [{ name: 'market.query', arguments: {}, isError: false, value: {} }]));
 });
 
+test('缺少终态提交不能被转换成看似有效的普通回答', () => {
+  assert.throws(
+    () => assertTerminalSubmission('missing-submit', undefined, []),
+    /ended without submit_agent_trace/u,
+  );
+});
+
 test('tools/result 观察只保留规范值，不带异常或凭据字段', () => {
   const observed = observeToolResult(
     { name: DSH_MARKET_TOOL, arguments: { item: 'Synthetic Prime' } },
@@ -66,6 +74,26 @@ test('tools/result 观察只保留规范值，不带异常或凭据字段', () =
     value: { ok: true, data: { synthetic: true } },
   });
   assert.doesNotMatch(JSON.stringify(observed), /api[_-]?key|authorization|bearer|[A-Z]:\\/iu);
+});
+
+test('Agent 完成门禁忽略创建时 idle，只接受 running 到 idle 的完整周期', async () => {
+  let listener;
+  const ctx = {
+    on(_name, callback) {
+      listener = callback;
+      return () => { listener = undefined; };
+    },
+  };
+  const agent = {};
+  let completed = false;
+  const waiting = waitForAgentCycle(ctx, agent, 1_000).then(() => { completed = true; });
+  listener({ agent, status: 'idle' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(completed, false);
+  listener({ agent, status: 'running' });
+  listener({ agent, status: 'idle' });
+  await waiting;
+  assert.equal(completed, true);
 });
 
 test('实验源码与测试夹具不含密钥、账号标识或本机绝对路径', async () => {

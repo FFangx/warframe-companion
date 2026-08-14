@@ -7,6 +7,38 @@ import type { AgentEvalCase, AgentTrace, SessionEventLike, ToolResultObservation
 
 type AnyModule = Record<string, unknown>;
 
+function stableDiagnostics(value: unknown, prefix = '', depth = 0, output = new Set<string>()): Set<string> {
+  if (depth > 8 || !value || typeof value !== 'object') return output;
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (typeof entry === 'string' && ['code', 'kind', 'type', 'reason', 'name', 'message'].includes(key)) {
+      const sanitized = entry
+        .replace(/sk-[A-Za-z0-9_-]{8,}/gu, '[REDACTED_KEY]')
+        .replace(/Bearer\s+\S+/giu, 'Bearer [REDACTED]');
+      output.add(`${path}=${sanitized.slice(0, 240)}`);
+    } else if (entry && typeof entry === 'object') {
+      stableDiagnostics(entry, path, depth + 1, output);
+    }
+  }
+  return output;
+}
+
+export function assertTerminalSubmission(
+  caseId: string,
+  submission: TraceSubmission | undefined,
+  events: SessionEventLike[],
+): asserts submission is TraceSubmission {
+  if (submission) return;
+  const eventTypes = [...new Set(events.map((event) => event.type))].join(',');
+  const diagnostics = [...stableDiagnostics(events
+    .filter((event) => event.type === 'assistant/chunk' || event.type === 'turn/end')
+    .map((event) => event.data))].join(';');
+  throw new Error(
+    `DSH case ${caseId} ended without ${'submit_agent_trace'}; `
+    + `diagnostics=${diagnostics || 'none'}; events=${eventTypes || 'none'}`,
+  );
+}
+
 function callable<T>(value: unknown, label: string): T {
   if (typeof value !== 'function') throw new TypeError(`DSH module missing ${label}`);
   return value as T;
@@ -47,15 +79,17 @@ export async function loadDshRuntime(dshRoot: string) {
     SessionId: callable<(id: string) => unknown>(session.SessionId, 'SessionId'),
     SystemPrompt: callable<any>(systemPrompt.default, 'SystemPrompt'),
     ToolRuntime: callable<any>(tools.default, 'ToolRuntime'),
+    defineTool: callable<(definition: Record<string, unknown>) => Record<string, unknown>>(tools.defineTool, 'defineTool'),
     AgentRegistry: callable<any>(agent.default, 'AgentRegistry'),
     AgentLoop: callable<any>(agentLoop.default, 'AgentLoop'),
     DeepSeekPlugin: deepseek,
   };
 }
 
-function waitForIdle(ctx: any, subject: any, timeoutMs: number): Promise<void> {
+export function waitForAgentCycle(ctx: any, subject: any, timeoutMs: number): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     let settled = false;
+    let sawRunning = false;
     const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
@@ -64,7 +98,9 @@ function waitForIdle(ctx: any, subject: any, timeoutMs: number): Promise<void> {
       }
     }, timeoutMs);
     const dispose = ctx.on('agent/status', ({ agent, status }: { agent: unknown; status: string }) => {
-      if (!settled && agent === subject && status === 'idle') {
+      if (agent !== subject || settled) return;
+      if (status === 'running') sawRunning = true;
+      if (sawRunning && status === 'idle') {
         settled = true;
         clearTimeout(timer);
         dispose();
@@ -101,6 +137,7 @@ export async function runDshCase(options: {
     });
     installCompanionEvalPlugin(ctx, {
       testCase: options.testCase,
+      defineTool: runtime.defineTool,
       executeMarket: async () => structuredClone(options.marketFixture),
       acceptSubmission: (value) => { submission = value; },
     });
@@ -112,13 +149,16 @@ export async function runDshCase(options: {
       if (observed) toolResults.push(observed);
     });
     const agent = ctx.agentLoop.create(sessionId, { provider: 'deepseek-official', model: 'deepseek-v4-flash' });
-    const idle = waitForIdle(ctx, agent, options.timeoutMs ?? 180_000);
+    // Agent creation publishes an initial idle state. Completion is valid only
+    // after this submitted follow-up has crossed the running -> idle cycle.
+    const idle = waitForAgentCycle(ctx, agent, options.timeoutMs ?? 180_000);
     const startedAt = Date.now();
     agent.followup(runtime.createUserMessage({
       content: [{ type: 'text', text: options.testCase.prompt }],
       source: { kind: 'user' },
     }));
     await idle;
+    assertTerminalSubmission(options.testCase.id, submission, events);
     const trace = createAgentTraceFromDsh({
       caseId: options.testCase.id,
       events,

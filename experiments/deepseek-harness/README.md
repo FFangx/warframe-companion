@@ -25,3 +25,5 @@ npm run eval
 ```
 
 无凭据时命令不会发起模型请求，会生成 `reports/comparison.json` 与 `comparison.md` 的明确阻塞记录并返回非零状态；不得把该记录称为模型成绩。凭据存在时才生成逐 case `traces.json`、模型基线和三方对比报告。
+
+2026-08-14 的首轮固定候选已完成：`deepseek-official/deepseek-v4-flash` 在同一 30 条用例上为 0/30、20.22%。报告中的模型调用是真实请求，Market 数据仍是合成 fixture，`latencyMs` 是每条完整 case 的真实墙钟时间。该低分基线保留了终态决策、精确事实/证据与延迟契约的真实差距，没有针对评估 expected 重写提示词后重复运行。

@@ -31,26 +31,24 @@ const evidenceSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    scope: { type: 'string', enum: ['current_market', 'personal_snapshot'] },
-    evidenceType: { type: 'string', enum: ['direct_snapshot', 'local_snapshot'] },
-    asOf: { type: 'string' },
-    expiresAt: { type: 'string' },
-    freshness: { type: 'string', enum: ['fresh', 'stale'] },
-    finding: { type: 'string', enum: ['confirmed_present', 'confirmed_absent_in_scope', 'unavailable'] },
-    source: { type: 'string', enum: ['warframe.market', 'synthetic.local'] },
+    scope: { type: 'string', required: true, enum: ['current_market', 'personal_snapshot'] },
+    evidenceType: { type: 'string', required: true, enum: ['direct_snapshot', 'local_snapshot'] },
+    asOf: { type: 'string', required: true },
+    expiresAt: { type: 'string', required: true },
+    freshness: { type: 'string', required: true, enum: ['fresh', 'stale'] },
+    finding: { type: 'string', required: true, enum: ['confirmed_present', 'confirmed_absent_in_scope', 'unavailable'] },
+    source: { type: 'string', required: true, enum: ['warframe.market', 'synthetic.local'] },
   },
-  required: ['scope', 'evidenceType', 'asOf', 'expiresAt', 'freshness', 'finding', 'source'],
 } as const;
 
 const factSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    key: { type: 'string' },
-    value: { oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }] },
+    key: { type: 'string', required: true },
+    value: { oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }], required: true },
     evidence: evidenceSchema,
   },
-  required: ['key', 'value'],
 } as const;
 
 function jsonOutput(description: string) {
@@ -93,7 +91,7 @@ export function createSubmitToolDefinition(
     output: {
       schema: {
         type: 'object', additionalProperties: false,
-        properties: { accepted: { type: 'boolean' } }, required: ['accepted'],
+        properties: { accepted: { type: 'boolean', required: true } },
       },
       render: () => [{ type: 'text', text: 'Structured trace accepted.' }],
     },
@@ -131,11 +129,13 @@ export function installCompanionEvalPlugin(ctx: ContextLike, options: {
   testCase: AgentEvalCase;
   executeMarket: (args: Record<string, unknown>) => Promise<unknown>;
   acceptSubmission: (submission: TraceSubmission) => void;
+  defineTool?: (definition: Record<string, unknown>) => Record<string, unknown>;
 }): void {
-  ctx.tools.register(createMarketToolDefinition(options.executeMarket));
-  ctx.tools.register(createSubmitToolDefinition(options.acceptSubmission));
+  const define = options.defineTool ?? ((definition: Record<string, unknown>) => definition);
+  ctx.tools.register(define(createMarketToolDefinition(options.executeMarket)));
+  ctx.tools.register(define(createSubmitToolDefinition(options.acceptSubmission)));
   for (const logicalName of options.testCase.availableTools) {
-    if (logicalName !== 'market.query') ctx.tools.register(createDeniedToolDefinition(logicalName));
+    if (logicalName !== 'market.query') ctx.tools.register(define(createDeniedToolDefinition(logicalName)));
   }
   ctx.tools.guard((execution) => policyReason(options.testCase, execution.name));
   ctx.systemPrompt?.section({

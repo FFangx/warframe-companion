@@ -1,6 +1,6 @@
 # DeepSeek Harness 旁路调研与集成基线
 
-> 状态：Session 8 已完成上游审计和边界设计；Session 9 已实现隔离 Companion 插件、门禁、事件适配器与 keyless 预检。当前环境缺少模型凭据，尚未运行真实模型评估。日期：2026-08-14。
+> 状态：Session 8 已完成上游审计和边界设计；Session 9 已完成隔离 Companion 插件、门禁、事件适配器、keyless 预检与固定候选的 30 条真实模型评估。日期：2026-08-14。
 
 ## 固定的上游基线
 
@@ -99,7 +99,7 @@ AgentTrace ──> 现有确定性 runner ──> JSON/Markdown 对比报告
 
 ## 凭据与运行隔离
 
-本轮不接 API Key。下一 Session 若运行真实模型，只允许 DSH 官方 credentials/env provider 在进程内读取既有 `DEEPSEEK_API_KEY` 或显式配置的凭据引用；Companion 代码、fixture、报告、命令输出和记忆文件均不得复制或记录凭据。运行前先做凭据存在性布尔检查，不回显值。
+真实模型运行只允许 DSH 官方 credentials/env provider 在进程内读取既有 `DEEPSEEK_API_KEY` 或显式配置的凭据引用；Companion 代码、fixture、报告、命令输出和记忆文件均不得复制或记录凭据。本轮只做了凭据存在性布尔检查，没有回显值；生成的报告与轨迹也不包含凭据。
 
 使用专用临时 `DSH_HOME` 或仓库忽略的实验状态目录，避免污染用户的普通 DSH profile。每个 case 使用全新 session；禁用 shell、文件写入、subagent、workflow、skills、网络搜索和自修改插件，只挂载模型、会话、Agent、Market 合成工具、门禁和轨迹导出所需的最小树。
 
@@ -109,11 +109,11 @@ DSH 根仓库和 222 个 DSH 包声明 MIT，完整第三方声明位于上游 `
 
 若下一 Session 复制、修改或分发 DSH 的实质源码，必须保留 DeepSeek 的 MIT 版权与许可文本，并重新生成/核对第三方声明。优先采用外置插件和公开包依赖，避免 vendoring；实验 lockfile 必须记录具体 tarball integrity。
 
-## Session 9 实现状态与完成条件
+## Session 9 实现状态与真实模型结果
 
-隔离实现已位于 `experiments/deepseek-harness/`，拥有独立 manifest/lockfile、合成 Market fixture、外置工具/策略、终态结构化提交、事件适配器、keyless 测试、真实 DSH 组合预检和对比报告生成器。当前 `reports/comparison.*` 的状态是 `blocked_no_credential`：没有发起模型请求，也没有伪造轨迹或成绩。
+隔离实现位于 `experiments/deepseek-harness/`，拥有独立 manifest/lockfile、合成 Market fixture、外置工具/策略、终态结构化提交、事件适配器、keyless 测试、真实 DSH 组合预检和对比报告生成器。`reports/comparison.*` 当前状态为 `completed`，并保留逐 case 结构化轨迹。
 
-Session 9 仍未完成，因为第 2 条需要真实模型凭据。完整完成条件：
+完成情况：
 
 1. keyless 单元测试证明 Market 映射、门禁、事件到 `AgentTrace` 的转换以及敏感信息扫描。
 2. 使用原 30 条用例运行一次固定 DSH/DeepSeek 候选，生成逐 case trace 与 JSON/Markdown 报告。
@@ -121,4 +121,6 @@ Session 9 仍未完成，因为第 2 条需要真实模型凭据。完整完成�
 4. 报告清楚区分真实模型、合成 Market、真实墙钟延迟和未验证项。
 5. 不修改桌面 `agent-runtime`、OpenClaw、WFInfo、个人数据或任何外部渠道。
 
-凭据可用后，从实验目录运行 `npm run eval` 即可继续；驱动器会重新核对固定 DSH commit，然后逐条运行原始 30 条用例。报告中的模型请求、合成 Market fixture 和真实墙钟延迟继续明确分开。
+固定候选为 DSH `0.1.0-rc.5` / commit `47f943859bef60e4160492346772ded9b24f765a`、`deepseek-official/deepseek-v4-flash`。首轮结果为 **0/30、20.22%**：工具选择 30.00%，参数落地 9.09%，事实正确 20.00%，证据合规 0%，权限安全 66.67%，效率 10.00%。完整运行约 123 秒，逐 case 墙钟延迟约 1.2–11.8 秒。
+
+低分不是空跑：驱动器要求观察到 Agent 从 `running` 回到 `idle`，且缺失 `submit_agent_trace` 时直接失败；工具调用来自持久事件，终态来自 schema 约束提交。主要差距是调用 Market 后提交 `answer` 而契约要求 `call_tool`、生成评估集未声明的额外事实、没有精确复现所需证据事实，以及真实模型延迟超过为本地确定性 Harness 设定的预算。为保留可比较的诚实首份模型基线，本轮没有读取 expected 来定向改写提示词并重复刷分。

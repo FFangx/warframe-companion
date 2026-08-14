@@ -118,6 +118,6 @@ DeepSeek Harness 在 Developer Preview 阶段只做隔离实验，不成为第�
 - React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
 - `packages/agent-eval` 已建立首批 30 条合成/脱敏评估、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；覆盖工具路由、参数、事实、证据、权限与效率。参考基线只验证评估器上界，不代表真实模型表现。
 - `packages/agent-runtime` 已实现桌面生产与 eval 共用的确定性 Agent Harness：公开市场工具编排、参数澄清、权限拒绝、流式事件和 `AgentTrace` 导出。桌面通过受限 IPC 展示同一路径的工具轨迹；评估包以合成工具结果驱动该 Runtime，生成首份非 oracle Harness 基线。
-- DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检已通过；它不进入桌面生产依赖，也不修改 DSH `agent-loop`。当前缺少模型凭据，尚无真实 DeepSeek 成绩。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
+- DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 `deepseek-v4-flash` 基线为 0/30、20.22%，暴露终态决策、精确事实/证据和延迟契约差距。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
 - 最小 Agent 对话已经实现；当前不包含 LLM、OpenClaw/DeepSeek 适配、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。

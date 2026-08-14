@@ -25,4 +25,4 @@ npm run eval --workspace @warframe-companion/agent-eval
 
 ## DeepSeek Harness 旁路候选
 
-`experiments/deepseek-harness` 已实现隔离工具、可信上下文门禁、终态结构化提交和正式事件到本包 `AgentTrace` 的适配器，并继续读取同一 30 条用例和 `evaluateAgentTraces()`。keyless 单测与固定 DSH 运行时预检已通过；当前只因没有 `DEEPSEEK_API_KEY` 而未运行真实模型，报告不得把阻塞状态称为成绩。具体边界、版本、凭据和报告要求见 [`docs/DEEPSEEK_HARNESS_BASELINE.md`](../../docs/DEEPSEEK_HARNESS_BASELINE.md) 与[实验说明](../../experiments/deepseek-harness/README.md)。
+`experiments/deepseek-harness` 已实现隔离工具、可信上下文门禁、终态结构化提交和正式事件到本包 `AgentTrace` 的适配器，并继续读取同一 30 条用例和 `evaluateAgentTraces()`。keyless 单测、固定 DSH 运行时预检和首轮真实 `deepseek-v4-flash` 评估均已完成；模型基线为 0/30、20.22%，其中权限安全为 66.67%，其余差距保留为真实结果而未针对 expected 调参刷分。具体边界、版本、凭据和报告要求见 [`docs/DEEPSEEK_HARNESS_BASELINE.md`](../../docs/DEEPSEEK_HARNESS_BASELINE.md) 与[实验说明](../../experiments/deepseek-harness/README.md)。

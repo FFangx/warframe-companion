@@ -26,6 +26,7 @@ try {
   });
   installCompanionEvalPlugin(ctx, {
     testCase,
+    defineTool: runtime.defineTool,
     executeMarket: async () => ({ ok: true, synthetic: true }),
     acceptSubmission: () => {},
   });

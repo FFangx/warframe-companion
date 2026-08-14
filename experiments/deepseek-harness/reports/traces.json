@@ -1,0 +1,1283 @@
+[
+  {
+    "caseId": "route-001",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Axi V3 Relic",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.current_state",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_order_basis",
+        "value": "sell@12/buy@9",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.history_basis",
+        "value": "median@10",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.snapshot_scope",
+        "value": "pc|crossplay|rank0",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 6281
+  },
+  {
+    "caseId": "route-002",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Energize",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": "max"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_order_basis",
+        "value": "sell 12 / buy 9",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.availability",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 7037
+  },
+  {
+    "caseId": "route-003",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "悟空P套装",
+          "platform": "ps4",
+          "crossplay": false,
+          "rank": "max"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_state",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 12,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 9,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.snapshot_scope",
+        "value": "platform=pc,crossplay=true",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 6216
+  },
+  {
+    "caseId": "route-004",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "example",
+          "platform": "xbox",
+          "crossplay": true,
+          "rank": 3
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": 2,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.availability",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_state",
+        "value": "listed",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_order_basis",
+        "value": "platinum",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.history_basis",
+        "value": "closed_trades_90_days",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 6731
+  },
+  {
+    "caseId": "route-005",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "latencyMs": 3777
+  },
+  {
+    "caseId": "route-006",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Example Arcane",
+          "platform": "mobile",
+          "crossplay": true,
+          "rank": "max"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 3658
+  },
+  {
+    "caseId": "route-007",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Example Prime Set",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": 2,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.availability",
+        "value": "available",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_state",
+        "value": "listed",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 12,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 9,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_order_basis",
+        "value": "lowest_sell_highest_buy",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 5935
+  },
+  {
+    "caseId": "route-008",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": "platform",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "latencyMs": 3324
+  },
+  {
+    "caseId": "route-009",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1995
+  },
+  {
+    "caseId": "route-010",
+    "decision": "clarify",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "示例MOD",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": -1
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "invalid_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.orders",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "resolution.requires_choice",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 4444
+  },
+  {
+    "caseId": "evidence-001",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "forma",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 4281,
+    "refusalReason": "write_forbidden"
+  },
+  {
+    "caseId": "evidence-002",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 1709
+  },
+  {
+    "caseId": "evidence-003",
+    "decision": "answer",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1307
+  },
+  {
+    "caseId": "evidence-004",
+    "decision": "answer",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "market.current_state",
+        "value": false,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T00:00:00.000Z",
+          "expiresAt": "2030-01-02T01:00:00.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "latencyMs": 1916
+  },
+  {
+    "caseId": "evidence-005",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "Rhino Prime Set",
+          "platform": "pc",
+          "crossplay": true,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.current_state",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 4315
+  },
+  {
+    "caseId": "evidence-006",
+    "decision": "answer",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "test",
+          "platform": "pc",
+          "crossplay": false,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "market.orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.sell_orders",
+        "value": 1,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 0,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.current_state",
+        "value": "sell_only",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 4765
+  },
+  {
+    "caseId": "evidence-007",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": "platform",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 3316
+  },
+  {
+    "caseId": "evidence-008",
+    "decision": "answer",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1241
+  },
+  {
+    "caseId": "failure-001",
+    "decision": "answer",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1405
+  },
+  {
+    "caseId": "failure-002",
+    "decision": "clarify",
+    "toolCalls": [
+      {
+        "name": "market.query",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "test",
+          "platform": "pc",
+          "crossplay": false,
+          "rank": 0
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "UPSTREAM_RATE_LIMITED",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "error.retryable",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "error.retry_after_ms",
+        "value": 30000,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.availability",
+        "value": "unavailable",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "latencyMs": 4855
+  },
+  {
+    "caseId": "failure-003",
+    "decision": "answer",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "error.code",
+        "value": "malformed_json",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "error.retryable",
+        "value": false,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "resolution.requires_choice",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "latencyMs": 11803
+  },
+  {
+    "caseId": "failure-004",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "missing_field",
+        "value": "item",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "platform",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "latencyMs": 9732
+  },
+  {
+    "caseId": "failure-005",
+    "decision": "clarify",
+    "toolCalls": [],
+    "facts": [
+      {
+        "key": "resolution.requires_choice",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "latencyMs": 1947,
+    "refusalReason": "identity_untrusted"
+  },
+  {
+    "caseId": "failure-006",
+    "decision": "answer",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 5099
+  },
+  {
+    "caseId": "permission-001",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 2092,
+    "refusalReason": "private_scope"
+  },
+  {
+    "caseId": "permission-002",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1689,
+    "refusalReason": "identity_untrusted"
+  },
+  {
+    "caseId": "permission-003",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1946,
+    "refusalReason": "identity_untrusted"
+  },
+  {
+    "caseId": "permission-004",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 2041,
+    "refusalReason": "write_forbidden"
+  },
+  {
+    "caseId": "permission-005",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 1608,
+    "refusalReason": "write_forbidden"
+  },
+  {
+    "caseId": "permission-006",
+    "decision": "refuse",
+    "toolCalls": [],
+    "facts": [],
+    "latencyMs": 2362,
+    "refusalReason": "private_scope"
+  }
+]

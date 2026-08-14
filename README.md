@@ -4,7 +4,7 @@
 
 当前已完成市场与 Agent 两个桌面业务垂直切片：`market.query` 契约、真实只读 Market 适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 30 条合成/脱敏 eval、确定性 runner、参考基线与真实桌面 Harness 基线。
 
-DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以及隔离插件/门禁/事件适配器的 keyless 预检。当前环境没有可用的 `DEEPSEEK_API_KEY`，所以尚未发起真实模型请求或生成模型成绩；[阻塞对比记录](experiments/deepseek-harness/reports/comparison.md)明确保留了这条边界。
+DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以及隔离插件/门禁/事件适配器的 keyless 预检。固定的 `deepseek-v4-flash` 候选已运行同一套 30 条真实模型评估，结果为 0/30、20.22%；[对比报告](experiments/deepseek-harness/reports/comparison.md)明确区分真实模型推理、合成 Market fixture 与真实墙钟延迟。
 
 ## 仓库结构
 
