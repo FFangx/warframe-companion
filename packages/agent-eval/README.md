@@ -22,3 +22,7 @@ npm run eval --workspace @warframe-companion/agent-eval
 同一命令还会生成 `desktop-harness-traces.json`、`desktop-harness-baseline.json` 与 `desktop-harness-baseline.md`。这些文件来自桌面生产 `agent-runtime` 的真实编排路径，工具响应仍为合成夹具。首份基线保留真实失败，不把缺失参数静默补成桌面默认值；它是确定性 Harness 成绩，不是 LLM 成绩。
 
 全部 prompt、时间、身份和事实均为合成值；不得用真实聊天、QQ/账号标识、原始个人快照、令牌或本机日志替换。
+
+## DeepSeek Harness 旁路候选
+
+Session 8 已固定并验证官方 DeepSeek Harness 上游，但尚未运行真实模型。下一候选必须通过隔离插件与评估驱动器输出本包现有 `AgentTrace`，继续使用同一 30 条用例和 `evaluateAgentTraces()`；不得解析 headless CLI 文本或为候选改写 expected。具体边界、版本、凭据和报告要求见 [`docs/DEEPSEEK_HARNESS_BASELINE.md`](../../docs/DEEPSEEK_HARNESS_BASELINE.md)。

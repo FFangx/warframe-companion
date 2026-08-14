@@ -4,6 +4,8 @@
 
 当前已完成市场与 Agent 两个桌面业务垂直切片：`market.query` 契约、真实只读 Market 适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 30 条合成/脱敏 eval、确定性 runner、参考基线与真实桌面 Harness 基线。
 
+DeepSeek Harness 已完成固定上游提交的独立审计、原样构建和无密钥最小运行；当前仅形成[旁路调研与集成基线](docs/DEEPSEEK_HARNESS_BASELINE.md)，尚未接入桌面运行时或生成真实模型成绩。
+
 ## 仓库结构
 
 ```text
@@ -41,4 +43,5 @@ npm run start -w @warframe-companion/desktop
 
 - `openclaw-warframe-assistant`：当前生产 QQ/OpenClaw 渠道适配与运行时 Skill。
 - `WFInfo-CN-DPI-Fix`：WFInfo 独立程序及其游戏内奖励辅助能力。
+- `deepseek-harness`：与本仓库同级的固定上游调研副本；仅用于旁路插件实验，不是桌面稳定链路依赖。
 - 本仓库：共享契约、应用服务、桌面应用和 Agent 评估体系。
