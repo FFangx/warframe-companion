@@ -11,6 +11,7 @@ import {
 } from '@warframe-companion/market-query-contract/mocks';
 import type { MarketQueryResult } from '@warframe-companion/market-query-contract';
 import type { AgentEvalCase } from './index.js';
+import type { DropSearchResult } from '@warframe-companion/warframe-data-service';
 
 const MODE_BY_ID: Record<string, AgentFactMode> = {
   'evidence-001': 'orders', 'evidence-002': 'absent', 'evidence-003': 'unavailable',
@@ -58,6 +59,37 @@ function evidenceResult(testCase: AgentEvalCase): MarketQueryResult {
 }
 
 export async function createDesktopHarnessTrace(testCase: AgentEvalCase): Promise<AgentTrace> {
+  const isDrop = testCase.id.startsWith('drops-');
+  if (isDrop) {
+    const evidence = testCase.expected.facts?.find((entry) => entry.evidence)?.evidence;
+    const result: DropSearchResult = testCase.id === 'drops-failure-002' ? {
+      contractVersion: '1.1', ok: false,
+      error: { code: 'SOURCE_UNAVAILABLE', message: '合成公共掉落源不可用。', retryable: true },
+    } : testCase.id === 'drops-failure-001' ? {
+      contractVersion: '1.1', ok: false,
+      error: { code: 'SOURCE_TOO_OLD', message: '合成公共掉落源过旧。', retryable: true },
+      evidence: evidence as NonNullable<Extract<DropSearchResult, { ok: false }>['evidence']>,
+    } : {
+      contractVersion: '1.1', ok: true,
+      data: {
+        requestedItem: String(testCase.expected.arguments?.item), resolvedItem: 'Synthetic Drop Item', match: 'exact', totalDrops: 3,
+        drops: [{ place: 'Synthetic Node (Rotation C)', chance: 12.5, rarity: 'Rare' }],
+      },
+      evidence: (evidence ?? {
+        scope: 'static_drop_table', evidenceType: 'versioned_public_snapshot', asOf: '2030-01-01T00:00:00.000Z',
+        loadedAt: '2030-01-02T03:00:00.000Z', expiresAt: '2030-01-02T03:09:05.000Z', freshness: 'fresh', cacheFreshness: 'fresh',
+        sourceAge: { ageMs: 97_445_000, status: 'current', warningAfterMs: 2_592_000_000, rejectAfterMs: 7_776_000_000 },
+        finding: 'confirmed_present', source: 'wfcd.drop-data', sourceHash: 'synthetic-drop-hash', selectedEndpoint: 'wfcd.jsdelivr',
+        alternativeComparison: { checkedAt: '2030-01-02T03:00:00.000Z', status: 'matched', preferred: 'primary', reason: 'same_hash', primaryHash: 'synthetic-primary', alternativeHash: 'synthetic-primary' },
+      }) as Extract<DropSearchResult, { ok: true }>['evidence'],
+      warnings: [],
+    };
+    const run = await runDesktopAgent({ requestId: testCase.id, message: testCase.prompt, context: testCase.context }, {
+      marketQuery: async () => { throw new Error('market.query must not be called for drop eval'); },
+      searchDrops: async () => result,
+    });
+    return run.trace;
+  }
   const isEvidence = testCase.category === 'evidence';
   const isFailure = testCase.category === 'failure-degradation';
   const result = isEvidence ? evidenceResult(testCase)

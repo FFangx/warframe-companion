@@ -77,7 +77,7 @@ export interface EvalSummary {
   limitations: string[];
 }
 
-export { FIRST_AGENT_EVAL_CASES } from './cases.js';
+export { DROP_AGENT_EVAL_CASES, FIRST_AGENT_EVAL_CASES } from './cases.js';
 export { createReferenceTrace } from './reference-baseline.js';
 export { createDesktopHarnessTrace } from './desktop-harness-baseline.js';
 export { evaluateAgentTraces, renderMarkdownReport } from './runner.js';

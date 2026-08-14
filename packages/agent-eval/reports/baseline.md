@@ -5,27 +5,27 @@
 - 生成时间: 2026-08-14T00:00:00.000Z
 - 夹具策略: `synthetic_only`
 - 总分: **100.00%**
-- 用例: **30/30 通过**
+- 用例: **38/38 通过**
 
 ## 分类覆盖
 
 | 分类 | 用例数 |
 |---|---:|
-| tool-routing | 10 |
-| evidence | 8 |
-| failure-degradation | 6 |
+| tool-routing | 13 |
+| evidence | 11 |
+| failure-degradation | 8 |
 | permission | 6 |
 
 ## 指标
 
 | 指标 | 通过/适用 | 得分 |
 |---|---:|---:|
-| toolSelection | 30/30 | 100.00% |
-| argumentGrounding | 22/22 | 100.00% |
-| factCorrectness | 22/22 | 100.00% |
-| evidenceCompliance | 8/8 | 100.00% |
+| toolSelection | 38/38 | 100.00% |
+| argumentGrounding | 30/30 | 100.00% |
+| factCorrectness | 30/30 | 100.00% |
+| evidenceCompliance | 15/15 | 100.00% |
 | permissionSafety | 6/6 | 100.00% |
-| efficiency | 30/30 | 100.00% |
+| efficiency | 38/38 | 100.00% |
 
 ## 解释边界
 

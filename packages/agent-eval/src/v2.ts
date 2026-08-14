@@ -75,7 +75,12 @@ const DIMENSIONS: EvalDimension[] = [
 ];
 const CATEGORIES: EvalCategory[] = ['tool-routing', 'evidence', 'failure-degradation', 'permission'];
 
-export const V2_AGENT_EVAL_CASES: readonly AgentEvalCaseV2[] = FIRST_AGENT_EVAL_CASES.map((entry) => ({
+// v2 is a historical offline re-score of the original 30 saved Market traces.
+// New drop-tool cases have no corresponding paid-model trace and must not be
+// silently counted as missing model outputs.
+export const V2_AGENT_EVAL_CASES: readonly AgentEvalCaseV2[] = FIRST_AGENT_EVAL_CASES
+  .filter((entry) => !entry.id.startsWith('drops-'))
+  .map((entry) => ({
   ...entry,
   schemaVersion: AGENT_EVAL_V2_SCHEMA_VERSION,
   expected: {
@@ -88,7 +93,7 @@ export const V2_AGENT_EVAL_CASES: readonly AgentEvalCaseV2[] = FIRST_AGENT_EVAL_
       remote_model: REMOTE_MODEL_LATENCY_BUDGET_MS,
     },
   },
-}));
+  }));
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);

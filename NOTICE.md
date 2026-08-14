@@ -10,3 +10,8 @@ The read-only local drop-data adapter uses the WFCD `warframe-drop-data` dataset
 which is distributed under the MIT License and is derived from Digital Extremes'
 official drop tables. The adapter downloads and caches a validated snapshot at
 runtime; the dataset itself is not included in this repository.
+
+The bilingual drop aliases in `packages/warframe-data-service/src/drop-aliases.ts`
+are original, project-maintained metadata distributed under this repository's MIT
+License. They are not copied from the unlicensed localization export previously
+considered for ingestion.

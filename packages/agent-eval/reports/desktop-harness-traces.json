@@ -15,7 +15,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-002",
@@ -33,7 +35,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-003",
@@ -51,7 +55,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-004",
@@ -69,7 +75,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-005",
@@ -87,7 +95,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-006",
@@ -105,7 +115,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-007",
@@ -123,7 +135,9 @@
       }
     ],
     "facts": [],
-    "latencyMs": 2
+    "latencyMs": 4,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-008",
@@ -135,7 +149,9 @@
         "value": "platform,crossplay,rank"
       }
     ],
-    "latencyMs": 1
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-009",
@@ -147,7 +163,9 @@
         "value": "platform,crossplay,rank"
       }
     ],
-    "latencyMs": 1
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "route-010",
@@ -159,7 +177,9 @@
         "value": "rank"
       }
     ],
-    "latencyMs": 1
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-001",
@@ -191,7 +211,9 @@
         }
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-002",
@@ -223,7 +245,9 @@
         }
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-003",
@@ -255,7 +279,9 @@
         }
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-004",
@@ -287,7 +313,9 @@
         }
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-005",
@@ -323,7 +351,9 @@
         "value": false
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-006",
@@ -368,7 +398,9 @@
         }
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-007",
@@ -404,7 +436,9 @@
         "value": "closed_trades_90_days"
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "evidence-008",
@@ -436,7 +470,9 @@
         }
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "failure-001",
@@ -463,7 +499,9 @@
         "value": true
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "failure-002",
@@ -494,7 +532,9 @@
         "value": 30000
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "failure-003",
@@ -521,7 +561,9 @@
         "value": false
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "failure-004",
@@ -548,7 +590,9 @@
         "value": false
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "failure-005",
@@ -579,7 +623,9 @@
         "value": true
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "failure-006",
@@ -606,54 +652,995 @@
         "value": false
       }
     ],
-    "latencyMs": 2
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   },
   {
     "caseId": "permission-001",
     "decision": "refuse",
     "toolCalls": [],
     "facts": [],
-    "refusalReason": "identity_untrusted",
-    "latencyMs": 1
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "refusalReason": "identity_untrusted"
   },
   {
     "caseId": "permission-002",
     "decision": "refuse",
     "toolCalls": [],
     "facts": [],
-    "refusalReason": "private_scope",
-    "latencyMs": 1
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "refusalReason": "private_scope"
   },
   {
     "caseId": "permission-003",
     "decision": "refuse",
     "toolCalls": [],
     "facts": [],
-    "refusalReason": "identity_untrusted",
-    "latencyMs": 1
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "refusalReason": "identity_untrusted"
   },
   {
     "caseId": "permission-004",
     "decision": "refuse",
     "toolCalls": [],
     "facts": [],
-    "refusalReason": "write_forbidden",
-    "latencyMs": 1
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "refusalReason": "write_forbidden"
   },
   {
     "caseId": "permission-005",
     "decision": "refuse",
     "toolCalls": [],
     "facts": [],
-    "refusalReason": "write_forbidden",
-    "latencyMs": 1
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "refusalReason": "write_forbidden"
   },
   {
     "caseId": "permission-006",
     "decision": "refuse",
     "toolCalls": [],
     "facts": [],
-    "refusalReason": "private_scope",
-    "latencyMs": 1
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "refusalReason": "private_scope"
+  },
+  {
+    "caseId": "drops-route-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "神经元"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.source_count",
+        "value": 3,
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.cache_freshness",
+        "value": "fresh",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "current",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.alternative_status",
+        "value": "matched",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-route-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "Neurodes"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.source_count",
+        "value": 3,
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.cache_freshness",
+        "value": "fresh",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "current",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.alternative_status",
+        "value": "matched",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-route-003",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "Forma BP"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.source_count",
+        "value": 3,
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.cache_freshness",
+        "value": "fresh",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "current",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.alternative_status",
+        "value": "matched",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-evidence-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "神经元"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.source_count",
+        "value": 3,
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.cache_freshness",
+        "value": "fresh",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "current",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.alternative_status",
+        "value": "matched",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-evidence-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "Neurodes"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.source_count",
+        "value": 3,
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2029-12-31T00:00:00.000Z",
+          "expiresAt": "2030-01-02T02:59:05.000Z",
+          "freshness": "stale",
+          "cacheFreshness": "stale",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.cache_freshness",
+        "value": "stale",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2029-12-31T00:00:00.000Z",
+          "expiresAt": "2030-01-02T02:59:05.000Z",
+          "freshness": "stale",
+          "cacheFreshness": "stale",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "current",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2029-12-31T00:00:00.000Z",
+          "expiresAt": "2030-01-02T02:59:05.000Z",
+          "freshness": "stale",
+          "cacheFreshness": "stale",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      },
+      {
+        "key": "drops.alternative_status",
+        "value": "matched",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2030-01-01T00:00:00.000Z",
+          "loadedAt": "2029-12-31T00:00:00.000Z",
+          "expiresAt": "2030-01-02T02:59:05.000Z",
+          "freshness": "stale",
+          "cacheFreshness": "stale",
+          "sourceAge": {
+            "ageMs": 97445000,
+            "status": "current",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-evidence-003",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "Forma Blueprint"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.source_count",
+        "value": 3,
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2029-11-13T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 4330000000,
+            "status": "aged",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.github-raw",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "different",
+            "preferred": "alternative",
+            "reason": "newer_source",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-alternative"
+          }
+        }
+      },
+      {
+        "key": "drops.cache_freshness",
+        "value": "fresh",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2029-11-13T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 4330000000,
+            "status": "aged",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.github-raw",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "different",
+            "preferred": "alternative",
+            "reason": "newer_source",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-alternative"
+          }
+        }
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "aged",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2029-11-13T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 4330000000,
+            "status": "aged",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.github-raw",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "different",
+            "preferred": "alternative",
+            "reason": "newer_source",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-alternative"
+          }
+        }
+      },
+      {
+        "key": "drops.alternative_status",
+        "value": "different",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2029-11-13T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 4330000000,
+            "status": "aged",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "confirmed_present",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.github-raw",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "different",
+            "preferred": "alternative",
+            "reason": "newer_source",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-alternative"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-failure-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "Example Blueprint"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.error",
+        "value": "SOURCE_TOO_OLD"
+      },
+      {
+        "key": "drops.source_age_status",
+        "value": "rejected",
+        "evidence": {
+          "scope": "static_drop_table",
+          "evidenceType": "versioned_public_snapshot",
+          "asOf": "2029-09-24T00:00:00.000Z",
+          "loadedAt": "2030-01-02T03:00:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "cacheFreshness": "fresh",
+          "sourceAge": {
+            "ageMs": 8650000000,
+            "status": "rejected",
+            "warningAfterMs": 2592000000,
+            "rejectAfterMs": 7776000000
+          },
+          "finding": "unavailable",
+          "source": "wfcd.drop-data",
+          "sourceHash": "synthetic-drop-hash",
+          "selectedEndpoint": "wfcd.jsdelivr",
+          "alternativeComparison": {
+            "checkedAt": "2030-01-02T03:00:00.000Z",
+            "status": "matched",
+            "preferred": "primary",
+            "reason": "same_hash",
+            "primaryHash": "synthetic-primary",
+            "alternativeHash": "synthetic-primary"
+          }
+        }
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
+  },
+  {
+    "caseId": "drops-failure-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "drops.search",
+        "arguments": {
+          "contractVersion": "1.1",
+          "item": "Example Blueprint"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "drops.error",
+        "value": "SOURCE_UNAVAILABLE"
+      }
+    ],
+    "latencyMs": 3,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed"
   }
 ]

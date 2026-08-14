@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentTrace, EvalSummary } from './index.js';
+import { FIRST_AGENT_EVAL_CASES, evaluateAgentTraces, type AgentTrace, type EvalSummary } from './index.js';
 import {
   V2_AGENT_EVAL_CASES,
   auditAgentTracesV2,
@@ -62,20 +62,27 @@ function auditMarkdown(audits: TraceAuditV2[]): string {
     + `## 逐条问题\n\n| Case | 审核结论 |\n|---|---|\n${details || '| — | 未发现 |'}\n`;
 }
 
-const [v1Remote, v1Desktop, remoteTraces, desktopTraces] = await Promise.all([
+const [v1Remote, remoteTraces, desktopTraces] = await Promise.all([
   json<EvalSummary>(resolve(experimentReports, 'baseline.json')),
-  json<EvalSummary>(resolve(packageRoot, 'reports', 'desktop-harness-baseline.json')),
   json<AgentTrace[]>(resolve(experimentReports, 'traces.json')),
   json<AgentTrace[]>(resolve(packageRoot, 'reports', 'desktop-harness-traces.json')),
 ]);
 
-const remoteV2 = evaluateAgentTracesV2(V2_AGENT_EVAL_CASES, remoteTraces, {
+const v2CaseIds = new Set(V2_AGENT_EVAL_CASES.map((entry) => entry.id));
+const legacyCases = FIRST_AGENT_EVAL_CASES.filter((entry) => v2CaseIds.has(entry.id));
+const legacyRemoteTraces = remoteTraces.filter((entry) => v2CaseIds.has(entry.caseId));
+const legacyDesktopTraces = desktopTraces.filter((entry) => v2CaseIds.has(entry.caseId));
+const v1Desktop = evaluateAgentTraces(legacyCases, legacyDesktopTraces, {
+  candidate: 'desktop-deterministic-harness-original-30', generatedAt: GENERATED_AT,
+});
+
+const remoteV2 = evaluateAgentTracesV2(V2_AGENT_EVAL_CASES, legacyRemoteTraces, {
   candidate: 'dsh-deepseek-v4-flash-existing-traces', generatedAt: GENERATED_AT, latencyClass: 'remote_model',
 });
-const desktopV2 = evaluateAgentTracesV2(V2_AGENT_EVAL_CASES, desktopTraces, {
+const desktopV2 = evaluateAgentTracesV2(V2_AGENT_EVAL_CASES, legacyDesktopTraces, {
   candidate: 'desktop-deterministic-harness-existing-traces', generatedAt: GENERATED_AT, latencyClass: 'local_harness',
 });
-const audits = auditAgentTracesV2(V2_AGENT_EVAL_CASES, remoteTraces);
+const audits = auditAgentTracesV2(V2_AGENT_EVAL_CASES, legacyRemoteTraces);
 const comparison = {
   schemaVersion: '2.0', suiteId: 'warframe-companion-agent-eval-v2', generatedAt: GENERATED_AT,
   execution: 'offline_saved_traces_only', apiCalls: 0,

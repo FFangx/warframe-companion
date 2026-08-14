@@ -23,6 +23,19 @@ export interface EvalEvidence {
   finding: 'confirmed_present' | 'confirmed_absent_in_scope' | 'unavailable';
   source: 'warframe.market' | 'synthetic.local' | 'wfcd.drop-data';
   sourceHash?: string;
+  cacheFreshness?: 'fresh' | 'stale';
+  sourceAge?: { ageMs: number; status: 'current' | 'aged' | 'rejected'; warningAfterMs: number; rejectAfterMs: number };
+  selectedEndpoint?: 'wfcd.jsdelivr' | 'wfcd.github-raw';
+  alternativeComparison?: {
+    checkedAt: string;
+    status: 'matched' | 'different' | 'primary_only' | 'alternative_only' | 'primary_payload_only' | 'alternative_payload_only' | 'not_configured';
+    preferred: 'primary' | 'alternative';
+    reason: 'same_hash' | 'newer_source' | 'hash_divergence' | 'only_available' | 'payload_fallback' | 'not_configured';
+    primaryHash?: string;
+    alternativeHash?: string;
+    primaryModifiedAt?: string;
+    alternativeModifiedAt?: string;
+  };
 }
 export interface EvalFact { key: string; value: string | number | boolean; evidence?: EvalEvidence }
 export interface ToolCallTrace { name: string; arguments: Record<string, unknown> }
@@ -245,12 +258,21 @@ function responseFor(result: MarketQueryResult): string {
 function dropResponseFor(result: DropSearchResult): string {
   if (!result.ok) {
     if (result.error.code === 'ITEM_AMBIGUOUS') return `名称不够明确：${result.error.candidates?.join('、') ?? '请补充完整英文物品名'}。`;
+    if (result.error.code === 'SOURCE_TOO_OLD' && result.evidence) {
+      return `${result.error.message} 本地缓存为${result.evidence.cacheFreshness === 'fresh' ? '新鲜缓存' : '陈旧缓存'}，但源数据年龄已达 ${Math.floor(result.evidence.sourceAge.ageMs / 86_400_000)} 天，超过 ${Math.floor(result.evidence.sourceAge.rejectAfterMs / 86_400_000)} 天门禁。`;
+    }
     return result.error.message;
   }
   const locations = result.data.drops.slice(0, 5)
     .map((drop) => `${drop.place}（${drop.chance}%）`).join('；');
   const stale = result.evidence.freshness === 'stale' ? ' 当前使用上次验证过的旧快照。' : '';
-  return `${result.data.resolvedItem} 的公开掉落表来源：${locations}。共 ${result.data.totalDrops} 条，数据版本时间 ${result.evidence.asOf}，来源 WFCD drop-data。${stale}`;
+  const alias = result.data.alias ? ` 已将${result.data.alias.language === 'zh-Hans' ? '中文' : '英文'}别名“${result.data.alias.matched}”解析为 ${result.data.alias.canonicalItem}（项目 MIT 别名表）。` : '';
+  const comparison = result.evidence.alternativeComparison.status === 'matched' ? '两个公开端点版本一致。'
+    : `替代源对照为 ${result.evidence.alternativeComparison.status}，采用${result.evidence.alternativeComparison.preferred === 'alternative' ? '替代' : '主'}端点。`;
+  const sourceAge = result.evidence.sourceAge.status === 'aged'
+    ? `源数据已 ${Math.floor(result.evidence.sourceAge.ageMs / 86_400_000)} 天未更新，只能视为版本化静态资料。`
+    : '源数据年龄通过门禁。';
+  return `${result.data.resolvedItem} 的公开掉落表来源：${locations}。共 ${result.data.totalDrops} 条，数据版本时间 ${result.evidence.asOf}，来源 WFCD drop-data。${alias} 缓存状态为${result.evidence.cacheFreshness === 'fresh' ? '新鲜' : '陈旧'}；${sourceAge}${comparison}${stale}`;
 }
 async function emit(deps: AgentRunDependencies, event: AgentStreamEvent): Promise<void> { await deps.onEvent?.(event); }
 function abortError(signal: AbortSignal): Error { return signal.reason instanceof Error ? signal.reason : new Error('cancelled'); }
@@ -306,9 +328,14 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       if (result.ok) {
         facts = [
           { key: 'drops.source_count', value: result.data.totalDrops, evidence: { ...result.evidence } },
-          { key: 'drops.snapshot_freshness', value: result.evidence.freshness, evidence: { ...result.evidence } },
+          { key: 'drops.cache_freshness', value: result.evidence.cacheFreshness, evidence: { ...result.evidence } },
+          { key: 'drops.source_age_status', value: result.evidence.sourceAge.status, evidence: { ...result.evidence } },
+          { key: 'drops.alternative_status', value: result.evidence.alternativeComparison.status, evidence: { ...result.evidence } },
         ];
-      } else facts = [{ key: 'drops.error', value: result.error.code }];
+      } else facts = [
+        { key: 'drops.error', value: result.error.code },
+        ...(result.evidence ? [{ key: 'drops.source_age_status', value: result.evidence.sourceAge.status, evidence: { ...result.evidence } } satisfies EvalFact] : []),
+      ];
       const text = dropResponseFor(result);
       await emit(deps, { type: 'status', phase: 'composing', text: '正在按静态掉落证据组织回答' });
       for (const delta of text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });

@@ -27,7 +27,12 @@ test('Warframe 掉落问题路由到本地公共数据工具并保留版本证�
       return ({
       contractVersion: '1.0', ok: true,
       data: { requestedItem: request.item, resolvedItem: 'Example Blueprint', match: 'exact', totalDrops: 1, drops: [{ place: 'Venus/Aphrodite (Capture)', chance: 8.5, rarity: 'Uncommon' }] },
-      evidence: { scope: 'static_drop_table', evidenceType: 'versioned_public_snapshot', asOf: '2030-01-01T00:00:00.000Z', loadedAt: '2030-01-02T00:00:00.000Z', expiresAt: '2030-01-03T00:00:00.000Z', freshness: 'fresh', finding: 'confirmed_present', source: 'wfcd.drop-data', sourceHash: 'synthetic' },
+      evidence: {
+        scope: 'static_drop_table', evidenceType: 'versioned_public_snapshot', asOf: '2030-01-01T00:00:00.000Z', loadedAt: '2030-01-02T00:00:00.000Z', expiresAt: '2030-01-03T00:00:00.000Z', freshness: 'fresh', cacheFreshness: 'fresh',
+        sourceAge: { ageMs: 97_445_000, status: 'current', warningAfterMs: 2_592_000_000, rejectAfterMs: 7_776_000_000 },
+        finding: 'confirmed_present', source: 'wfcd.drop-data', sourceHash: 'synthetic', selectedEndpoint: 'wfcd.jsdelivr',
+        alternativeComparison: { checkedAt: '2030-01-02T00:00:00.000Z', status: 'matched', preferred: 'primary', reason: 'same_hash', primaryHash: 'synthetic', alternativeHash: 'synthetic' },
+      },
       warnings: [],
       });
     },
@@ -36,7 +41,7 @@ test('Warframe 掉落问题路由到本地公共数据工具并保留版本证�
   assert.equal(result.trace.decision, 'call_tool');
   assert.equal(queriedItem, 'Example Blueprint');
   assert.equal(result.trace.toolCalls[0].name, 'drops.search');
-  assert.equal(result.trace.facts[0].key, 'drops.source_count');
+  assert.deepEqual(result.trace.facts.map((fact) => fact.key), ['drops.source_count', 'drops.cache_freshness', 'drops.source_age_status', 'drops.alternative_status']);
   assert.match(result.message, /WFCD drop-data/u);
   assert.ok(events.some((event) => event.type === 'tool_call' && event.name === 'drops.search'));
 });

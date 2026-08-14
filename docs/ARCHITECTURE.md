@@ -114,9 +114,10 @@ OpenClaw / DSH backend    ┘
 - `apps/desktop` 已实现 Electron/React/TypeScript/Vite 最小桌面壳。
 - `system.getHealth()` 当前通过安全 preload IPC 暴露桌面构建、OpenClaw 本机端口、WFInfo 配置路径、AlecaFrame 配置路径和 Warframe.Market 公共源的只读健康快照。
 - 桌面市场页通过独立的 `market.query()` preload IPC 调用主进程内 `market-query-service`；用户必须显式输入物品、平台、跨平台范围和等级。
-- `packages/warframe-data-service` 已实现第一条本地公共数据切片：按需验证并编译 WFCD 掉落快照，以原子 JSON 缓存和内存键索引支持 `drops.search`。刷新失败可显式返回 stale 快照；无有效掉率的源行会计数、排除并告警，不会静默当作 0。
+- `packages/warframe-data-service` 已实现第一条本地公共数据切片：按需验证并编译 WFCD 掉落快照，以原子 JSON 缓存和内存键索引支持 `drops.search`。契约分别报告 24 小时缓存新鲜度与 WFCD 源数据年龄；源数据 30 天后告警、90 天后门禁拒绝。刷新会对照同一 MIT 仓库的 jsDelivr/GitHub Raw 元数据并记录版本差异与选源。刷新失败只能在源年龄仍通过门禁时显式使用 stale 快照；无有效掉率的源行会计数、排除并告警，不会静默当作 0。
+- 公共掉落别名采用仓库自维护的中英文小表，随项目 MIT 发布并在解析结果中携带来源/许可证；未摄取无明确许可证的中文公共导出。
 - React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
-- `packages/agent-eval` 已建立首批 30 条合成/脱敏评估、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；覆盖工具路由、参数、事实、证据、权限与效率。参考基线只验证评估器上界，不代表真实模型表现。
+- `packages/agent-eval` 已建立 38 条合成/脱敏评估（原 30 条加 8 条 `drops.search`）、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；掉落用例覆盖中英文路由、缓存/源年龄分离、替代源对照、过龄拒绝与无源降级。参考基线只验证评估器上界，不代表真实模型表现。
 - `packages/agent-runtime` 已实现 Companion 自有 Harness 的模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场/掉落工具编排、取消/超时、流式事件和 `AgentTrace`。桌面可选择两个离线 profile、检查兼容性、运行/停止并查看工具证据；当前不调用任何远程模型。
 - DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 v1 `deepseek-v4-flash` 基线保持 0/30、20.22%。版本化 v2 runner 离线读取同一批 trace 后为 5/30、53.72%，并将工具后 `answer` 终态、必需/禁止事实语义和远程模型延迟预算从 v1 系统性误差中分离；无支撑事实、证据与权限门禁未放宽。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。

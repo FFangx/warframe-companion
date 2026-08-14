@@ -15,6 +15,19 @@ access. If refresh fails, a previously validated snapshot may be returned as sta
 if no snapshot exists, the source is reported unavailable. No generated game data or
 personal account data is committed to this repository.
 
+Cache freshness and source-data age are independent. Cache freshness answers whether
+the local file was loaded/refreshed inside the 24-hour cache TTL. Source age compares
+the WFCD source modification time with the query clock: after 30 days it emits an
+explicit aged-source warning, and after 90 days `drops.search` returns
+`SOURCE_TOO_OLD` even if the local cache was loaded recently. A stale cache is usable
+only while its source version remains inside that hard gate.
+
+Refresh probes metadata from jsDelivr and GitHub Raw for the same MIT-licensed WFCD
+repository. The snapshot records both hashes/timestamps, divergence, the selected
+endpoint and the comparison time. If one metadata endpoint is unavailable, the
+result explains that only one endpoint was verified; if versions differ, the newer
+source modification time wins and the divergence remains visible as a warning.
+
 The live source currently contains rows whose chance is `NaN` or `null`. Structurally
 invalid rows still reject a refresh; rows with an otherwise valid identity but no
 numeric chance are explicitly counted, excluded, persisted in snapshot metadata and
@@ -37,8 +50,11 @@ The first adapter uses WFCD `warframe-drop-data`, which declares MIT licensing a
 derived from Digital Extremes' official drop tables. Attribution remains in
 `NOTICE.md`. The enhanced public-export repository inspected for Chinese names did
 not expose a repository license, so its data is not bundled or ingested by this
-slice. Chinese aliases require a separately licensed source or a maintained project
-alias layer.
+slice. The first bilingual alias layer is maintained as original project content in
+`packages/warframe-data-service/src/drop-aliases.ts` and therefore uses this
+repository's MIT license. Alias results expose that attribution. Broader Chinese
+coverage still requires a separately licensed source or additional project-maintained
+entries.
 
 ## Reconsider SQLite only when measured
 

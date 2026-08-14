@@ -12,7 +12,7 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
   → ModelProfile 能力门禁
   → ModelAdapter
   → Warframe Agent loop
-  → 类型化工具（首条：market.query）
+  → 类型化工具（当前：market.query、drops.search）
   → 证据约束回答、事件与 AgentTrace
 ```
 
@@ -33,8 +33,8 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 1. 桌面枚举并选择模型 profile。
 2. 主进程执行能力与健康门禁。
 3. Harness 先执行可信只读/权限策略，再调用 adapter。
-4. adapter 产出结构化 `market.query` 请求或澄清/回答。
-5. Harness 执行真实公开 Market 工具，展示来源、时间和轨迹。
+4. adapter 产出结构化 `market.query` / `drops.search` 请求或澄清/回答。
+5. Harness 执行真实公开只读工具；掉落证据额外区分缓存新鲜度、源数据年龄与替代源对照。
 6. 用户可停止；默认 15 秒超时；终态记录 profile 与 completed/cancelled/timeout/error。
 
 本切片没有视觉模型、远程 LLM、会话持久化、重试或 fallback；紧凑 profile 的 `streaming:false` 只表示 backend 不声明原生流式能力，当前文字分段仍由 Harness 事件层产生。
