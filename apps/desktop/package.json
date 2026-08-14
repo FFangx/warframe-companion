@@ -29,6 +29,8 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
+    "@warframe-companion/market-query-contract": "0.1.0",
+    "@warframe-companion/market-query-service": "0.1.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   }

@@ -2,7 +2,7 @@
 
 一个 Windows 本地优先、只读、证据驱动的 Warframe 国际服个人助手。目标是把现有确定性查询、个人快照、订阅诊断和 Agent 能力交付为可安装桌面应用，同时保留 QQ/OpenClaw 作为远程渠道。
 
-当前处于产品化基础设施阶段，已经包含 `market.query` 契约、真实只读 Market 适配器，以及可启动的 Electron/React 最小桌面壳与系统健康页。
+当前已完成第一个桌面业务垂直切片：`market.query` 契约、真实只读 Market 适配器，以及可启动的 Electron/React 桌面应用、系统健康页和原生市场查询卡。
 
 ## 仓库结构
 
@@ -10,7 +10,7 @@
 docs/                           产品、架构、作品集与 Session 约定
 packages/market-query-contract  market.query 类型、错误、脱敏 mock 与契约测试
 packages/market-query-service   Warframe.Market v2 真实适配器、证据映射与故障测试
-apps/desktop                    Electron/React 桌面壳、只读健康探针与原生健康页
+apps/desktop                    Electron/React 桌面应用、健康页与原生市场查询卡
 ```
 
 后续按经过验收的 Session 增加桌面应用与评估包，不提前铺设空实现。

@@ -1,6 +1,8 @@
 # Warframe Companion Desktop
 
-Session 4 的最小 Electron/React 桌面壳。当前只提供系统健康页，不包含市场查询 UI、Agent 对话或个人数据视图。
+Electron/React 桌面应用当前提供系统健康页与原生市场查询卡，不包含 Agent 对话或个人数据视图。
+
+市场页要求显式输入物品、平台、跨平台开关与等级，通过安全 preload IPC 调用真实只读 `market-query-service`。结果分别展示当前买卖挂单、90 日已成交统计、证据时间、来源、警告、空订单和分类故障；不会下单、挂单或发送交易私聊。
 
 ## 开发
 
@@ -17,4 +19,4 @@ npm run build -w @warframe-companion/desktop
 - `WARFRAME_COMPANION_OPENCLAW_PORT`
 - `WARFRAME_COMPANION_BUILD_ID`
 
-所有探针只读；renderer 仅能通过 preload 暴露的 `system.getHealth()` 调用类型化 IPC，未启用 Node 集成。
+所有探针与市场查询均只读；renderer 仅能通过 preload 暴露的 `system.getHealth()` 与 `market.query()` 调用类型化 IPC，未启用 Node 集成。

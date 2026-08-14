@@ -1,11 +1,13 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
+import { createWarframeMarketQueryService } from '@warframe-companion/market-query-service';
 import { getSystemHealth } from './system-health.js';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
 const currentDirectory = __dirname;
+const marketQueryService = createWarframeMarketQueryService();
 
 function systemHealth(): ReturnType<typeof getSystemHealth> {
   return getSystemHealth({
@@ -45,6 +47,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   ipcMain.handle('system:get-health', systemHealth);
+  ipcMain.handle('market:query', (_event, request: unknown) => marketQueryService.query(request));
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
