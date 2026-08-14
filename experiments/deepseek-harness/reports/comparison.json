@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0",
+  "status": "blocked_no_credential",
+  "generatedAt": "2026-08-14T02:17:44.517Z",
+  "suiteId": "warframe-companion-agent-eval-v1",
+  "fixturePolicy": "synthetic_market_only",
+  "latencyPolicy": "real_wall_clock_same_machine",
+  "dsh": {
+    "commit": "47f943859bef60e4160492346772ded9b24f765a",
+    "version": "0.1.0-rc.5",
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-flash",
+    "baseUrlClass": "official_default"
+  },
+  "candidates": [
+    {
+      "candidate": "reference-contract-oracle",
+      "caseCount": 30,
+      "passedCases": 30,
+      "score": 100
+    },
+    {
+      "candidate": "desktop-deterministic-harness-v1",
+      "caseCount": 30,
+      "passedCases": 29,
+      "score": 97.5
+    },
+    {
+      "candidate": "dsh-deepseek-v4-flash",
+      "status": "blocked_no_credential"
+    }
+  ],
+  "limitations": [
+    "未发现 DEEPSEEK_API_KEY；本次没有发起模型请求，也没有生成或伪造模型轨迹。",
+    "插件、门禁和事件适配器可通过 keyless 测试验收；真实 30 条成绩需在凭据可用后运行相同命令。",
+    "参考 oracle 与桌面确定性 Harness 的既有成绩仅作横向位置说明。"
+  ]
+}

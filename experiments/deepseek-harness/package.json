@@ -1,0 +1,22 @@
+{
+  "name": "@warframe-companion/deepseek-harness-experiment",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Isolated DeepSeek Harness evaluation adapter for Warframe Companion",
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "preflight": "npm run build && node dist/preflight.js",
+    "eval": "npm run build && node dist/cli.js"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "typescript": "5.9.3"
+  }
+}

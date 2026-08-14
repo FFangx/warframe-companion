@@ -1,6 +1,6 @@
 # DeepSeek Harness 旁路调研与集成基线
 
-> 状态：Session 8 已完成上游审计、原样构建、无密钥最小运行和边界设计；尚未实现 Companion 插件，也没有运行真实模型评估。日期：2026-08-14。
+> 状态：Session 8 已完成上游审计和边界设计；Session 9 已实现隔离 Companion 插件、门禁、事件适配器与 keyless 预检。当前环境缺少模型凭据，尚未运行真实模型评估。日期：2026-08-14。
 
 ## 固定的上游基线
 
@@ -109,12 +109,16 @@ DSH 根仓库和 222 个 DSH 包声明 MIT，完整第三方声明位于上游 `
 
 若下一 Session 复制、修改或分发 DSH 的实质源码，必须保留 DeepSeek 的 MIT 版权与许可文本，并重新生成/核对第三方声明。优先采用外置插件和公开包依赖，避免 vendoring；实验 lockfile 必须记录具体 tarball integrity。
 
-## Session 9 入口与完成条件
+## Session 9 实现状态与完成条件
 
-Session 9 只实现上述实验目录、插件、终态结构化提交、轨迹适配器和三方对比报告。完成条件：
+隔离实现已位于 `experiments/deepseek-harness/`，拥有独立 manifest/lockfile、合成 Market fixture、外置工具/策略、终态结构化提交、事件适配器、keyless 测试、真实 DSH 组合预检和对比报告生成器。当前 `reports/comparison.*` 的状态是 `blocked_no_credential`：没有发起模型请求，也没有伪造轨迹或成绩。
+
+Session 9 仍未完成，因为第 2 条需要真实模型凭据。完整完成条件：
 
 1. keyless 单元测试证明 Market 映射、门禁、事件到 `AgentTrace` 的转换以及敏感信息扫描。
 2. 使用原 30 条用例运行一次固定 DSH/DeepSeek 候选，生成逐 case trace 与 JSON/Markdown 报告。
 3. 仓库根 `npm test` 继续通过，实验目录自己的锁文件、测试和构建通过。
 4. 报告清楚区分真实模型、合成 Market、真实墙钟延迟和未验证项。
 5. 不修改桌面 `agent-runtime`、OpenClaw、WFInfo、个人数据或任何外部渠道。
+
+凭据可用后，从实验目录运行 `npm run eval` 即可继续；驱动器会重新核对固定 DSH commit，然后逐条运行原始 30 条用例。报告中的模型请求、合成 Market fixture 和真实墙钟延迟继续明确分开。

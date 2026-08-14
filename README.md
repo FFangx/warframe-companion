@@ -4,7 +4,7 @@
 
 当前已完成市场与 Agent 两个桌面业务垂直切片：`market.query` 契约、真实只读 Market 适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 30 条合成/脱敏 eval、确定性 runner、参考基线与真实桌面 Harness 基线。
 
-DeepSeek Harness 已完成固定上游提交的独立审计、原样构建和无密钥最小运行；当前仅形成[旁路调研与集成基线](docs/DEEPSEEK_HARNESS_BASELINE.md)，尚未接入桌面运行时或生成真实模型成绩。
+DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以及隔离插件/门禁/事件适配器的 keyless 预检。当前环境没有可用的 `DEEPSEEK_API_KEY`，所以尚未发起真实模型请求或生成模型成绩；[阻塞对比记录](experiments/deepseek-harness/reports/comparison.md)明确保留了这条边界。
 
 ## 仓库结构
 
@@ -15,6 +15,7 @@ packages/market-query-service   Warframe.Market v2 真实适配器、证据映�
 packages/agent-runtime          桌面生产与 eval 共用的流式 Agent Harness
 packages/agent-eval             30 条合成评估、结构化轨迹 runner 与基线报告
 apps/desktop                    Electron/React 桌面应用、健康页、市场卡与 Agent 对话
+experiments/deepseek-harness    固定 DSH 的隔离工具/策略/轨迹实验与对比报告
 ```
 
 后续按经过验收的 Session 增加桌面应用与评估包，不提前铺设空实现。
@@ -28,6 +29,11 @@ npm ci
 npm test
 npm run eval --workspace @warframe-companion/agent-eval
 npm run start -w @warframe-companion/desktop
+
+# 隔离 DSH 实验（独立 lockfile）
+npm ci --prefix experiments/deepseek-harness
+npm test --prefix experiments/deepseek-harness
+npm run preflight --prefix experiments/deepseek-harness
 ```
 
 ## 安全边界
