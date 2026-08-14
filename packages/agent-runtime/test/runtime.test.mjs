@@ -17,6 +17,30 @@ test('桌面 Harness 执行市场工具并流式导出同一轨迹', async () =>
   assert.equal(events.at(-1).type, 'completed');
 });
 
+test('Warframe 掉落问题路由到本地公共数据工具并保留版本证据', async () => {
+  const events = [];
+  let queriedItem;
+  const result = await runDesktopAgent({ requestId: 'synthetic-drops', message: 'Example Blueprint 哪里掉落？', context }, {
+    marketQuery: async () => { throw new Error('market must not be called'); },
+    searchDrops: async (request) => {
+      queriedItem = request.item;
+      return ({
+      contractVersion: '1.0', ok: true,
+      data: { requestedItem: request.item, resolvedItem: 'Example Blueprint', match: 'exact', totalDrops: 1, drops: [{ place: 'Venus/Aphrodite (Capture)', chance: 8.5, rarity: 'Uncommon' }] },
+      evidence: { scope: 'static_drop_table', evidenceType: 'versioned_public_snapshot', asOf: '2030-01-01T00:00:00.000Z', loadedAt: '2030-01-02T00:00:00.000Z', expiresAt: '2030-01-03T00:00:00.000Z', freshness: 'fresh', finding: 'confirmed_present', source: 'wfcd.drop-data', sourceHash: 'synthetic' },
+      warnings: [],
+      });
+    },
+    onEvent: (event) => events.push(event),
+  });
+  assert.equal(result.trace.decision, 'call_tool');
+  assert.equal(queriedItem, 'Example Blueprint');
+  assert.equal(result.trace.toolCalls[0].name, 'drops.search');
+  assert.equal(result.trace.facts[0].key, 'drops.source_count');
+  assert.match(result.message, /WFCD drop-data/u);
+  assert.ok(events.some((event) => event.type === 'tool_call' && event.name === 'drops.search'));
+});
+
 test('禁止写操作在调用工具前拒绝', async () => {
   let called = false;
   const result = await runDesktopAgent({ requestId: 'synthetic-refusal', message: '替我在市场挂一个卖单。', context }, {

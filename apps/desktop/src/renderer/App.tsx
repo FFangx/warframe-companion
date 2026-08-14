@@ -240,7 +240,7 @@ function AgentView() {
     </section>
     <section className="agent-layout">
       <div className="conversation">
-        {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>从一句可验证请求开始</h2><p>例：查一下古纪V3当前行情，PC 跨平台，0级。平台、交易范围和等级必须明确。</p></div> : null}
+        {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>从一句可验证请求开始</h2><p>市场例：查一下古纪V3当前行情，PC 跨平台，0级。掉落例：Forma Blueprint 哪里掉落？</p></div> : null}
         {turns.map((turn) => <article className="chat-turn" key={turn.id}>
           <div className="bubble bubble--user"><span>你</span><p>{turn.user}</p></div>
           <div className="bubble bubble--agent"><span>Agent</span><p>{turn.assistant || '正在处理…'}</p></div>
@@ -269,6 +269,6 @@ export function App() {
       </nav>
       <div className="boundary-note"><span>只读模式</span>不操作游戏、交易、聊天或账号资产</div>
     </aside>
-    <section className="content">{view === 'health' ? <HealthView /> : view === 'market' ? <MarketView /> : <AgentView />}<footer><span>Warframe Agent Harness · 第一条模型可配置切片</span><span>本地模型 profile → 能力门禁 → market.query → 证据与轨迹。</span></footer></section>
+    <section className="content">{view === 'health' ? <HealthView /> : view === 'market' ? <MarketView /> : <AgentView />}<footer><span>Warframe Agent Harness · 模型可配置、公开数据只读</span><span>本地模型 profile → 能力门禁 → market.query / drops.search → 证据与轨迹。</span></footer></section>
   </main>;
 }

@@ -94,7 +94,7 @@ OpenClaw / DSH backend    ┘
 - 桌面：Electron Forge、React、TypeScript、Vite。
 - 本地 API：Node/TypeScript；先选进程内接口或仅监听 `127.0.0.1` 的本地服务。
 - 事件：先定义最小事件集合，暂不强制引入 AG-UI。
-- 数据：现有 JSON 状态保持兼容；新桌面会话和诊断数据需要持久化时再引入 SQLite。
+- 数据：公共静态数据先用版本化 JSON 快照与内存索引；存储藏在类型化服务接口后。只有真实负载需要事务性用户状态、跨表查询、原子增量更新，或实测超过启动内存/延迟预算时才引入 SQLite，详见 [`LOCAL_DATA_LAYER.md`](LOCAL_DATA_LAYER.md)。
 - Agent：Companion 自有 Warframe Harness 承载桌面产品；OpenClaw 保持现有 QQ 生产入口并作为能力/运维参考；DeepSeek Harness 只保留隔离适配实验。
 - 发布：延续受管构建身份、哈希校验、统一验证和可恢复升级原则。
 
@@ -114,9 +114,10 @@ OpenClaw / DSH backend    ┘
 - `apps/desktop` 已实现 Electron/React/TypeScript/Vite 最小桌面壳。
 - `system.getHealth()` 当前通过安全 preload IPC 暴露桌面构建、OpenClaw 本机端口、WFInfo 配置路径、AlecaFrame 配置路径和 Warframe.Market 公共源的只读健康快照。
 - 桌面市场页通过独立的 `market.query()` preload IPC 调用主进程内 `market-query-service`；用户必须显式输入物品、平台、跨平台范围和等级。
+- `packages/warframe-data-service` 已实现第一条本地公共数据切片：按需验证并编译 WFCD 掉落快照，以原子 JSON 缓存和内存键索引支持 `drops.search`。刷新失败可显式返回 stale 快照；无有效掉率的源行会计数、排除并告警，不会静默当作 0。
 - React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
 - `packages/agent-eval` 已建立首批 30 条合成/脱敏评估、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；覆盖工具路由、参数、事实、证据、权限与效率。参考基线只验证评估器上界，不代表真实模型表现。
-- `packages/agent-runtime` 已实现 Companion 自有 Harness 的第一条模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场工具编排、取消/超时、流式事件和 `AgentTrace`。桌面可选择两个离线 profile、检查兼容性、运行/停止并查看工具证据；当前不调用任何远程模型。
+- `packages/agent-runtime` 已实现 Companion 自有 Harness 的模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场/掉落工具编排、取消/超时、流式事件和 `AgentTrace`。桌面可选择两个离线 profile、检查兼容性、运行/停止并查看工具证据；当前不调用任何远程模型。
 - DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 v1 `deepseek-v4-flash` 基线保持 0/30、20.22%。版本化 v2 runner 离线读取同一批 trace 后为 5/30、53.72%，并将工具后 `answer` 终态、必需/禁止事实语义和远程模型延迟预算从 v1 系统性误差中分离；无支撑事实、证据与权限门禁未放宽。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
 - 模型可配置的最小 Agent 对话已经实现；当前不包含远程 LLM、视觉、OpenClaw/DSH 桌面 backend、fallback、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。

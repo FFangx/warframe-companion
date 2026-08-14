@@ -2,7 +2,7 @@
 
 一个 Windows 本地优先、只读、证据驱动的 Warframe 国际服个人助手。目标是把现有确定性查询、个人快照、订阅诊断和 Agent 能力交付为可安装桌面应用，同时保留 QQ/OpenClaw 作为远程渠道。
 
-当前已完成市场与 Agent 两个桌面业务垂直切片：`market.query` 契约、真实只读 Market 适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 30 条合成/脱敏 eval、确定性 runner、参考基线与真实桌面 Harness 基线。
+当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、版本化 `drops.search` 本地快照、真实只读适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 30 条合成/脱敏 eval、确定性 runner、参考基线与真实桌面 Harness 基线。
 
 桌面 Agent 的稳定核心现由 Companion 自有的 Warframe Harness 承载：`ModelProfile`、`ModelAdapter`、能力/健康门禁、可信策略、工具执行、取消/超时和轨迹。第一条切片使用两个可选的本地离线 profile，零密钥、零模型费用；详见 [`docs/AGENT_HARNESS.md`](docs/AGENT_HARNESS.md)。
 
@@ -14,6 +14,7 @@ DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以
 docs/                           产品、架构、作品集与 Session 约定
 packages/market-query-contract  market.query 类型、错误、脱敏 mock 与契约测试
 packages/market-query-service   Warframe.Market v2 真实适配器、证据映射与故障测试
+packages/warframe-data-service  WFCD 公共掉落快照、原子本地缓存与内存索引
 packages/agent-runtime          桌面生产与 eval 共用的流式 Agent Harness
 packages/agent-eval             30 条合成评估、结构化轨迹 runner 与基线报告
 apps/desktop                    Electron/React 桌面应用、健康页、市场卡与 Agent 对话

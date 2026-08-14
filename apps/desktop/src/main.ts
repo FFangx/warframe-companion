@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
 import { createWarframeMarketQueryService } from '@warframe-companion/market-query-service';
+import { createWarframeDataService } from '@warframe-companion/warframe-data-service';
 import {
   checkModelProfile,
   listModelProfiles,
@@ -62,6 +63,9 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  const warframeDataService = createWarframeDataService({
+    cacheDirectory: path.join(app.getPath('userData'), 'public-data'),
+  });
   Menu.setApplicationMenu(null);
   ipcMain.handle('system:get-health', systemHealth);
   ipcMain.handle('market:query', (_event, request: unknown) => marketQueryService.query(request));
@@ -86,7 +90,12 @@ app.whenReady().then(() => {
       ...(input.modelProfileId ? { modelProfileId: input.modelProfileId } : {}),
       ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
       context: { channel: 'desktop', trustedOwner: true, now: new Date().toISOString() },
-    }, { marketQuery: (request) => marketQueryService.query(request), onEvent: send, signal: controller.signal }).catch(() => {
+    }, {
+      marketQuery: (request) => marketQueryService.query(request),
+      searchDrops: (request) => warframeDataService.searchDrops(request),
+      onEvent: send,
+      signal: controller.signal,
+    }).catch(() => {
       void send({
         type: 'completed', message: 'Agent 编排器发生内部错误，请稍后重试。',
         trace: { caseId: input.requestId, decision: 'answer', toolCalls: [], facts: [], latencyMs: 0, terminalReason: 'error', ...(input.modelProfileId ? { modelProfileId: input.modelProfileId } : {}) },

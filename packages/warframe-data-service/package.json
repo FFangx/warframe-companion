@@ -1,5 +1,5 @@
 {
-  "name": "@warframe-companion/agent-runtime",
+  "name": "@warframe-companion/warframe-data-service",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -10,10 +10,6 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "npm run clean && tsc -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.mjs"
-  },
-  "dependencies": {
-    "@warframe-companion/market-query-contract": "0.1.0",
-    "@warframe-companion/warframe-data-service": "0.1.0"
   },
   "devDependencies": { "@types/node": "24.10.0", "typescript": "5.9.3" }
 }

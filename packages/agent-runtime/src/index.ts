@@ -5,17 +5,24 @@ import {
   type MarketQueryRequest,
   type MarketQueryResult,
 } from '@warframe-companion/market-query-contract';
+import {
+  DROP_SEARCH_CONTRACT_VERSION,
+  type DropSearchRequest,
+  type DropSearchResult,
+} from '@warframe-companion/warframe-data-service';
 
 export type AgentDecision = 'call_tool' | 'clarify' | 'answer' | 'refuse';
 export type RefusalReason = 'identity_untrusted' | 'private_scope' | 'write_forbidden';
 export interface EvalEvidence {
-  scope: 'current_market' | 'personal_snapshot';
-  evidenceType: 'direct_snapshot' | 'local_snapshot';
+  scope: 'current_market' | 'personal_snapshot' | 'static_drop_table';
+  evidenceType: 'direct_snapshot' | 'local_snapshot' | 'versioned_public_snapshot';
   asOf: string;
   expiresAt: string;
+  loadedAt?: string;
   freshness: 'fresh' | 'stale';
   finding: 'confirmed_present' | 'confirmed_absent_in_scope' | 'unavailable';
-  source: 'warframe.market' | 'synthetic.local';
+  source: 'warframe.market' | 'synthetic.local' | 'wfcd.drop-data';
+  sourceHash?: string;
 }
 export interface EvalFact { key: string; value: string | number | boolean; evidence?: EvalEvidence }
 export interface ToolCallTrace { name: string; arguments: Record<string, unknown> }
@@ -57,6 +64,7 @@ export interface ModelHealth {
 }
 export type ModelTurn =
   | { kind: 'market_query'; request: MarketQueryRequest }
+  | { kind: 'drop_search'; request: DropSearchRequest }
   | { kind: 'clarify'; text: string; facts: EvalFact[] }
   | { kind: 'answer'; text: string };
 export interface ModelAdapter {
@@ -96,11 +104,13 @@ export type AgentStreamEvent =
   | { type: 'status'; phase: 'thinking' | 'tool' | 'composing'; text: string }
   | { type: 'model_selected'; profile: ModelProfile }
   | { type: 'tool_call'; name: 'market.query'; arguments: MarketQueryRequest }
-  | { type: 'tool_result'; name: 'market.query'; ok: boolean; summary: string }
+  | { type: 'tool_call'; name: 'drops.search'; arguments: DropSearchRequest }
+  | { type: 'tool_result'; name: 'market.query' | 'drops.search'; ok: boolean; summary: string }
   | { type: 'message_delta'; delta: string }
   | { type: 'completed'; message: string; trace: AgentTrace };
 export interface AgentRunDependencies {
   marketQuery(request: MarketQueryRequest): Promise<MarketQueryResult>;
+  searchDrops?(request: DropSearchRequest): Promise<DropSearchResult>;
   onEvent?(event: AgentStreamEvent): void | Promise<void>;
   now?: () => number;
   signal?: AbortSignal;
@@ -145,6 +155,17 @@ function itemFrom(message: string): string | undefined {
   }
   return undefined;
 }
+function dropItemFrom(message: string): string | undefined {
+  const patterns = [
+    /^(?:查(?:询)?\s*)?(.+?)(?:在哪里|从哪里|哪里|哪儿)?(?:掉落|怎么刷|去哪刷)[？?。.]*$/u,
+    /^(?:where\s+(?:does|do|can)\s+)?(.+?)\s+(?:drop|drops)[?!.]*$/iu,
+  ];
+  for (const pattern of patterns) {
+    const value = message.trim().match(pattern)?.[1]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
 
 export const localRulesModelAdapter: ModelAdapter = {
   id: 'warframe-local-rules',
@@ -155,6 +176,10 @@ export const localRulesModelAdapter: ModelAdapter = {
     if (signal.aborted) throw signal.reason;
     if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号/u.test(message)) {
       return { kind: 'answer', text: '桌面 Agent 当前尚未接入个人快照；本切片只支持公开市场查询。' };
+    }
+    const dropItem = dropItemFrom(message);
+    if (!defaults && dropItem) {
+      return { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } };
     }
     if (!defaults && !/查|查询|价格|行情|多少钱/u.test(message)) {
       return { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' };
@@ -217,6 +242,16 @@ function responseFor(result: MarketQueryResult): string {
   const orders = sellOrders.length || buyOrders.length ? `当前快照有 ${sellOrders.length} 条卖单、${buyOrders.length} 条买单。` : '当前查询范围内没有可见买卖单。';
   return `${item.name.zhHans}（等级 ${item.rank.resolved}/${item.rank.maxRank}）：${orders}${statistics ? ` 90 日成交中位数 ${statistics.median} 白金。` : ''} 数据时间 ${result.evidence.asOf}，来源 Warframe.Market。`;
 }
+function dropResponseFor(result: DropSearchResult): string {
+  if (!result.ok) {
+    if (result.error.code === 'ITEM_AMBIGUOUS') return `名称不够明确：${result.error.candidates?.join('、') ?? '请补充完整英文物品名'}。`;
+    return result.error.message;
+  }
+  const locations = result.data.drops.slice(0, 5)
+    .map((drop) => `${drop.place}（${drop.chance}%）`).join('；');
+  const stale = result.evidence.freshness === 'stale' ? ' 当前使用上次验证过的旧快照。' : '';
+  return `${result.data.resolvedItem} 的公开掉落表来源：${locations}。共 ${result.data.totalDrops} 条，数据版本时间 ${result.evidence.asOf}，来源 WFCD drop-data。${stale}`;
+}
 async function emit(deps: AgentRunDependencies, event: AgentStreamEvent): Promise<void> { await deps.onEvent?.(event); }
 function abortError(signal: AbortSignal): Error { return signal.reason instanceof Error ? signal.reason : new Error('cancelled'); }
 async function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
@@ -261,6 +296,24 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
     if (controller.signal.aborted) throw abortError(controller.signal);
     if (turn.kind === 'answer') { await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'answer'); }
     if (turn.kind === 'clarify') { facts = turn.facts; await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'clarify'); }
+    if (turn.kind === 'drop_search') {
+      toolCalls.push({ name: 'drops.search', arguments: { ...turn.request } });
+      await emit(deps, { type: 'status', phase: 'tool', text: '正在读取版本化公共掉落快照' });
+      await emit(deps, { type: 'tool_call', name: 'drops.search', arguments: turn.request });
+      if (!deps.searchDrops) return await finish('本地掉落数据服务尚未配置。', 'answer', 'error');
+      const result = await abortable(deps.searchDrops(turn.request), controller.signal);
+      await emit(deps, { type: 'tool_result', name: 'drops.search', ok: result.ok, summary: result.ok ? result.evidence.freshness : result.error.code });
+      if (result.ok) {
+        facts = [
+          { key: 'drops.source_count', value: result.data.totalDrops, evidence: { ...result.evidence } },
+          { key: 'drops.snapshot_freshness', value: result.evidence.freshness, evidence: { ...result.evidence } },
+        ];
+      } else facts = [{ key: 'drops.error', value: result.error.code }];
+      const text = dropResponseFor(result);
+      await emit(deps, { type: 'status', phase: 'composing', text: '正在按静态掉落证据组织回答' });
+      for (const delta of text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
+      return await finish(text, 'call_tool');
+    }
     toolCalls.push({ name: 'market.query', arguments: { ...turn.request } });
     await emit(deps, { type: 'status', phase: 'tool', text: '正在查询公开市场快照' });
     await emit(deps, { type: 'tool_call', name: 'market.query', arguments: turn.request });
