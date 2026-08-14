@@ -80,19 +80,19 @@ footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 1
 
 .market-hero { align-items: center; }
 .readonly-chip { padding: 7px 10px; border: 1px solid rgba(96, 201, 190, .24); color: #73cfc6; font-size: 9px; letter-spacing: .12em; background: rgba(36, 111, 105, .12); }
-.market-form { display: grid; grid-template-columns: minmax(240px, 1.6fr) minmax(125px, .62fr) minmax(125px, .58fr) minmax(155px, .72fr) auto; align-items: end; gap: 12px; margin: 28px 0 18px; padding: 17px; border: 1px solid rgba(144, 176, 193, .15); background: rgba(14, 24, 33, .78); }
-.field { display: grid; gap: 7px; min-width: 0; color: #718594; font-size: 9px; letter-spacing: .11em; }
+.market-form { display: grid; grid-template-columns: minmax(240px, 1.6fr) minmax(125px, .62fr) minmax(125px, .58fr) minmax(155px, .72fr) auto; align-items: start; gap: 12px; margin: 28px 0 18px; padding: 17px; border: 1px solid rgba(144, 176, 193, .15); background: rgba(14, 24, 33, .78); }
+.field { display: grid; grid-template-rows: 12px 42px 12px; gap: 7px; min-width: 0; color: #718594; font-size: 9px; letter-spacing: .11em; }
 .field input, .field select { width: 100%; height: 42px; padding: 0 12px; border: 1px solid rgba(129, 169, 185, .18); outline: 0; color: #dcebf0; background: #0a1118; font: 12px/1 "Segoe UI", "Microsoft YaHei UI", sans-serif; }
 .field input:focus, .field select:focus { border-color: rgba(92, 207, 219, .62); box-shadow: 0 0 0 2px rgba(67, 183, 197, .08); }
 .field select { color-scheme: dark; }
-.field small { min-height: 10px; margin-top: -3px; color: #526572; font-size: 8px; letter-spacing: 0; }
-.crossplay { display: flex; align-items: center; height: 42px; padding: 0 11px; border: 1px solid rgba(129, 169, 185, .13); color: #a8bbc5; background: #0b131b; cursor: pointer; }
+.field small { color: #71848f; font-size: 9px; letter-spacing: 0; }
+.crossplay { display: flex; align-items: center; height: 42px; margin-top: 19px; padding: 0 11px; border: 1px solid rgba(129, 169, 185, .13); color: #a8bbc5; background: #0b131b; cursor: pointer; }
 .crossplay input { position: absolute; opacity: 0; }
-.crossplay > span { display: grid; grid-template-columns: 15px 1fr; column-gap: 8px; align-items: center; font-size: 10px; }
+.crossplay > span { display: grid; grid-template-columns: 15px 1fr; column-gap: 8px; align-items: center; font-size: 11px; }
 .crossplay i { grid-row: 1 / 3; width: 15px; height: 15px; border: 1px solid #46616e; background: #0b1117; }
 .crossplay input:checked + span i { border-color: #5bc7d1; background: #5bc7d1; box-shadow: inset 0 0 0 3px #0b131b; }
-.crossplay small { color: #526572; font-size: 8px; }
-.query-button { display: flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 17px; border: 1px solid #4caab6; color: #dffbfc; background: linear-gradient(135deg, rgba(48, 147, 161, .44), rgba(25, 83, 95, .36)); cursor: pointer; white-space: nowrap; }
+.crossplay small { color: #71848f; font-size: 9px; }
+.query-button { display: flex; align-items: center; justify-content: center; gap: 7px; height: 42px; margin-top: 19px; padding: 0 17px; border: 1px solid #4caab6; color: #dffbfc; background: linear-gradient(135deg, rgba(48, 147, 161, .44), rgba(25, 83, 95, .36)); cursor: pointer; font-size: 14px; font-weight: 500; white-space: nowrap; }
 .query-button:disabled { opacity: .58; cursor: wait; }
 .query-button span { font-size: 17px; }
 
