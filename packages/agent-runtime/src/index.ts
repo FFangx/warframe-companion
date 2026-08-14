@@ -67,6 +67,45 @@ export interface ModelProfile {
   model: string;
   description: string;
   capabilities: ModelCapabilities;
+  source?: 'built_in' | 'local_config';
+  configuration?: OpenAICompatibleConfiguration;
+}
+export const OPENAI_COMPATIBLE_CONFIG_VERSION = '1.0' as const;
+export type CredentialReference =
+  | { kind: 'none' }
+  | { kind: 'environment'; variable: string };
+export interface OpenAICompatibleConfiguration {
+  configVersion: typeof OPENAI_COMPATIBLE_CONFIG_VERSION;
+  baseUrl: string;
+  api: 'chat_completions';
+  healthCheck: 'models';
+  credential: CredentialReference;
+  maxOutputTokens: number;
+}
+export type ModelErrorCode =
+  | 'MODEL_CONFIG_INVALID'
+  | 'MODEL_CREDENTIAL_UNAVAILABLE'
+  | 'MODEL_AUTH_REJECTED'
+  | 'MODEL_RATE_LIMITED'
+  | 'MODEL_TIMEOUT'
+  | 'MODEL_UNAVAILABLE'
+  | 'MODEL_BAD_RESPONSE'
+  | 'MODEL_CAPABILITY_MISMATCH'
+  | 'MODEL_CANCELLED';
+export interface ModelFailure {
+  code: ModelErrorCode;
+  category: 'configuration' | 'authentication' | 'upstream' | 'protocol' | 'cancelled';
+  message: string;
+  retryable: boolean;
+  retryAfterMs?: number;
+}
+export class ModelAdapterError extends Error {
+  readonly failure: ModelFailure;
+  constructor(failure: ModelFailure) {
+    super(failure.message);
+    this.name = 'ModelAdapterError';
+    this.failure = failure;
+  }
 }
 export interface ModelHealth {
   profileId: string;
@@ -74,16 +113,17 @@ export interface ModelHealth {
   checkedAt: string;
   summary: string;
   missingCapabilities: Array<keyof Omit<ModelCapabilities, 'contextWindow'>>;
+  error?: ModelFailure;
 }
 export type ModelTurn =
   | { kind: 'market_query'; request: MarketQueryRequest }
   | { kind: 'drop_search'; request: DropSearchRequest }
   | { kind: 'clarify'; text: string; facts: EvalFact[] }
-  | { kind: 'answer'; text: string };
+  | { kind: 'answer'; text: string; streamed?: boolean };
 export interface ModelAdapter {
   id: string;
-  checkHealth(profile: ModelProfile): Promise<{ available: boolean; summary: string }>;
-  generateTurn(input: { message: string; defaults?: MarketQueryRequest; signal: AbortSignal }, profile: ModelProfile): Promise<ModelTurn>;
+  checkHealth(profile: ModelProfile, signal?: AbortSignal): Promise<{ available: boolean; summary: string; error?: ModelFailure }>;
+  generateTurn(input: { message: string; defaults?: MarketQueryRequest; signal: AbortSignal; onTextDelta?: (delta: string) => void | Promise<void> }, profile: ModelProfile): Promise<ModelTurn>;
 }
 
 const LOCAL_CAPABILITIES: ModelCapabilities = {
@@ -94,12 +134,12 @@ export const DEFAULT_MODEL_PROFILES: readonly ModelProfile[] = [
   {
     id: 'warframe-local-balanced', label: 'Warframe 本地规则 · 标准', adapterId: 'warframe-local-rules',
     model: 'local-rules-v1', description: '离线、零密钥；用于验证工具、证据、取消和轨迹链路。',
-    capabilities: LOCAL_CAPABILITIES,
+    capabilities: LOCAL_CAPABILITIES, source: 'built_in',
   },
   {
     id: 'warframe-local-compact', label: 'Warframe 本地规则 · 紧凑', adapterId: 'warframe-local-rules',
     model: 'local-rules-v1-compact', description: '同一离线后端的紧凑 profile；较小上下文，不声明视觉或推理能力。',
-    capabilities: { ...LOCAL_CAPABILITIES, streaming: false, contextWindow: 4_096 },
+    capabilities: { ...LOCAL_CAPABILITIES, streaming: false, contextWindow: 4_096 }, source: 'built_in',
   },
 ] as const;
 const REQUIRED_AGENT_CAPABILITIES: Array<keyof Omit<ModelCapabilities, 'contextWindow'>> = ['text', 'nativeTools', 'structuredOutput', 'cancellation'];
@@ -119,6 +159,7 @@ export type AgentStreamEvent =
   | { type: 'tool_call'; name: 'market.query'; arguments: MarketQueryRequest }
   | { type: 'tool_call'; name: 'drops.search'; arguments: DropSearchRequest }
   | { type: 'tool_result'; name: 'market.query' | 'drops.search'; ok: boolean; summary: string }
+  | { type: 'model_error'; error: ModelFailure }
   | { type: 'message_delta'; delta: string }
   | { type: 'completed'; message: string; trace: AgentTrace };
 export interface AgentRunDependencies {
@@ -222,7 +263,7 @@ export async function checkModelProfile(profileId: string, options: { profiles?:
   const adapter = adapterRegistry(options.adapters).get(profile.adapterId);
   if (!adapter) return { profileId, status: 'unavailable', checkedAt, summary: `模型适配器 ${profile.adapterId} 未注册。`, missingCapabilities: [] };
   const health = await adapter.checkHealth(profile);
-  return { profileId, status: health.available ? 'healthy' : 'unavailable', checkedAt, summary: health.summary, missingCapabilities: [] };
+  return { profileId, status: health.available ? 'healthy' : 'unavailable', checkedAt, summary: health.summary, missingCapabilities: [], ...(health.error ? { error: health.error } : {}) };
 }
 
 function toEvalEvidence(evidence: MarketEvidence): EvalEvidence { return { ...evidence }; }
@@ -314,9 +355,21 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       return await finish(denied.text, 'refuse', 'completed', denied.reason);
     }
     const defaults = request.evaluation?.defaultMarketRequest;
-    const turn = await abortable(adapter.generateTurn({ message: request.message, signal: controller.signal, ...(defaults ? { defaults } : {}) }, profile), controller.signal);
+    let streamedText = '';
+    const turn = await abortable(adapter.generateTurn({
+      message: request.message,
+      signal: controller.signal,
+      ...(defaults ? { defaults } : {}),
+      onTextDelta: async (delta) => {
+        streamedText += delta;
+        await emit(deps, { type: 'message_delta', delta });
+      },
+    }, profile), controller.signal);
     if (controller.signal.aborted) throw abortError(controller.signal);
-    if (turn.kind === 'answer') { await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'answer'); }
+    if (turn.kind === 'answer') {
+      if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
+      return await finish(turn.text, 'answer');
+    }
     if (turn.kind === 'clarify') { facts = turn.facts; await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'clarify'); }
     if (turn.kind === 'drop_search') {
       toolCalls.push({ name: 'drops.search', arguments: { ...turn.request } });
@@ -354,6 +407,11 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
     return await finish(text, 'call_tool');
   } catch (error) {
     const timedOut = controller.signal.reason instanceof Error && controller.signal.reason.message === 'timeout';
+    if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
+      facts = [{ key: 'model.error_code', value: error.failure.code }, { key: 'model.error_retryable', value: error.failure.retryable }];
+      await emit(deps, { type: 'model_error', error: error.failure });
+      return await finish(error.failure.message, 'answer', 'error');
+    }
     const message = timedOut ? '本轮 Agent 已超时停止，可调整请求后重试。' : '本轮 Agent 已停止；未继续执行或提交任何写操作。';
     return await finish(message, 'answer', timedOut ? 'timeout' : 'cancelled');
   } finally {
@@ -361,3 +419,13 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
     deps.signal?.removeEventListener('abort', forwardAbort);
   }
 }
+
+export {
+  OPENAI_COMPATIBLE_ADAPTER_ID,
+  createOpenAICompatibleAdapter,
+  createOpenAICompatibleProfile,
+  type CredentialResolver,
+  type ModelFetch,
+  type OpenAICompatibleAdapterOptions,
+  type OpenAICompatibleProfileInput,
+} from './openai-compatible.js';

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkModelProfile, listModelProfiles, runDesktopAgent } from '../dist/index.js';
+import { ModelAdapterError, checkModelProfile, listModelProfiles, runDesktopAgent } from '../dist/index.js';
 import { MOCK_MARKET_QUERY_SUCCESS } from '@warframe-companion/market-query-contract/mocks';
 
 const context = { channel: 'desktop', trustedOwner: true, now: '2030-01-02T03:04:05.000Z' };
@@ -97,4 +97,25 @@ test('取消信号终止模型阶段并留下可解释终态', async () => {
   assert.equal(result.trace.terminalReason, 'cancelled');
   assert.match(result.message, /已停止/u);
   assert.equal(result.trace.toolCalls.length, 0);
+});
+
+test('模型适配器稳定错误进入事件与轨迹而不被误报为取消', async () => {
+  const events = [];
+  const adapter = {
+    id: 'synthetic-error',
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn() {
+      throw new ModelAdapterError({ code: 'MODEL_AUTH_REJECTED', category: 'authentication', message: '合成凭据被拒绝。', retryable: false });
+    },
+  };
+  const profile = {
+    id: 'synthetic-error', label: 'Synthetic', adapterId: adapter.id, model: 'synthetic', description: 'synthetic',
+    capabilities: { text: true, vision: false, nativeTools: true, structuredOutput: true, reasoning: false, streaming: false, cancellation: true, contextWindow: 1024 },
+  };
+  const result = await runDesktopAgent({ requestId: 'synthetic-error', message: '查行情', modelProfileId: profile.id, context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
+  });
+  assert.equal(result.trace.terminalReason, 'error');
+  assert.deepEqual(result.trace.facts.map((fact) => [fact.key, fact.value]), [['model.error_code', 'MODEL_AUTH_REJECTED'], ['model.error_retryable', false]]);
+  assert.ok(events.some((event) => event.type === 'model_error' && event.error.code === 'MODEL_AUTH_REJECTED'));
 });

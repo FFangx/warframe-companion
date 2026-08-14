@@ -9,7 +9,7 @@ import {
   type MarketQuerySuccess,
 } from '@warframe-companion/market-query-contract';
 import type { ComponentHealth, HealthStatus, SystemHealthSnapshot } from '../system-health.js';
-import type { AgentStreamEvent, AgentTrace, ModelHealth, ModelProfile } from '@warframe-companion/agent-runtime';
+import type { AgentStreamEvent, AgentTrace, ModelCapabilities, ModelHealth, ModelProfile, OpenAICompatibleProfileInput } from '@warframe-companion/agent-runtime';
 import {
   ERROR_CATEGORY_LABELS,
   PLATFORM_LABELS,
@@ -171,11 +171,23 @@ function MarketView() {
 
 interface ChatTurn { id: string; user: string; assistant: string; events: AgentStreamEvent[]; trace?: AgentTrace }
 
+interface ModelConfigForm {
+  id: string; label: string; model: string; baseUrl: string; credentialVariable: string;
+  contextWindow: string; maxOutputTokens: string; nativeTools: boolean; structuredOutput: boolean;
+  streaming: boolean; cancellation: boolean; vision: boolean; reasoning: boolean;
+}
+const DEFAULT_MODEL_CONFIG_FORM: ModelConfigForm = {
+  id: 'local-openai-model', label: '本机 OpenAI-compatible', model: '', baseUrl: 'http://127.0.0.1:11434/v1', credentialVariable: '',
+  contextWindow: '16384', maxOutputTokens: '2048', nativeTools: true, structuredOutput: true,
+  streaming: true, cancellation: true, vision: false, reasoning: false,
+};
+
 function traceEventText(entry: AgentStreamEvent): string {
   if (entry.type === 'status') return entry.text;
   if (entry.type === 'model_selected') return `${entry.profile.label} · ${entry.profile.model}`;
   if (entry.type === 'tool_call') return `${entry.name} ${JSON.stringify(entry.arguments)}`;
   if (entry.type === 'tool_result') return `${entry.name} · ${entry.summary}`;
+  if (entry.type === 'model_error') return `${entry.error.code} · ${entry.error.message}`;
   return entry.type === 'message_delta' ? entry.delta : entry.message;
 }
 
@@ -187,19 +199,56 @@ function AgentView() {
   const [profileId, setProfileId] = useState('');
   const [modelHealth, setModelHealth] = useState<ModelHealth | null>(null);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configForm, setConfigForm] = useState<ModelConfigForm>(DEFAULT_MODEL_CONFIG_FORM);
+  const [configMessage, setConfigMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
 
-  useEffect(() => {
-    void window.warframeCompanion.agent.listModels().then((profiles) => {
-      setModels(profiles);
-      setProfileId((current) => current || profiles[0]?.id || '');
-    });
+  const refreshModels = useCallback(async (preferredId?: string) => {
+    const snapshot = await window.warframeCompanion.agent.listModels();
+    setModels(snapshot.profiles);
+    setProfileId((current) => preferredId || (snapshot.profiles.some((profile) => profile.id === current) ? current : snapshot.profiles[0]?.id || ''));
+    if (snapshot.configError) setConfigMessage({ tone: 'bad', text: `${snapshot.configError.code}：${snapshot.configError.message}` });
   }, []);
+  useEffect(() => {
+    void refreshModels().catch(() => {
+      setConfigMessage({ tone: 'bad', text: '无法读取本机模型配置。' });
+    });
+  }, [refreshModels]);
   useEffect(() => {
     if (!profileId) return;
     setModelHealth(null);
     void window.warframeCompanion.agent.checkModel(profileId).then(setModelHealth);
   }, [profileId]);
   const selectedProfile = models.find((profile) => profile.id === profileId);
+
+  const saveModel = async (event: FormEvent) => {
+    event.preventDefault(); setConfigMessage(null);
+    const contextWindow = Number(configForm.contextWindow); const maxOutputTokens = Number(configForm.maxOutputTokens);
+    const capabilities: ModelCapabilities = {
+      text: true, vision: configForm.vision, nativeTools: configForm.nativeTools, structuredOutput: configForm.structuredOutput,
+      reasoning: configForm.reasoning, streaming: configForm.streaming, cancellation: configForm.cancellation, contextWindow,
+    };
+    const input: OpenAICompatibleProfileInput = {
+      id: configForm.id.trim(), label: configForm.label.trim(), model: configForm.model.trim(),
+      description: '本机配置的 OpenAI-compatible Chat Completions 模型；只保存凭据引用。', capabilities,
+      configuration: {
+        configVersion: '1.0', baseUrl: configForm.baseUrl.trim(), api: 'chat_completions', healthCheck: 'models',
+        credential: configForm.credentialVariable.trim() ? { kind: 'environment', variable: configForm.credentialVariable.trim() } : { kind: 'none' },
+        maxOutputTokens,
+      },
+    };
+    const result = await window.warframeCompanion.agent.saveModel(input);
+    if (!result.ok) { setConfigMessage({ tone: 'bad', text: `${result.error.code}：${result.error.message}` }); return; }
+    setConfigMessage({ tone: 'good', text: '配置已保存到本机；未保存或显示任何密钥值。' });
+    await refreshModels(result.profile.id);
+  };
+  const deleteModel = async () => {
+    if (!selectedProfile || selectedProfile.source !== 'local_config' || running) return;
+    const result = await window.warframeCompanion.agent.deleteModel(selectedProfile.id);
+    if (!result.ok) { setConfigMessage({ tone: 'bad', text: `${result.error.code}：${result.error.message}` }); return; }
+    setConfigMessage({ tone: 'good', text: '本机 profile 已删除；环境变量与模型服务未被修改。' });
+    await refreshModels();
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -237,7 +286,26 @@ function AgentView() {
         <span className={selectedProfile.capabilities.vision ? 'capability--on' : ''}>视觉</span>
         <span>{Math.round(selectedProfile.capabilities.contextWindow / 1024)}K 上下文</span>
       </div> : null}
+      <div className="model-actions"><button type="button" onClick={() => setConfigOpen((value) => !value)} disabled={running}>{configOpen ? '收起配置' : '配置本机模型'}</button>{selectedProfile?.source === 'local_config' ? <button className="danger-link" type="button" onClick={() => void deleteModel()} disabled={running}>删除此配置</button> : null}</div>
+      {modelHealth ? <p className={`compatibility-hint compatibility-hint--${modelHealth.status}`}>{modelHealth.error ? `${modelHealth.error.code} · ` : ''}{modelHealth.summary}{modelHealth.missingCapabilities.length ? ` 缺少：${modelHealth.missingCapabilities.join('、')}` : ''}</p> : null}
     </section>
+    {configOpen ? <form className="model-config" onSubmit={(event) => void saveModel(event)}>
+      <div className="model-config__heading"><div><p className="eyebrow">LOCAL PROFILE / KEYLESS CONTRACT</p><h2>OpenAI-compatible 配置</h2></div><p>只保存 Base URL、模型名、能力声明与环境变量名；不会把 key 写入配置。健康检查仅调用 <code>/models</code>，发送消息时才调用 <code>/chat/completions</code>。</p></div>
+      <div className="model-config__grid">
+        <label><span>Profile ID</span><input value={configForm.id} onChange={(event) => setConfigForm({ ...configForm, id: event.target.value })} pattern="[a-z0-9][a-z0-9-]{0,79}" required /></label>
+        <label><span>显示名称</span><input value={configForm.label} onChange={(event) => setConfigForm({ ...configForm, label: event.target.value })} required /></label>
+        <label><span>模型 ID</span><input value={configForm.model} onChange={(event) => setConfigForm({ ...configForm, model: event.target.value })} placeholder="服务端模型名" required /></label>
+        <label className="model-config__wide"><span>Base URL</span><input value={configForm.baseUrl} onChange={(event) => setConfigForm({ ...configForm, baseUrl: event.target.value })} required /><small>HTTPS，或本机 localhost / 127.0.0.1 / ::1 的 HTTP。</small></label>
+        <label><span>凭据环境变量名</span><input value={configForm.credentialVariable} onChange={(event) => setConfigForm({ ...configForm, credentialVariable: event.target.value.toUpperCase() })} placeholder="留空 = keyless" pattern="[A-Z_][A-Z0-9_]{0,127}" /><small>这里只填变量名，不填 key 值。</small></label>
+        <label><span>上下文窗口</span><input type="number" min="1024" max="2000000" value={configForm.contextWindow} onChange={(event) => setConfigForm({ ...configForm, contextWindow: event.target.value })} required /></label>
+        <label><span>最大输出 tokens</span><input type="number" min="64" max="32768" value={configForm.maxOutputTokens} onChange={(event) => setConfigForm({ ...configForm, maxOutputTokens: event.target.value })} required /></label>
+      </div>
+      <fieldset><legend>实际能力声明</legend>{([
+        ['nativeTools', '结构化工具调用'], ['structuredOutput', '结构化输出'], ['streaming', 'SSE 流式输出'], ['cancellation', '请求取消'], ['vision', '视觉输入'], ['reasoning', '推理能力'],
+      ] as const).map(([key, label]) => <label key={key}><input type="checkbox" checked={configForm[key]} onChange={(event) => setConfigForm({ ...configForm, [key]: event.target.checked })} /><span>{label}</span></label>)}</fieldset>
+      <div className="model-config__footer"><p>桌面 Agent 当前必须具备：文本、结构化工具、结构化输出、取消。未声明的能力会明确标为不兼容；视觉能力不会被推断。</p><button type="submit">保存本机配置</button></div>
+      {configMessage ? <div className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
+    </form> : configMessage ? <div className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
     <section className="agent-layout">
       <div className="conversation">
         {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>从一句可验证请求开始</h2><p>市场例：查一下古纪V3当前行情，PC 跨平台，0级。掉落例：Forma Blueprint 哪里掉落？</p></div> : null}

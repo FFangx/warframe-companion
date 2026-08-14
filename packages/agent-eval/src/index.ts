@@ -80,6 +80,7 @@ export interface EvalSummary {
 export { DROP_AGENT_EVAL_CASES, FIRST_AGENT_EVAL_CASES } from './cases.js';
 export { createReferenceTrace } from './reference-baseline.js';
 export { createDesktopHarnessTrace } from './desktop-harness-baseline.js';
+export { createOpenAICompatibleMockTrace } from './openai-compatible-mock-baseline.js';
 export { evaluateAgentTraces, renderMarkdownReport } from './runner.js';
 export {
   AGENT_EVAL_V2_SCHEMA_VERSION,

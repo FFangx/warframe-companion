@@ -1,6 +1,6 @@
 # Warframe Agent Harness
 
-> 状态：第一条桌面垂直切片，2026-08-14。
+> 状态：本机模型配置与 OpenAI-compatible adapter 切片，2026-08-14。
 
 ## 产品边界
 
@@ -37,8 +37,17 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 5. Harness 执行真实公开只读工具；掉落证据额外区分缓存新鲜度、源数据年龄与替代源对照。
 6. 用户可停止；默认 15 秒超时；终态记录 profile 与 completed/cancelled/timeout/error。
 
-本切片没有视觉模型、远程 LLM、会话持久化、重试或 fallback；紧凑 profile 的 `streaming:false` 只表示 backend 不声明原生流式能力，当前文字分段仍由 Harness 事件层产生。
+本切片没有视觉模型、会话持久化、自动重试或 fallback；紧凑 profile 的 `streaming:false` 只表示 backend 不声明原生流式能力，当前文字分段仍由 Harness 事件层产生。
+
+## OpenAI-compatible 本机配置
+
+- 配置契约只允许保存 profile 元数据、Base URL、模型名、显式能力、输出上限和凭据引用。凭据引用只能是 `none` 或大写环境变量名；内联 key、Authorization、密码字段和 URL 内凭据均被拒绝。
+- 普通 HTTP 只允许 `localhost`、`127.0.0.1` 和 `::1`；其他地址必须使用 HTTPS。本机配置原子写入 Electron `userData/config/model-profiles.v1.json`，不使用 SQLite。
+- 健康检查调用无生成费用的 `GET /models`，区分配置错误、凭据引用缺失、鉴权拒绝、限流、超时、不可用和坏响应。模型未出现在列表中会给兼容性提示，不伪装成已验证模型别名。
+- Chat Completions adapter 注册 `market.query`、`drops.search` 和内部 `agent.clarify` JSON Schema；只接受一个已注册的结构化调用，运行时再次校验参数白名单。
+- 声明 `streaming:true` 时解析 SSE 文本和增量工具参数；AbortSignal 直接传给 HTTP 请求。稳定错误进入 `model_error` 事件和 `AgentTrace`，不会被错误归类为空结果。
+- 当前工具结果仍由 Harness 的确定性证据层组织最终回答；尚未实现把工具结果回送模型的多轮生成。真实模型只在用户主动保存 profile、健康检查并发送消息后调用。
 
 ## 下一入口
 
-后续首选增加受控的 OpenAI-compatible adapter：配置留在本机，profile 明确声明实际能力，先做 keyless/本地 mock 合同测试；只有用户主动配置 provider 后才允许真实调用。视觉模型与 fallback profile 在相同接口上扩展，不得让文本模型伪装成支持截图。
+后续首选在同一契约上增加工具结果回送与可审计的多轮终态，再设计视觉模型和 fallback；不得让文本模型伪装成支持截图，也不得自动探测或迁移密钥。

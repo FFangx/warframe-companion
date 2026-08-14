@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { MarketQueryRequest, MarketQueryResult } from '@warframe-companion/market-query-contract';
 import type { SystemHealthSnapshot } from './system-health.js';
-import type { AgentStreamEvent, ModelHealth, ModelProfile } from '@warframe-companion/agent-runtime';
+import type { AgentStreamEvent, ModelHealth, ModelProfile, OpenAICompatibleProfileInput } from '@warframe-companion/agent-runtime';
 
 contextBridge.exposeInMainWorld('warframeCompanion', {
   system: {
@@ -11,7 +11,9 @@ contextBridge.exposeInMainWorld('warframeCompanion', {
     query: (request: MarketQueryRequest): Promise<MarketQueryResult> => ipcRenderer.invoke('market:query', request),
   },
   agent: {
-    listModels: (): Promise<ModelProfile[]> => ipcRenderer.invoke('agent:list-models'),
+    listModels: (): Promise<{ profiles: ModelProfile[]; configError?: { code: string; message: string } }> => ipcRenderer.invoke('agent:list-models'),
+    saveModel: (profile: OpenAICompatibleProfileInput): Promise<{ ok: true; profile: ModelProfile } | { ok: false; error: { code: string; message: string } }> => ipcRenderer.invoke('agent:save-model', profile),
+    deleteModel: (profileId: string): Promise<{ ok: true } | { ok: false; error: { code: string; message: string } }> => ipcRenderer.invoke('agent:delete-model', profileId),
     checkModel: (profileId: string): Promise<ModelHealth> => ipcRenderer.invoke('agent:check-model', profileId),
     run: (request: { requestId: string; message: string; modelProfileId: string; timeoutMs: number }, onEvent: (event: AgentStreamEvent) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, requestId: string, streamEvent: AgentStreamEvent) => {

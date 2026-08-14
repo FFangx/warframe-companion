@@ -22,6 +22,8 @@ npm run eval --workspace @warframe-companion/agent-eval
 
 同一命令还会生成 `desktop-harness-traces.json`、`desktop-harness-baseline.json` 与 `desktop-harness-baseline.md`。这些文件来自桌面生产 `agent-runtime` 的真实编排路径，工具响应仍为合成夹具。新加入的掉落用例也走真实 `drops.search` 编排分支。首份基线保留真实失败，不把缺失参数静默补成桌面默认值；它是确定性 Harness 成绩，不是 LLM 成绩。
 
+同一离线命令还生成 `openai-compatible-mock-traces.json` 与对应 JSON/Markdown 基线。该候选使用 keyless 合成 `/models`、Chat Completions 和 SSE transport 跑完整 38 条用例，验证 OpenAI-compatible adapter → Harness → `market.query` / `drops.search` 的合同链路；它不调用模型/API、不读取凭据，也不代表真实模型质量。
+
 全部 prompt、时间、身份和事实均为合成值；不得用真实聊天、QQ/账号标识、原始个人快照、令牌或本机日志替换。
 
 ## DeepSeek Harness 旁路候选
