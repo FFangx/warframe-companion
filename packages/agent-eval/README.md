@@ -25,4 +25,22 @@ npm run eval --workspace @warframe-companion/agent-eval
 
 ## DeepSeek Harness 旁路候选
 
-`experiments/deepseek-harness` 已实现隔离工具、可信上下文门禁、终态结构化提交和正式事件到本包 `AgentTrace` 的适配器，并继续读取同一 30 条用例和 `evaluateAgentTraces()`。keyless 单测、固定 DSH 运行时预检和首轮真实 `deepseek-v4-flash` 评估均已完成；模型基线为 0/30、20.22%，其中权限安全为 66.67%，其余差距保留为真实结果而未针对 expected 调参刷分。具体边界、版本、凭据和报告要求见 [`docs/DEEPSEEK_HARNESS_BASELINE.md`](../../docs/DEEPSEEK_HARNESS_BASELINE.md) 与[实验说明](../../experiments/deepseek-harness/README.md)。
+`experiments/deepseek-harness` 已实现隔离工具、可信上下文门禁、终态结构化提交和正式事件到本包 `AgentTrace` 的适配器。首轮真实调用只证明 DSH 工具/guard/事件/终态链路可运行；0/30、20.22% 不用于比较 DSH、OpenClaw 或 Companion Harness，也不用于模型选型。原因包括单一模型/配置、没有 OpenClaw 对照、隐藏默认参数冲突、名称规范化契约缺失及不成熟的事实转录协议。具体边界见 [`docs/DEEPSEEK_HARNESS_BASELINE.md`](../../docs/DEEPSEEK_HARNESS_BASELINE.md)。
+
+## v2 离线协议
+
+v1 runner、`reports/baseline.*` 和实验目录中的 0/30、20.22% 报告保持不变。v2 是独立的 `2.0` 协议和 `warframe-companion-agent-eval-v2` suite：
+
+- 已真实完成期望工具调用后，终态 `answer` 与 `call_tool` 都表示该轮已完成；工具名仍必须匹配。
+- 事实维度改为“必需事实存在 + 禁止事实不出现”。合理额外事实不因未写入 expected 自动失败，但必须通过合成工具结果支撑门禁；无支撑事实仍令整条用例失败。
+- 本地确定性 Harness 沿用原逐 case 预算；远程模型使用独立的 15 秒完整 case 预算，并分别报告 min、median、p95 和 max。
+- 参数当前仍逐字比较；离线审核把名称规范化候选与 rank/platform/crossplay 等真实语义漂移分开。该指标在引入规范化语义契约前不作为模型质量或架构选型证据。
+- 必需证据的对象/范围/时间/新鲜度/来源，以及权限拒绝优先级均未放宽。
+
+只使用已经保存的 trace 离线重评：
+
+```powershell
+npm run eval:v2:offline --workspace @warframe-companion/agent-eval
+```
+
+该命令只读 `reports/desktop-harness-traces.json` 和 `experiments/deepseek-harness/reports/traces.json`，不读取凭据、不调用模型或 API。产物写入 `reports/v2/`，不会覆盖任何 v1 基线。当前同一批输出为 DeepSeek v2 **5/30、53.72%**，桌面 Harness v2 **29/30、97.78%**；这些数字只说明评分规则变化与历史 trace 形态，不是 backend 横评。

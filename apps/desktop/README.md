@@ -4,7 +4,7 @@ Electron/React 桌面应用当前提供系统健康页、原生市场查询卡�
 
 市场页要求显式输入物品、平台、跨平台开关与等级，通过安全 preload IPC 调用真实只读 `market-query-service`。结果分别展示当前买卖挂单、90 日已成交统计、证据时间、来源、警告、空订单和分类故障；不会下单、挂单或发送交易私聊。
 
-Agent 页使用与评估共用的 `@warframe-companion/agent-runtime`。当前确定性 Harness 支持公开市场查询、缺失参数澄清和禁止写操作/不可信个人请求拒绝；事件按“判断 → 工具调用 → 工具结果 → 回答 → `AgentTrace`”流式送到 renderer。它不是 LLM，也没有接入 OpenClaw、DeepSeek、个人快照或订阅写入。
+Agent 页使用 `@warframe-companion/agent-runtime`。用户可选择本地离线模型 profile，查看能力与健康状态，再沿“可信策略 → 模型 adapter → 工具调用 → 工具结果 → 证据回答 → `AgentTrace`”运行；支持停止和 15 秒超时。当前不是远程 LLM，也没有接入视觉、fallback、OpenClaw、DeepSeek、个人快照或订阅写入。
 
 ## 开发
 

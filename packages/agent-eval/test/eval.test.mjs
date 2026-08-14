@@ -5,6 +5,9 @@ import {
   createReferenceTrace,
   evaluateAgentTraces,
   renderMarkdownReport,
+  V2_AGENT_EVAL_CASES,
+  auditAgentTracesV2,
+  evaluateAgentTracesV2,
 } from '../dist/index.js';
 
 const generatedAt = '2030-01-02T03:04:05.000Z';
@@ -83,4 +86,43 @@ test('runner 的结构比较不依赖对象键顺序', () => {
   trace.facts[0].evidence = Object.fromEntries(Object.entries(evidence).reverse());
   const summary = evaluateAgentTraces([testCase], [trace], { candidate: 'key-order-control', generatedAt });
   assert.equal(summary.passedCases, 1);
+});
+
+test('v2 允许期望工具完成后的 answer 终态，并区分本地与远程延迟预算', () => {
+  const testCase = V2_AGENT_EVAL_CASES.find((entry) => entry.id === 'route-006');
+  assert.ok(testCase);
+  const trace = createReferenceTrace(FIRST_AGENT_EVAL_CASES.find((entry) => entry.id === 'route-006'));
+  trace.decision = 'answer';
+  trace.latencyMs = 10_000;
+  const remote = evaluateAgentTracesV2([testCase], [trace], { candidate: 'remote-control', generatedAt, latencyClass: 'remote_model' });
+  const local = evaluateAgentTracesV2([testCase], [trace], { candidate: 'local-control', generatedAt, latencyClass: 'local_harness' });
+  assert.equal(remote.results[0].dimensions.toolSelection.passed, true);
+  assert.equal(remote.results[0].dimensions.efficiency.passed, true);
+  assert.equal(local.results[0].dimensions.efficiency.passed, false);
+});
+
+test('v2 允许受工具支持的额外事实，但无支撑事实仍触发安全门禁', () => {
+  const testCase = V2_AGENT_EVAL_CASES.find((entry) => entry.id === 'evidence-001');
+  const v1Case = FIRST_AGENT_EVAL_CASES.find((entry) => entry.id === 'evidence-001');
+  assert.ok(testCase && v1Case);
+  const trace = createReferenceTrace(v1Case);
+  trace.facts.push({ key: 'market.sell_orders', value: 1, evidence: structuredClone(trace.facts[0].evidence) });
+  let summary = evaluateAgentTracesV2([testCase], [trace], { candidate: 'supported-extra', generatedAt, latencyClass: 'local_harness' });
+  assert.equal(summary.results[0].dimensions.factCorrectness.passed, true);
+  assert.equal(summary.results[0].safetyGates.claimGrounding.passed, true);
+  trace.facts.push({ key: 'market.current_price', value: 999, evidence: structuredClone(trace.facts[0].evidence) });
+  summary = evaluateAgentTracesV2([testCase], [trace], { candidate: 'hallucination-control', generatedAt, latencyClass: 'local_harness' });
+  assert.equal(summary.results[0].dimensions.factCorrectness.passed, true);
+  assert.equal(summary.results[0].safetyGates.claimGrounding.passed, false);
+  assert.equal(summary.passedCases, 0);
+});
+
+test('v2 审核区分名称规范化候选与真实参数语义漂移', () => {
+  const cases = V2_AGENT_EVAL_CASES.filter((entry) => ['route-001', 'route-003'].includes(entry.id));
+  const traces = cases.map((entry) => createReferenceTrace(FIRST_AGENT_EVAL_CASES.find((candidate) => candidate.id === entry.id)));
+  traces[0].toolCalls[0].arguments.item = 'Axi V3 Relic';
+  traces[1].toolCalls[0].arguments.rank = 'max';
+  const audits = auditAgentTracesV2(cases, traces);
+  assert.equal(audits[0].argumentMutations[0].classification, 'normalization_candidate');
+  assert.equal(audits[1].argumentMutations[0].classification, 'semantic_mismatch');
 });

@@ -1,6 +1,6 @@
 import type { SystemHealthSnapshot } from '../system-health.js';
 import type { MarketQueryRequest, MarketQueryResult } from '@warframe-companion/market-query-contract';
-import type { AgentStreamEvent } from '@warframe-companion/agent-runtime';
+import type { AgentStreamEvent, ModelHealth, ModelProfile } from '@warframe-companion/agent-runtime';
 
 declare global {
   interface Window {
@@ -12,7 +12,10 @@ declare global {
         query(request: MarketQueryRequest): Promise<MarketQueryResult>;
       };
       agent: {
-        run(request: { requestId: string; message: string }, onEvent: (event: AgentStreamEvent) => void): () => void;
+        listModels(): Promise<ModelProfile[]>;
+        checkModel(profileId: string): Promise<ModelHealth>;
+        run(request: { requestId: string; message: string; modelProfileId: string; timeoutMs: number }, onEvent: (event: AgentStreamEvent) => void): () => void;
+        cancel(requestId: string): void;
       };
     };
   }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runDesktopAgent } from '../dist/index.js';
+import { checkModelProfile, listModelProfiles, runDesktopAgent } from '../dist/index.js';
 import { MOCK_MARKET_QUERY_SUCCESS } from '@warframe-companion/market-query-contract/mocks';
 
 const context = { channel: 'desktop', trustedOwner: true, now: '2030-01-02T03:04:05.000Z' };
@@ -35,4 +35,37 @@ test('未接入的个人快照不会误路由到市场工具', async () => {
   assert.equal(result.trace.decision, 'answer');
   assert.match(result.message, /尚未接入个人快照/u);
   assert.equal(called, false);
+});
+
+test('模型 profile 可枚举并经过能力与健康门禁', async () => {
+  const profiles = listModelProfiles();
+  assert.equal(profiles.length, 2);
+  assert.equal(profiles.every((profile) => profile.capabilities.text && profile.capabilities.nativeTools), true);
+  assert.equal(profiles.every((profile) => profile.capabilities.vision === false), true);
+  const health = await checkModelProfile(profiles[1].id);
+  assert.equal(health.status, 'healthy');
+  assert.match(health.summary, /不会读取密钥/u);
+});
+
+test('取消信号终止模型阶段并留下可解释终态', async () => {
+  const controller = new AbortController();
+  const adapter = {
+    id: 'synthetic-pending',
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn({ signal }) {
+      return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+    },
+  };
+  const profile = {
+    id: 'synthetic-pending', label: 'Synthetic', adapterId: adapter.id, model: 'synthetic', description: 'synthetic',
+    capabilities: { text: true, vision: false, nativeTools: true, structuredOutput: true, reasoning: false, streaming: false, cancellation: true, contextWindow: 1024 },
+  };
+  const promise = runDesktopAgent({ requestId: 'synthetic-cancel', message: '查价格', modelProfileId: profile.id, context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), signal: controller.signal, profiles: [profile], adapters: [adapter],
+  });
+  controller.abort(new Error('cancelled'));
+  const result = await promise;
+  assert.equal(result.trace.terminalReason, 'cancelled');
+  assert.match(result.message, /已停止/u);
+  assert.equal(result.trace.toolCalls.length, 0);
 });

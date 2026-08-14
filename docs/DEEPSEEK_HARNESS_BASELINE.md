@@ -1,6 +1,6 @@
 # DeepSeek Harness 旁路调研与集成基线
 
-> 状态：Session 8 已完成上游审计和边界设计；Session 9 已完成隔离 Companion 插件、门禁、事件适配器、keyless 预检与固定候选的 30 条真实模型评估。日期：2026-08-14。
+> 状态：Session 8 已完成上游审计和边界设计；Session 9 已完成隔离 Companion 插件、门禁、事件适配器、keyless 预检与固定候选的 30 条真实模型评估；Session 10 已完成 v2 评估协议和既有 trace 离线重评。日期：2026-08-14。
 
 ## 固定的上游基线
 
@@ -123,4 +123,19 @@ DSH 根仓库和 222 个 DSH 包声明 MIT，完整第三方声明位于上游 `
 
 固定候选为 DSH `0.1.0-rc.5` / commit `47f943859bef60e4160492346772ded9b24f765a`、`deepseek-official/deepseek-v4-flash`。首轮结果为 **0/30、20.22%**：工具选择 30.00%，参数落地 9.09%，事实正确 20.00%，证据合规 0%，权限安全 66.67%，效率 10.00%。完整运行约 123 秒，逐 case 墙钟延迟约 1.2–11.8 秒。
 
-低分不是空跑：驱动器要求观察到 Agent 从 `running` 回到 `idle`，且缺失 `submit_agent_trace` 时直接失败；工具调用来自持久事件，终态来自 schema 约束提交。主要差距是调用 Market 后提交 `answer` 而契约要求 `call_tool`、生成评估集未声明的额外事实、没有精确复现所需证据事实，以及真实模型延迟超过为本地确定性 Harness 设定的预算。为保留可比较的诚实首份模型基线，本轮没有读取 expected 来定向改写提示词并重复刷分。
+该运行不是空跑：驱动器观察完整 Agent 生命周期，工具调用来自持久事件，终态来自 schema 约束提交。但这份分数只保留为 DSH 集成冒烟证据，不能作为 DSH/OpenClaw、模型或 Companion Harness 的横向结论。运行使用单一 `deepseek-v4-flash`、`thinking:disabled`、`reasoningEffort:off`、2048 token、极简工具与早期事实转录协议；没有实际 OpenClaw 模型基线，部分 prompt/expected 还有隐藏默认参数矛盾。名称规范化也尚无语义契约。
+
+## Session 10：Agent eval v2 离线重评
+
+v1 runner 和 Session 9 产物保持原样，历史基线仍是 **0/30、20.22%**。v2 使用独立 schema `2.0`、suite `warframe-companion-agent-eval-v2`、runner 和 `packages/agent-eval/reports/v2/` 输出目录，不覆盖历史文件。
+
+v2 修正三处系统性偏差：期望工具真实调用后允许 `answer` 或 `call_tool` 作为终态；事实维度只检查必需事实和禁止事实，合理额外事实另由工具 fixture 支撑门禁验证；远程模型使用独立 15 秒完整 case 延迟预算，本地 Harness 继续沿用原逐 case 预算。必需证据、禁止事实、无支撑事实与权限拒绝原因优先级未放宽。参数仍是逐字比较，审核现把 `古纪V3 → Axi V3 Relic`、`赋能充沛 → Energize` 标为待契约确认的名称规范化候选，与 rank/platform/crossplay 等语义漂移分开。
+
+离线命令只读取 Session 9 已保存的 `experiments/deepseek-harness/reports/traces.json` 和桌面既有 trace，没有读取凭据、发起模型请求或访问 Market。结果：
+
+| 候选 | v1 | v2 | 延迟类别 |
+|---|---:|---:|---|
+| DSH / DeepSeek | 0/30，20.22% | 5/30，53.72% | `remote_model`，median 3324ms，p95 9732ms |
+| 桌面确定性 Harness | 29/30，97.50% | 29/30，97.78% | `local_harness`，median 2ms，p95 2ms |
+
+离线审核仍发现期望工具未调用、真实参数语义漂移、工具结果不支持的额外事实、必需证据缺失/改写，以及权限拒绝原因优先级错误。v2 的提升只说明 v1 尺子存在系统性偏差；这套历史结果不再服务于 backend 选型，也不继续围绕分数调提示词。详见 [`../packages/agent-eval/reports/v2/v1-v2-comparison.md`](../packages/agent-eval/reports/v2/v1-v2-comparison.md)。

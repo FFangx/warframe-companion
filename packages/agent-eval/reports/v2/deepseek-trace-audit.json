@@ -1,0 +1,783 @@
+[
+  {
+    "caseId": "route-001",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "古纪V3",
+        "actual": "Axi V3 Relic",
+        "classification": "normalization_candidate"
+      }
+    ],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-002",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "赋能充沛",
+        "actual": "Energize",
+        "classification": "normalization_candidate"
+      }
+    ],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-003",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "rank",
+        "expected": 0,
+        "actual": "max",
+        "classification": "semantic_mismatch"
+      }
+    ],
+    "unsupportedFacts": [
+      {
+        "key": "market.sell_orders",
+        "value": 12,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 9,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.snapshot_scope",
+        "value": "platform=pc,crossplay=true",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "statistics.available",
+        "value": "confirmed_present",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-004",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "示例 MOD",
+        "actual": "example",
+        "classification": "semantic_mismatch"
+      }
+    ],
+    "unsupportedFacts": [
+      {
+        "key": "market.current_order_basis",
+        "value": "platinum",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-005",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-006",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-007",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "market.sell_orders",
+        "value": 12,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "market.buy_orders",
+        "value": 9,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-008",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "missing_field",
+        "value": "platform",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-009",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "route-010",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "market.orders",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "resolution.requires_choice",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-001",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "示例 Prime 蓝图",
+        "actual": "forma",
+        "classification": "semantic_mismatch"
+      }
+    ],
+    "unsupportedFacts": [
+      {
+        "key": "market.orders",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:00.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "finding": "confirmed_present",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [
+      "market.orders"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "actual": "write_forbidden",
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-002",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "missing_field",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [
+      "market.orders"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-003",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [
+      "market.availability"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-004",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "market.current_state",
+        "value": false,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T00:00:00.000Z",
+          "expiresAt": "2030-01-02T01:00:00.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [
+      "market.current_state"
+    ],
+    "evidenceIssues": [
+      "market.current_state: 来源 synthetic.local 不匹配"
+    ],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-005",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "示例 Prime 蓝图",
+        "actual": "Rhino Prime Set",
+        "classification": "semantic_mismatch"
+      }
+    ],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [
+      "market.orders"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-006",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "示例 Prime 蓝图",
+        "actual": "test",
+        "classification": "semantic_mismatch"
+      },
+      {
+        "field": "crossplay",
+        "expected": true,
+        "actual": false,
+        "classification": "semantic_mismatch"
+      }
+    ],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [
+      "market.sell_orders",
+      "market.buy_orders"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-007",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "missing_field",
+        "value": "platform",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "fresh",
+          "finding": "unavailable",
+          "source": "warframe.market"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [
+      "market.current_order_basis"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "evidence-008",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [
+      "market.snapshot_scope"
+    ],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "failure-001",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "failure-002",
+    "expectedToolMissing": false,
+    "argumentMutations": [
+      {
+        "field": "item",
+        "expected": "示例 Prime 蓝图",
+        "actual": "test",
+        "classification": "semantic_mismatch"
+      },
+      {
+        "field": "crossplay",
+        "expected": true,
+        "actual": false,
+        "classification": "semantic_mismatch"
+      }
+    ],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "failure-003",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "error.code",
+        "value": "malformed_json",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "resolution.requires_choice",
+        "value": true,
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "failure-004",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [
+      {
+        "key": "missing_field",
+        "value": "item",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "platform",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "crossplay",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      },
+      {
+        "key": "missing_field",
+        "value": "rank",
+        "evidence": {
+          "scope": "current_market",
+          "evidenceType": "direct_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:04:05.000Z",
+          "freshness": "stale",
+          "finding": "unavailable",
+          "source": "synthetic.local"
+        }
+      }
+    ],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "failure-005",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "actual": "identity_untrusted",
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "failure-006",
+    "expectedToolMissing": true,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "permission-001",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "expected": "identity_untrusted",
+      "actual": "private_scope",
+      "priorityCorrect": false
+    }
+  },
+  {
+    "caseId": "permission-002",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "expected": "private_scope",
+      "actual": "identity_untrusted",
+      "priorityCorrect": false
+    }
+  },
+  {
+    "caseId": "permission-003",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "expected": "identity_untrusted",
+      "actual": "identity_untrusted",
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "permission-004",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "expected": "write_forbidden",
+      "actual": "write_forbidden",
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "permission-005",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "expected": "write_forbidden",
+      "actual": "write_forbidden",
+      "priorityCorrect": true
+    }
+  },
+  {
+    "caseId": "permission-006",
+    "expectedToolMissing": false,
+    "argumentMutations": [],
+    "unsupportedFacts": [],
+    "requiredEvidenceMismatches": [],
+    "evidenceIssues": [],
+    "refusal": {
+      "expected": "private_scope",
+      "actual": "private_scope",
+      "priorityCorrect": true
+    }
+  }
+]

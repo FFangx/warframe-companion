@@ -19,6 +19,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "npm run clean && tsc -p tsconfig.json",
     "eval": "npm run build && node dist/cli.js",
+    "eval:v2:offline": "npm run build && node dist/v2-cli.js",
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {

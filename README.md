@@ -4,7 +4,9 @@
 
 当前已完成市场与 Agent 两个桌面业务垂直切片：`market.query` 契约、真实只读 Market 适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 30 条合成/脱敏 eval、确定性 runner、参考基线与真实桌面 Harness 基线。
 
-DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以及隔离插件/门禁/事件适配器的 keyless 预检。固定的 `deepseek-v4-flash` 候选已运行同一套 30 条真实模型评估，结果为 0/30、20.22%；[对比报告](experiments/deepseek-harness/reports/comparison.md)明确区分真实模型推理、合成 Market fixture 与真实墙钟延迟。
+桌面 Agent 的稳定核心现由 Companion 自有的 Warframe Harness 承载：`ModelProfile`、`ModelAdapter`、能力/健康门禁、可信策略、工具执行、取消/超时和轨迹。第一条切片使用两个可选的本地离线 profile，零密钥、零模型费用；详见 [`docs/AGENT_HARNESS.md`](docs/AGENT_HARNESS.md)。
+
+DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以及隔离插件/门禁/事件适配器的 keyless 预检。固定候选的 v1 0/30、20.22% 与同 trace 的 v2 5/30、53.72% 仅保留为 DSH 集成冒烟和评分协议演进历史：运行配置、隐藏默认参数与名称规范化契约都不足以支持模型、框架或 Harness 选型比较。[v1/v2 对比](packages/agent-eval/reports/v2/v1-v2-comparison.md)已明确这一降级定位。
 
 ## 仓库结构
 

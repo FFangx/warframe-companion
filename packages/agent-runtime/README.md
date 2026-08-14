@@ -1,3 +1,5 @@
 # 桌面 Agent Runtime
 
-桌面端与 Agent eval 共用的最小确定性 Harness。它只编排公开只读 `market.query`、显式参数澄清和权限拒绝，逐步导出流式事件与 `AgentTrace`。当前不是 LLM，也不接触个人快照、订阅写入、QQ 或游戏客户端。
+Companion 自有 Warframe Agent Harness 的第一条模型可配置切片。它定义 `ModelProfile`、`ModelAdapter` 与能力/健康门禁，由 Harness 统一执行可信策略、公开只读 `market.query`、取消/超时、流式事件和 `AgentTrace`。
+
+当前 backend `warframe-local-rules` 完全离线、零密钥，提供标准与紧凑两个可选 profile；它用于验证产品链路，不代表 LLM。尚未接入视觉、远程模型、fallback、个人快照、订阅写入、QQ 或游戏客户端。架构边界见 [`docs/AGENT_HARNESS.md`](../../docs/AGENT_HARNESS.md)。

@@ -9,7 +9,7 @@ import {
   type MarketQuerySuccess,
 } from '@warframe-companion/market-query-contract';
 import type { ComponentHealth, HealthStatus, SystemHealthSnapshot } from '../system-health.js';
-import type { AgentStreamEvent, AgentTrace } from '@warframe-companion/agent-runtime';
+import type { AgentStreamEvent, AgentTrace, ModelHealth, ModelProfile } from '@warframe-companion/agent-runtime';
 import {
   ERROR_CATEGORY_LABELS,
   PLATFORM_LABELS,
@@ -171,10 +171,35 @@ function MarketView() {
 
 interface ChatTurn { id: string; user: string; assistant: string; events: AgentStreamEvent[]; trace?: AgentTrace }
 
+function traceEventText(entry: AgentStreamEvent): string {
+  if (entry.type === 'status') return entry.text;
+  if (entry.type === 'model_selected') return `${entry.profile.label} · ${entry.profile.model}`;
+  if (entry.type === 'tool_call') return `${entry.name} ${JSON.stringify(entry.arguments)}`;
+  if (entry.type === 'tool_result') return `${entry.name} · ${entry.summary}`;
+  return entry.type === 'message_delta' ? entry.delta : entry.message;
+}
+
 function AgentView() {
   const [message, setMessage] = useState('查一下古纪V3当前行情，PC 跨平台，0级。');
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [running, setRunning] = useState(false);
+  const [models, setModels] = useState<ModelProfile[]>([]);
+  const [profileId, setProfileId] = useState('');
+  const [modelHealth, setModelHealth] = useState<ModelHealth | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void window.warframeCompanion.agent.listModels().then((profiles) => {
+      setModels(profiles);
+      setProfileId((current) => current || profiles[0]?.id || '');
+    });
+  }, []);
+  useEffect(() => {
+    if (!profileId) return;
+    setModelHealth(null);
+    void window.warframeCompanion.agent.checkModel(profileId).then(setModelHealth);
+  }, [profileId]);
+  const selectedProfile = models.find((profile) => profile.id === profileId);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -182,21 +207,37 @@ function AgentView() {
     if (!prompt || running) return;
     const id = `desktop-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     setTurns((current) => [...current, { id, user: prompt, assistant: '', events: [] }]);
-    setRunning(true); setMessage('');
+    setRunning(true); setActiveRequestId(id); setMessage('');
     let stop = () => {};
-    stop = window.warframeCompanion.agent.run({ requestId: id, message: prompt }, (streamEvent) => {
+    stop = window.warframeCompanion.agent.run({ requestId: id, message: prompt, modelProfileId: profileId, timeoutMs: 15_000 }, (streamEvent) => {
       setTurns((current) => current.map((turn) => {
         if (turn.id !== id) return turn;
         if (streamEvent.type === 'message_delta') return { ...turn, assistant: turn.assistant + streamEvent.delta, events: [...turn.events, streamEvent] };
         if (streamEvent.type === 'completed') return { ...turn, assistant: streamEvent.message, trace: streamEvent.trace, events: [...turn.events, streamEvent] };
         return { ...turn, events: [...turn.events, streamEvent] };
       }));
-      if (streamEvent.type === 'completed') { setRunning(false); stop(); }
+      if (streamEvent.type === 'completed') { setRunning(false); setActiveRequestId(null); stop(); }
     });
   };
 
+  const cancel = () => {
+    if (activeRequestId) window.warframeCompanion.agent.cancel(activeRequestId);
+  };
+
   return <div className="agent-view">
-    <header className="hero market-hero"><div><p className="eyebrow">DESKTOP AGENT / STRUCTURED TRACE</p><h1>Agent 对话</h1><p className="hero__copy">公开市场查询、参数澄清与权限拒绝共用同一可评估轨迹。</p></div><span className="readonly-chip">确定性 Harness · 只读</span></header>
+    <header className="hero market-hero"><div><p className="eyebrow">WARFRAME AGENT HARNESS / MODEL ROUTING</p><h1>Agent 对话</h1><p className="hero__copy">模型 profile、能力门禁、工具、证据、停止与轨迹由 Companion 自有 Harness 统一编排。</p></div><span className="readonly-chip">离线模型后端 · 只读</span></header>
+    <section className="model-console">
+      <label><span>主 Agent 模型</span><select value={profileId} onChange={(event) => setProfileId(event.target.value)} disabled={running}>{models.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
+      <div className="model-summary"><strong>{selectedProfile?.model ?? '正在读取 profile'}</strong><small>{selectedProfile?.description}</small></div>
+      <div className={`model-health model-health--${modelHealth?.status ?? 'checking'}`}><i />{modelHealth?.status === 'healthy' ? '可运行' : modelHealth?.status === 'incompatible' ? '能力不兼容' : modelHealth?.status === 'unavailable' ? '不可用' : '检查中'}</div>
+      {selectedProfile ? <div className="capability-row">
+        <span className={selectedProfile.capabilities.nativeTools ? 'capability--on' : ''}>工具</span>
+        <span className={selectedProfile.capabilities.structuredOutput ? 'capability--on' : ''}>结构化输出</span>
+        <span className={selectedProfile.capabilities.streaming ? 'capability--on' : ''}>原生流式</span>
+        <span className={selectedProfile.capabilities.vision ? 'capability--on' : ''}>视觉</span>
+        <span>{Math.round(selectedProfile.capabilities.contextWindow / 1024)}K 上下文</span>
+      </div> : null}
+    </section>
     <section className="agent-layout">
       <div className="conversation">
         {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>从一句可验证请求开始</h2><p>例：查一下古纪V3当前行情，PC 跨平台，0级。平台、交易范围和等级必须明确。</p></div> : null}
@@ -206,12 +247,12 @@ function AgentView() {
           <details className="trace-panel" open={turns.at(-1)?.id === turn.id}>
             <summary>执行轨迹 <small>{turn.trace ? `${turn.trace.decision} · ${turn.trace.latencyMs}ms` : '流式更新中'}</small></summary>
             <div className="trace-events">{turn.events.filter((entry) => entry.type !== 'message_delta' && entry.type !== 'completed').map((entry, index) => <div key={index}>
-              <b>{entry.type}</b><code>{entry.type === 'status' ? entry.text : entry.type === 'tool_call' ? `${entry.name} ${JSON.stringify(entry.arguments)}` : `${entry.name} · ${entry.summary}`}</code>
+              <b>{entry.type}</b><code>{traceEventText(entry)}</code>
             </div>)}</div>
           </details>
         </article>)}
       </div>
-      <form className="agent-composer" onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="输入公开只读查询…" rows={2} /><button type="submit" disabled={running || !message.trim()}>{running ? '执行中' : '发送'}</button><small>不会操作游戏、交易、聊天或账号资产；个人数据尚未接入。</small></form>
+      <form className="agent-composer" onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="输入公开只读查询…" rows={2} /><button type={running ? 'button' : 'submit'} className={running ? 'stop-button' : ''} disabled={!running && (!message.trim() || modelHealth?.status !== 'healthy')} onClick={running ? cancel : undefined}>{running ? '停止' : '发送'}</button><small>15 秒超时 · 可停止 · 不操作游戏、交易、聊天或账号资产；当前模型为本地离线规则后端，不产生模型费用。</small></form>
     </section>
   </div>;
 }
@@ -228,6 +269,6 @@ export function App() {
       </nav>
       <div className="boundary-note"><span>只读模式</span>不操作游戏、交易、聊天或账号资产</div>
     </aside>
-    <section className="content">{view === 'health' ? <HealthView /> : view === 'market' ? <MarketView /> : <AgentView />}<footer><span>Session 7 · 桌面 Agent 垂直切片</span><span>同一结构化轨迹用于桌面展示与 Harness 评估。</span></footer></section>
+    <section className="content">{view === 'health' ? <HealthView /> : view === 'market' ? <MarketView /> : <AgentView />}<footer><span>Warframe Agent Harness · 第一条模型可配置切片</span><span>本地模型 profile → 能力门禁 → market.query → 证据与轨迹。</span></footer></section>
   </main>;
 }

@@ -81,3 +81,16 @@ export { FIRST_AGENT_EVAL_CASES } from './cases.js';
 export { createReferenceTrace } from './reference-baseline.js';
 export { createDesktopHarnessTrace } from './desktop-harness-baseline.js';
 export { evaluateAgentTraces, renderMarkdownReport } from './runner.js';
+export {
+  AGENT_EVAL_V2_SCHEMA_VERSION,
+  AGENT_EVAL_V2_SUITE_ID,
+  REMOTE_MODEL_LATENCY_BUDGET_MS,
+  V2_AGENT_EVAL_CASES,
+  auditAgentTracesV2,
+  evaluateAgentTracesV2,
+  renderMarkdownReportV2,
+  type AgentEvalCaseV2,
+  type EvalLatencyClass,
+  type EvalSummaryV2,
+  type TraceAuditV2,
+} from './v2.js';

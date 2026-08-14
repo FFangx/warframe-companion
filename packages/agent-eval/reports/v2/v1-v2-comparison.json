@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "2.0",
+  "suiteId": "warframe-companion-agent-eval-v2",
+  "generatedAt": "2026-08-14T00:00:00.000Z",
+  "execution": "offline_saved_traces_only",
+  "apiCalls": 0,
+  "remoteModel": {
+    "candidate": "dsh-deepseek-v4-flash-existing-traces",
+    "v1": {
+      "suiteId": "warframe-companion-agent-eval-v1",
+      "passedCases": 0,
+      "score": 20.22,
+      "dimensionScores": {
+        "toolSelection": {
+          "passed": 9,
+          "applicable": 30,
+          "score": 30
+        },
+        "argumentGrounding": {
+          "passed": 2,
+          "applicable": 22,
+          "score": 9.09
+        },
+        "factCorrectness": {
+          "passed": 6,
+          "applicable": 30,
+          "score": 20
+        },
+        "evidenceCompliance": {
+          "passed": 0,
+          "applicable": 8,
+          "score": 0
+        },
+        "permissionSafety": {
+          "passed": 4,
+          "applicable": 6,
+          "score": 66.67
+        },
+        "efficiency": {
+          "passed": 3,
+          "applicable": 30,
+          "score": 10
+        }
+      }
+    },
+    "v2": {
+      "passedCases": 5,
+      "score": 53.72,
+      "dimensionScores": {
+        "toolSelection": {
+          "passed": 17,
+          "applicable": 30,
+          "score": 56.67
+        },
+        "argumentGrounding": {
+          "passed": 2,
+          "applicable": 22,
+          "score": 9.09
+        },
+        "factCorrectness": {
+          "passed": 8,
+          "applicable": 22,
+          "score": 36.36
+        },
+        "evidenceCompliance": {
+          "passed": 0,
+          "applicable": 8,
+          "score": 0
+        },
+        "permissionSafety": {
+          "passed": 4,
+          "applicable": 6,
+          "score": 66.67
+        },
+        "efficiency": {
+          "passed": 29,
+          "applicable": 30,
+          "score": 96.67
+        }
+      },
+      "safetyGateScores": {
+        "claimGrounding": {
+          "passed": 18,
+          "applicable": 30,
+          "score": 60
+        }
+      },
+      "latency": {
+        "class": "remote_model",
+        "budgetPolicy": "远程模型完整 case 独立预算 15000ms",
+        "minimumMs": 1241,
+        "medianMs": 3324,
+        "p95Ms": 9732,
+        "maximumMs": 11803
+      }
+    },
+    "delta": {
+      "score": 33.5,
+      "dimensions": {
+        "toolSelection": 26.67,
+        "argumentGrounding": 0,
+        "factCorrectness": 16.36,
+        "evidenceCompliance": 0,
+        "permissionSafety": 0,
+        "efficiency": 86.67
+      }
+    }
+  },
+  "localHarness": {
+    "candidate": "desktop-deterministic-harness-existing-traces",
+    "v1": {
+      "suiteId": "warframe-companion-agent-eval-v1",
+      "passedCases": 29,
+      "score": 97.5,
+      "dimensionScores": {
+        "toolSelection": {
+          "passed": 29,
+          "applicable": 30,
+          "score": 96.67
+        },
+        "argumentGrounding": {
+          "passed": 21,
+          "applicable": 22,
+          "score": 95.45
+        },
+        "factCorrectness": {
+          "passed": 22,
+          "applicable": 23,
+          "score": 95.65
+        },
+        "evidenceCompliance": {
+          "passed": 8,
+          "applicable": 8,
+          "score": 100
+        },
+        "permissionSafety": {
+          "passed": 6,
+          "applicable": 6,
+          "score": 100
+        },
+        "efficiency": {
+          "passed": 30,
+          "applicable": 30,
+          "score": 100
+        }
+      }
+    },
+    "v2": {
+      "passedCases": 29,
+      "score": 97.78,
+      "dimensionScores": {
+        "toolSelection": {
+          "passed": 29,
+          "applicable": 30,
+          "score": 96.67
+        },
+        "argumentGrounding": {
+          "passed": 21,
+          "applicable": 22,
+          "score": 95.45
+        },
+        "factCorrectness": {
+          "passed": 22,
+          "applicable": 22,
+          "score": 100
+        },
+        "evidenceCompliance": {
+          "passed": 8,
+          "applicable": 8,
+          "score": 100
+        },
+        "permissionSafety": {
+          "passed": 6,
+          "applicable": 6,
+          "score": 100
+        },
+        "efficiency": {
+          "passed": 30,
+          "applicable": 30,
+          "score": 100
+        }
+      },
+      "safetyGateScores": {
+        "claimGrounding": {
+          "passed": 29,
+          "applicable": 30,
+          "score": 96.67
+        }
+      },
+      "latency": {
+        "class": "local_harness",
+        "budgetPolicy": "沿用每条 case 的本地确定性 Harness 预算",
+        "minimumMs": 1,
+        "medianMs": 2,
+        "p95Ms": 2,
+        "maximumMs": 2
+      }
+    },
+    "delta": {
+      "score": 0.28,
+      "dimensions": {
+        "toolSelection": 0,
+        "argumentGrounding": 0,
+        "factCorrectness": 4.35,
+        "evidenceCompliance": 0,
+        "permissionSafety": 0,
+        "efficiency": 0
+      }
+    }
+  },
+  "scoreChangeSources": [
+    "工具调用后的 answer 终态不再与 call_tool 人为冲突，但仍要求期望工具真实出现。",
+    "合理且可由工具 fixture 支持的额外事实不再使事实维度失败；无支撑额外事实仍被独立安全门禁拒绝。",
+    "远程模型使用独立 15000ms 完整 case 预算；桌面 Harness 继续使用 v1 本地预算。",
+    "参数精确落地、必需事实、证据精确匹配和权限拒绝优先级均未放宽。",
+    "参数指标仍是逐字结构比较；名称规范化候选与真实 rank/platform/crossplay 漂移已在审核报告分开，不把该指标当作模型或 Harness 选型结论。"
+  ]
+}

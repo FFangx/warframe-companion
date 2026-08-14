@@ -16,11 +16,10 @@
 └──────────────┬──────────────────────┬───────────────┘
                │                      │
 ┌──────────────▼─────────────┐  ┌────▼────────────────┐
-│ Deterministic Warframe Core│  │ Agent Runtime       │
-│ 查询｜订阅｜快照｜卡片数据  │  │ 当前：OpenClaw      │
-│ 现有 Node 脚本逐步模块化    │  │ 实验：DeepSeek      │
-└───────┬───────────┬────────┘  │ Harness adapter      │
-        │           │           └─────────────────────┘
+│ Deterministic Warframe Core│  │ Warframe Agent Harness│
+│ 查询｜订阅｜快照｜卡片数据  │  │ profile｜adapter｜loop│
+│ 现有 Node 脚本逐步模块化    │  │ policy｜events｜trace │
+└───────┬───────────┬────────┘  └──────────┬───────────┘
 ┌───────▼──────┐ ┌──▼──────────┐
 │ AlecaFrame   │ │ WFInfo / API│
 │ 本机只读快照  │ │ 公共数据源   │
@@ -72,17 +71,17 @@ export interface ToolResult<TData, TPresentation = unknown> {
 - `presentation` 是渠道无关的展示数据；React 和 QQ PNG 使用不同渲染器。
 - 错误必须分类，不以空数组同时表示“没有结果”和“数据源不可用”。
 
-### 3. Agent 适配层
+### 3. Warframe Agent Harness
 
-业务工具不绑定某个模型或 Harness：
+业务工具和桌面产品不绑定某个 provider。Companion 自己拥有 `ModelProfile`、`ModelAdapter`、能力路由、可信策略、Agent loop、事件、取消/超时和轨迹边界：
 
 ```text
-OpenClaw adapter          ┐
-DeepSeek Harness adapter ─┼─> typed tool contracts
-Deterministic eval runner ┘
+local rules adapter       ┐
+OpenAI-compatible adapter ┼─> Companion Harness ─> typed Warframe tools
+OpenClaw / DSH backend    ┘
 ```
 
-DeepSeek Harness 在 Developer Preview 阶段只做隔离实验，不成为第一版硬依赖。相同评估集用于比较工具选择、证据合规、权限和延迟。
+当前只有离线 `warframe-local-rules` backend，用来零费用验证第一条桌面链路。DeepSeek Harness 的 Developer Preview 集成继续是隔离历史实验，不成为第一版硬依赖，也不由单次模型分数决定架构选型。完整边界见 [`AGENT_HARNESS.md`](AGENT_HARNESS.md)。
 
 ### 4. 渠道呈现
 
@@ -96,7 +95,7 @@ DeepSeek Harness 在 Developer Preview 阶段只做隔离实验，不成为第�
 - 本地 API：Node/TypeScript；先选进程内接口或仅监听 `127.0.0.1` 的本地服务。
 - 事件：先定义最小事件集合，暂不强制引入 AG-UI。
 - 数据：现有 JSON 状态保持兼容；新桌面会话和诊断数据需要持久化时再引入 SQLite。
-- Agent：OpenClaw 保持当前生产入口；DeepSeek Harness 作为适配实验。
+- Agent：Companion 自有 Warframe Harness 承载桌面产品；OpenClaw 保持现有 QQ 生产入口并作为能力/运维参考；DeepSeek Harness 只保留隔离适配实验。
 - 发布：延续受管构建身份、哈希校验、统一验证和可恢复升级原则。
 
 ## 实施顺序
@@ -117,7 +116,7 @@ DeepSeek Harness 在 Developer Preview 阶段只做隔离实验，不成为第�
 - 桌面市场页通过独立的 `market.query()` preload IPC 调用主进程内 `market-query-service`；用户必须显式输入物品、平台、跨平台范围和等级。
 - React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
 - `packages/agent-eval` 已建立首批 30 条合成/脱敏评估、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；覆盖工具路由、参数、事实、证据、权限与效率。参考基线只验证评估器上界，不代表真实模型表现。
-- `packages/agent-runtime` 已实现桌面生产与 eval 共用的确定性 Agent Harness：公开市场工具编排、参数澄清、权限拒绝、流式事件和 `AgentTrace` 导出。桌面通过受限 IPC 展示同一路径的工具轨迹；评估包以合成工具结果驱动该 Runtime，生成首份非 oracle Harness 基线。
-- DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 `deepseek-v4-flash` 基线为 0/30、20.22%，暴露终态决策、精确事实/证据和延迟契约差距。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
+- `packages/agent-runtime` 已实现 Companion 自有 Harness 的第一条模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场工具编排、取消/超时、流式事件和 `AgentTrace`。桌面可选择两个离线 profile、检查兼容性、运行/停止并查看工具证据；当前不调用任何远程模型。
+- DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 v1 `deepseek-v4-flash` 基线保持 0/30、20.22%。版本化 v2 runner 离线读取同一批 trace 后为 5/30、53.72%，并将工具后 `answer` 终态、必需/禁止事实语义和远程模型延迟预算从 v1 系统性误差中分离；无支撑事实、证据与权限门禁未放宽。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
-- 最小 Agent 对话已经实现；当前不包含 LLM、OpenClaw/DeepSeek 适配、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。
+- 模型可配置的最小 Agent 对话已经实现；当前不包含远程 LLM、视觉、OpenClaw/DSH 桌面 backend、fallback、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。

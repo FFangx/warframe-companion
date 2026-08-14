@@ -26,4 +26,6 @@ npm run eval
 
 无凭据时命令不会发起模型请求，会生成 `reports/comparison.json` 与 `comparison.md` 的明确阻塞记录并返回非零状态；不得把该记录称为模型成绩。凭据存在时才生成逐 case `traces.json`、模型基线和三方对比报告。
 
-2026-08-14 的首轮固定候选已完成：`deepseek-official/deepseek-v4-flash` 在同一 30 条用例上为 0/30、20.22%。报告中的模型调用是真实请求，Market 数据仍是合成 fixture，`latencyMs` 是每条完整 case 的真实墙钟时间。该低分基线保留了终态决策、精确事实/证据与延迟契约的真实差距，没有针对评估 expected 重写提示词后重复运行。
+2026-08-14 的首轮固定候选已完成：`deepseek-official/deepseek-v4-flash` 在同一 30 条用例上为 0/30、20.22%。报告中的模型调用是真实请求，Market 数据仍是合成 fixture，`latencyMs` 是每条完整 case 的真实墙钟时间。这只证明隔离 DSH 组合能够完成模型—工具—事件—终态链路；因缺少公平对照、能力配置受限、用例默认值冲突和参数规范化契约缺失，不得把分数解释为模型或 Harness 优劣。
+
+Session 10 没有再次运行本实验或调用 DeepSeek。版本化 v2 runner 位于 `packages/agent-eval`，只读取本目录已经保存的 `reports/traces.json`，把同一输出离线重评为 5/30、53.72%；该变化是评分协议历史，不是质量提升。v1 产物保持不变。
