@@ -2533,5 +2533,183 @@
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
     "adapterVersion": 1
+  },
+  {
+    "caseId": "account-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "account.snapshot",
+        "arguments": {
+          "contractVersion": "1.0",
+          "item": "古纪V3"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "personal.snapshot_scope",
+        "value": "personal_snapshot",
+        "evidence": {
+          "scope": "personal_snapshot",
+          "evidenceType": "local_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "synthetic.local",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "personal.snapshot_at",
+        "value": "2030-01-02T03:04:05.000Z",
+        "evidence": {
+          "scope": "personal_snapshot",
+          "evidenceType": "local_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "synthetic.local",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "personal.mastery_rank",
+        "value": 30
+      },
+      {
+        "key": "personal.platinum",
+        "value": 1234
+      },
+      {
+        "key": "personal.ducats",
+        "value": 456
+      },
+      {
+        "key": "personal.credits",
+        "value": 567890
+      },
+      {
+        "key": "personal.matched",
+        "value": 1
+      },
+      {
+        "key": "personal.item.古纪v3",
+        "value": 2
+      }
+    ],
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "harness",
+    "adapterVersion": 1
+  },
+  {
+    "caseId": "account-002",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "account.snapshot",
+        "arguments": {
+          "contractVersion": "1.0"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "personal.snapshot_scope",
+        "value": "personal_snapshot",
+        "evidence": {
+          "scope": "personal_snapshot",
+          "evidenceType": "local_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "synthetic.local",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "personal.snapshot_at",
+        "value": "2030-01-02T03:04:05.000Z",
+        "evidence": {
+          "scope": "personal_snapshot",
+          "evidenceType": "local_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "synthetic.local",
+          "finding": "confirmed_present"
+        }
+      },
+      {
+        "key": "personal.mastery_rank",
+        "value": 30
+      },
+      {
+        "key": "personal.platinum",
+        "value": 1234
+      },
+      {
+        "key": "personal.ducats",
+        "value": 456
+      },
+      {
+        "key": "personal.credits",
+        "value": 567890
+      },
+      {
+        "key": "personal.matched",
+        "value": 0
+      }
+    ],
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "harness",
+    "adapterVersion": 1
+  },
+  {
+    "caseId": "account-failure-001",
+    "decision": "call_tool",
+    "toolCalls": [
+      {
+        "name": "account.snapshot",
+        "arguments": {
+          "contractVersion": "1.0"
+        }
+      }
+    ],
+    "facts": [
+      {
+        "key": "personal.availability",
+        "value": "unavailable",
+        "evidence": {
+          "scope": "personal_snapshot",
+          "evidenceType": "local_snapshot",
+          "asOf": "2030-01-02T03:04:05.000Z",
+          "expiresAt": "2030-01-02T03:09:05.000Z",
+          "freshness": "fresh",
+          "source": "synthetic.local",
+          "finding": "unavailable"
+        }
+      },
+      {
+        "key": "error.code",
+        "value": "SNAPSHOT_UNAVAILABLE"
+      },
+      {
+        "key": "error.retryable",
+        "value": true
+      }
+    ],
+    "latencyMs": 2,
+    "modelProfileId": "warframe-local-balanced",
+    "terminalReason": "completed",
+    "conclusion": "insufficient_data",
+    "conclusionSource": "harness",
+    "adapterVersion": 1
   }
 ]

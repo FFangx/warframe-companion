@@ -76,10 +76,10 @@ const DIMENSIONS: EvalDimension[] = [
 const CATEGORIES: EvalCategory[] = ['tool-routing', 'evidence', 'failure-degradation', 'permission'];
 
 // v2 is a historical offline re-score of the original 30 saved Market traces.
-// New drop-tool cases have no corresponding paid-model trace and must not be
-// silently counted as missing model outputs.
+// New drop-tool and account-snapshot cases have no corresponding paid-model
+// trace and must not be silently counted as missing model outputs.
 export const V2_AGENT_EVAL_CASES: readonly AgentEvalCaseV2[] = FIRST_AGENT_EVAL_CASES
-  .filter((entry) => !entry.id.startsWith('drops-'))
+  .filter((entry) => !entry.id.startsWith('drops-') && !entry.id.startsWith('account-'))
   .map((entry) => ({
   ...entry,
   schemaVersion: AGENT_EVAL_V2_SCHEMA_VERSION,

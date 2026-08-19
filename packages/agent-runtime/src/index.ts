@@ -9,6 +9,11 @@ import {
   type DropSearchRequest,
   type DropSearchResult,
 } from '@warframe-companion/warframe-data-service';
+import {
+  ACCOUNT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountSnapshotRequest,
+  type AccountSnapshotResult,
+} from './account-snapshot.js';
 
 export type AgentDecision = 'call_tool' | 'clarify' | 'answer' | 'refuse';
 export type RefusalReason = 'identity_untrusted' | 'private_scope' | 'write_forbidden';
@@ -20,7 +25,7 @@ export interface EvalEvidence {
   loadedAt?: string;
   freshness: 'fresh' | 'stale';
   finding: 'confirmed_present' | 'confirmed_absent_in_scope' | 'unavailable';
-  source: 'warframe.market' | 'synthetic.local' | 'wfcd.drop-data';
+  source: 'warframe.market' | 'synthetic.local' | 'wfcd.drop-data' | 'alecaframe.local';
   sourceHash?: string;
   cacheFreshness?: 'fresh' | 'stale';
   sourceAge?: { ageMs: number; status: 'current' | 'aged' | 'rejected'; warningAfterMs: number; rejectAfterMs: number };
@@ -123,11 +128,12 @@ export interface ModelHealth {
 export type ModelTurn =
   | { kind: 'market_query'; request: MarketQueryRequest }
   | { kind: 'drop_search'; request: DropSearchRequest }
+  | { kind: 'account_snapshot'; request: AccountSnapshotRequest }
   | { kind: 'clarify'; text: string; facts: EvalFact[] }
   | { kind: 'answer'; text: string; streamed?: boolean }
   | { kind: 'conclude'; text: string; conclusion: 'answered' | 'insufficient_data' };
 export interface ToolRoundStep {
-  toolName: 'market.query' | 'drops.search';
+  toolName: 'market.query' | 'drops.search' | 'account.snapshot';
   toolCall: Record<string, unknown>;
   toolResultSummary: string;
   /** 产生该工具调用的模型思维链，回送时按 provider 要求原样拼回 assistant 消息。 */
@@ -211,7 +217,8 @@ export type AgentStreamEvent =
   | { type: 'model_selected'; profile: ModelProfile }
   | { type: 'tool_call'; name: 'market.query'; arguments: MarketQueryRequest }
   | { type: 'tool_call'; name: 'drops.search'; arguments: DropSearchRequest }
-  | { type: 'tool_result'; name: 'market.query' | 'drops.search'; ok: boolean; summary: string }
+  | { type: 'tool_call'; name: 'account.snapshot'; arguments: AccountSnapshotRequest }
+  | { type: 'tool_result'; name: 'market.query' | 'drops.search' | 'account.snapshot'; ok: boolean; summary: string }
   | { type: 'model_error'; error: ModelFailure }
   | { type: 'message_delta'; delta: string }
   | { type: 'model_conclusion'; conclusion: 'answered' | 'insufficient_data'; source: 'model' | 'harness' }
@@ -219,6 +226,7 @@ export type AgentStreamEvent =
 export interface AgentRunDependencies {
   marketQuery(request: MarketQueryRequest): Promise<MarketQueryResult>;
   searchDrops?(request: DropSearchRequest): Promise<DropSearchResult>;
+  getSnapshot?(request: AccountSnapshotRequest): Promise<AccountSnapshotResult>;
   onEvent?(event: AgentStreamEvent): void | Promise<void>;
   now?: () => number;
   signal?: AbortSignal;
@@ -283,8 +291,17 @@ export const localRulesModelAdapter: ModelAdapter = {
   },
   async generateTurn({ message, defaults, signal }) {
     if (signal.aborted) throw signal.reason;
-    if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号/u.test(message)) {
-      return { turn: { kind: 'answer', text: '桌面 Agent 当前尚未接入个人快照；本切片只支持公开市场查询。' } };
+    if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) {
+      // Harness 的策略门禁已保证走到这里的请求来自可信主人（群聊/非主人/原始导出
+      // 会在 policyRefusal 被拒）；adapter 只做结构化路由，数据可用性由 getSnapshot
+      // 服务决定，模型永远拿不到原始快照。
+      const item = message.match(/我的库存\s*(.+?)(?:[，。；;]|$)/u)?.[1]?.trim();
+      return {
+        turn: {
+          kind: 'account_snapshot',
+          request: { contractVersion: ACCOUNT_SNAPSHOT_CONTRACT_VERSION, ...(item && item.length <= 120 ? { item } : {}) },
+        },
+      };
     }
     const dropItem = dropItemFrom(message);
     if (!defaults && dropItem) {
@@ -347,6 +364,47 @@ function marketFacts(result: MarketQueryResult): EvalFact[] {
   ];
   if (result.evidence.freshness === 'stale') facts.push({ key: 'market.current_state', value: 'unknown', evidence: result.evidence });
   return facts;
+}
+export function factKeyFor(name: string): string {
+  const normalized = name.normalize('NFKC').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/gu, '_');
+  return normalized || 'item';
+}
+/**
+ * 个人快照的规范事实投影：与市场/掉落一样无条件派生（生产=评估）。
+ * 只投影脱敏摘要事实（数量/总额/时间），不投影任何原始字段。
+ */
+function accountFacts(result: AccountSnapshotResult): EvalFact[] {
+  if (!result.ok) {
+    const facts: EvalFact[] = [];
+    if (result.evidence) facts.push({ key: 'personal.availability', value: 'unavailable', evidence: result.evidence });
+    facts.push({ key: 'error.code', value: result.error.code });
+    facts.push({ key: 'error.retryable', value: result.error.retryable });
+    return facts;
+  }
+  const evidence = result.evidence;
+  const facts: EvalFact[] = [
+    { key: 'personal.snapshot_scope', value: 'personal_snapshot', evidence },
+    { key: 'personal.snapshot_at', value: result.data.snapshotAt, evidence },
+    { key: 'personal.mastery_rank', value: result.data.totals.masteryRank },
+    { key: 'personal.platinum', value: result.data.totals.platinum },
+    { key: 'personal.ducats', value: result.data.totals.ducats },
+    { key: 'personal.credits', value: result.data.totals.credits },
+    { key: 'personal.matched', value: result.data.items.length },
+  ];
+  for (const item of result.data.items) facts.push({ key: `personal.item.${factKeyFor(item.name)}`, value: item.count });
+  return facts;
+}
+function accountResponseFor(result: AccountSnapshotResult): string {
+  if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
+  const { requestedItem, totals, items, snapshotAt } = result.data;
+  const matched = items.length > 0
+    ? `命中 ${items.length} 项：${items.map((item) => `${item.name}×${item.count}`).join('、')}。`
+    : requestedItem ? `${requestedItem} 未持有。` : '无物品明细。';
+  return `个人账号快照（${snapshotAt}）：段位 ${totals.masteryRank}，白金 ${totals.platinum}，杜卡德 ${totals.ducats}，现金 ${totals.credits}；${matched}来源 ${result.evidence.source}。`;
+}
+function accountToolSummary(result: AccountSnapshotResult): string {
+  if (!result.ok) return `account.snapshot 失败：${result.error.code} ${result.error.message}${result.error.retryable ? '（可重试）' : ''}。`;
+  return `account.snapshot 成功：${result.data.items.length} 项命中${result.data.requestedItem ? `（${result.data.requestedItem}）` : ''}，白金 ${result.data.totals.platinum}、杜卡德 ${result.data.totals.ducats}、现金 ${result.data.totals.credits}；快照时间 ${result.data.snapshotAt}，来源 ${result.evidence.source}。`;
 }
 function addUsage(current: ModelUsage | undefined, next: ModelUsage): ModelUsage {
   if (!current) return { ...next };
@@ -535,6 +593,23 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
           toolResultSummary: dropToolSummary(result),
           ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
         });
+      } else if (turn.kind === 'account_snapshot') {
+        toolCalls.push({ name: 'account.snapshot', arguments: { ...turn.request } });
+        await emit(deps, { type: 'status', phase: 'tool', text: '正在读取本机账号快照摘要' });
+        await emit(deps, { type: 'tool_call', name: 'account.snapshot', arguments: turn.request });
+        if (!deps.getSnapshot) return await finish('个人快照服务尚未配置；当前版本不读取本机账号数据。', 'answer', 'error');
+        const result = await abortable(deps.getSnapshot(turn.request), controller.signal);
+        if (controller.signal.aborted) throw abortError(controller.signal);
+        await emit(deps, { type: 'tool_result', name: 'account.snapshot', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
+        facts = accountFacts(result);
+        lastText = accountResponseFor(result);
+        lastOk = result.ok;
+        toolRounds.push({
+          toolName: 'account.snapshot',
+          toolCall: { ...turn.request },
+          toolResultSummary: accountToolSummary(result),
+          ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
+        });
       } else {
         // 第二轮起才允许非工具轮：answer 与 agent.conclude 是唯二合法终态，
         // clarify 等一律回落 Harness 确定性组织回答（模型不得在工具后自行澄清/拒绝）。
@@ -592,6 +667,18 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   }
 }
 
+export {
+  ACCOUNT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountSnapshotErrorCode,
+  type AccountSnapshotEvidence,
+  type AccountSnapshotFailure,
+  type AccountSnapshotFinding,
+  type AccountSnapshotItem,
+  type AccountSnapshotRequest,
+  type AccountSnapshotResult,
+  type AccountSnapshotSuccess,
+  type AccountTotals,
+} from './account-snapshot.js';
 export {
   OPENAI_COMPATIBLE_ADAPTER_ID,
   createOpenAICompatibleAdapter,

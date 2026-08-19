@@ -92,7 +92,7 @@ test('非流式 Chat Completions 结构化调用 market.query 并解析用量与
   assert.equal(result.turn.request.item, 'Synthetic Prime');
   assert.deepEqual(result.usage, { promptTokens: 12, completionTokens: 34, totalTokens: 46 });
   assert.equal(result.finishReason, 'tool_calls');
-  assert.deepEqual(requestBody.tools.map((tool) => tool.function.name), ['market_query', 'drop_search', 'agent_clarify', 'agent_conclude']);
+  assert.deepEqual(requestBody.tools.map((tool) => tool.function.name), ['market_query', 'drop_search', 'account_snapshot', 'agent_clarify', 'agent_conclude']);
   assert.equal(requestBody.stream, false);
   assert.equal(requestBody.messages.length, 2);
 });
@@ -152,8 +152,7 @@ test('工具轮历史按 assistant tool_calls + tool 角色拼接且不夹带原
   assert.doesNotMatch(JSON.stringify(requestBody.messages), /sellOrders|buyOrders|evidence|rawPayload/u);
 });
 
-test('SSE 捕获推理模型 reasoning_content 供回送回传', async () => {
-  const adapter = createOpenAICompatibleAdapter({ fetch: async () => sse([
+test('SSE 捕获推理模型 reasoning_content 供回送回传', async () => {  const adapter = createOpenAICompatibleAdapter({ fetch: async () => sse([
     { choices: [{ delta: { role: 'assistant', content: null, reasoning_content: '用户想' } }] },
     { choices: [{ delta: { reasoning_content: '查询市场' } }] },
     { choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'market_query', arguments: JSON.stringify({ contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }) } }] }, finish_reason: 'tool_calls' }] },
@@ -162,6 +161,15 @@ test('SSE 捕获推理模型 reasoning_content 供回送回传', async () => {
   const result = await adapter.generateTurn({ message: 'synthetic', signal: new AbortController().signal }, streamingProfile);
   assert.equal(result.turn.kind, 'market_query');
   assert.equal(result.reasoning, '用户想查询市场');
+});
+
+test('account_snapshot 工具调用解析为账号快照路由', async () => {
+  const adapter = createOpenAICompatibleAdapter({ fetch: async () => json({
+    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'account_snapshot', arguments: JSON.stringify({ contractVersion: '1.0', item: '古纪V3' }) } }] } }],
+  }) });
+  const result = await adapter.generateTurn({ message: 'synthetic', signal: new AbortController().signal }, profile());
+  assert.equal(result.turn.kind, 'account_snapshot');
+  assert.deepEqual(result.turn.request, { contractVersion: '1.0', item: '古纪V3' });
 });
 
 test('agent.conclude 终态只接受 answered 与 insufficient_data', async () => {

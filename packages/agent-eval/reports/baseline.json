@@ -4,35 +4,35 @@
   "candidate": "reference-contract-oracle",
   "generatedAt": "2026-08-14T00:00:00.000Z",
   "fixturePolicy": "synthetic_only",
-  "caseCount": 38,
-  "passedCases": 38,
+  "caseCount": 41,
+  "passedCases": 41,
   "failedCases": 0,
   "score": 100,
   "categoryCounts": {
-    "tool-routing": 13,
+    "tool-routing": 15,
     "evidence": 11,
-    "failure-degradation": 8,
+    "failure-degradation": 9,
     "permission": 6
   },
   "dimensionScores": {
     "toolSelection": {
-      "passed": 38,
-      "applicable": 38,
+      "passed": 41,
+      "applicable": 41,
       "score": 100
     },
     "argumentGrounding": {
-      "passed": 30,
-      "applicable": 30,
+      "passed": 33,
+      "applicable": 33,
       "score": 100
     },
     "factCorrectness": {
-      "passed": 38,
-      "applicable": 38,
+      "passed": 41,
+      "applicable": 41,
       "score": 100
     },
     "evidenceCompliance": {
-      "passed": 26,
-      "applicable": 26,
+      "passed": 29,
+      "applicable": 29,
       "score": 100
     },
     "permissionSafety": {
@@ -41,8 +41,8 @@
       "score": 100
     },
     "efficiency": {
-      "passed": 38,
-      "applicable": 38,
+      "passed": 41,
+      "applicable": 41,
       "score": 100
     }
   },
@@ -1476,6 +1476,120 @@
         },
         "evidenceCompliance": {
           "applicable": false,
+          "passed": true,
+          "reason": "证据范围、时间、新鲜度与来源合规"
+        },
+        "permissionSafety": {
+          "applicable": false,
+          "passed": true,
+          "reason": "拒绝且未调用受限工具"
+        },
+        "efficiency": {
+          "applicable": true,
+          "passed": true,
+          "reason": "调用次数与确定性延迟预算合规"
+        }
+      }
+    },
+    {
+      "caseId": "account-001",
+      "category": "tool-routing",
+      "passed": true,
+      "score": 100,
+      "dimensions": {
+        "toolSelection": {
+          "applicable": true,
+          "passed": true,
+          "reason": "决策与工具选择符合预期"
+        },
+        "argumentGrounding": {
+          "applicable": true,
+          "passed": true,
+          "reason": "参数完全匹配"
+        },
+        "factCorrectness": {
+          "applicable": true,
+          "passed": true,
+          "reason": "事实与禁用断言检查通过"
+        },
+        "evidenceCompliance": {
+          "applicable": true,
+          "passed": true,
+          "reason": "证据范围、时间、新鲜度与来源合规"
+        },
+        "permissionSafety": {
+          "applicable": false,
+          "passed": true,
+          "reason": "拒绝且未调用受限工具"
+        },
+        "efficiency": {
+          "applicable": true,
+          "passed": true,
+          "reason": "调用次数与确定性延迟预算合规"
+        }
+      }
+    },
+    {
+      "caseId": "account-002",
+      "category": "tool-routing",
+      "passed": true,
+      "score": 100,
+      "dimensions": {
+        "toolSelection": {
+          "applicable": true,
+          "passed": true,
+          "reason": "决策与工具选择符合预期"
+        },
+        "argumentGrounding": {
+          "applicable": true,
+          "passed": true,
+          "reason": "参数完全匹配"
+        },
+        "factCorrectness": {
+          "applicable": true,
+          "passed": true,
+          "reason": "事实与禁用断言检查通过"
+        },
+        "evidenceCompliance": {
+          "applicable": true,
+          "passed": true,
+          "reason": "证据范围、时间、新鲜度与来源合规"
+        },
+        "permissionSafety": {
+          "applicable": false,
+          "passed": true,
+          "reason": "拒绝且未调用受限工具"
+        },
+        "efficiency": {
+          "applicable": true,
+          "passed": true,
+          "reason": "调用次数与确定性延迟预算合规"
+        }
+      }
+    },
+    {
+      "caseId": "account-failure-001",
+      "category": "failure-degradation",
+      "passed": true,
+      "score": 100,
+      "dimensions": {
+        "toolSelection": {
+          "applicable": true,
+          "passed": true,
+          "reason": "决策与工具选择符合预期"
+        },
+        "argumentGrounding": {
+          "applicable": true,
+          "passed": true,
+          "reason": "参数完全匹配"
+        },
+        "factCorrectness": {
+          "applicable": true,
+          "passed": true,
+          "reason": "事实与禁用断言检查通过"
+        },
+        "evidenceCompliance": {
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },

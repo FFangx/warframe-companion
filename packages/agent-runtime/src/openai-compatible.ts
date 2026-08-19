@@ -1,6 +1,10 @@
 import { assertMarketQueryRequest, MARKET_QUERY_CONTRACT_VERSION, type MarketQueryRequest } from '@warframe-companion/market-query-contract';
 import { DROP_SEARCH_CONTRACT_VERSION, type DropSearchRequest } from '@warframe-companion/warframe-data-service';
 import {
+  ACCOUNT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountSnapshotRequest,
+} from './account-snapshot.js';
+import {
   ModelAdapterError,
   OPENAI_COMPATIBLE_CONFIG_VERSION,
   type CredentialReference,
@@ -45,11 +49,12 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 const WIRE_TOOL_NAMES = {
   'market.query': 'market_query',
   'drops.search': 'drop_search',
+  'account.snapshot': 'account_snapshot',
   'agent.clarify': 'agent_clarify',
   'agent.conclude': 'agent_conclude',
 } as const;
 type WireToolName = (typeof WIRE_TOOL_NAMES)[keyof typeof WIRE_TOOL_NAMES];
-function wireToolName(logical: 'market.query' | 'drops.search' | 'agent.clarify' | 'agent.conclude'): WireToolName {
+function wireToolName(logical: 'market.query' | 'drops.search' | 'account.snapshot' | 'agent.clarify' | 'agent.conclude'): WireToolName {
   return WIRE_TOOL_NAMES[logical];
 }
 
@@ -210,6 +215,18 @@ function parseToolTurn(name: unknown, rawArguments: unknown): ModelTurn {
     }
     return { kind: 'drop_search', request: data as unknown as DropSearchRequest };
   }
+  if (name === wireToolName('account.snapshot')) {
+    const data = record(args);
+    if (!data || !exactKeys(data, ['contractVersion', 'item'])
+      || data.contractVersion !== ACCOUNT_SNAPSHOT_CONTRACT_VERSION
+      || (data.item !== undefined && (typeof data.item !== 'string' || !data.item.trim() || data.item.length > 120))) {
+      throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型生成的 account.snapshot 参数不符合契约。', false));
+    }
+    return {
+      kind: 'account_snapshot',
+      request: { contractVersion: ACCOUNT_SNAPSHOT_CONTRACT_VERSION, ...(data.item ? { item: data.item } : {}) } as AccountSnapshotRequest,
+    };
+  }
   if (name === wireToolName('agent.clarify')) {
     const data = record(args);
     if (!data || !exactKeys(data, ['text', 'field', 'reason']) || typeof data.text !== 'string' || !data.text.trim()
@@ -345,6 +362,15 @@ const TOOLS = [
       parameters: {
         type: 'object', additionalProperties: false, required: ['contractVersion', 'item'],
         properties: { contractVersion: { type: 'string', const: DROP_SEARCH_CONTRACT_VERSION }, item: { type: 'string', minLength: 1 }, limit: { type: 'integer', minimum: 1, maximum: 100 } },
+      },
+    },
+  },
+  {
+    type: 'function', function: {
+      name: wireToolName('account.snapshot'), description: '读取本机账号快照的脱敏摘要（段位/白金/杜卡德/现金/物品数量）。只读；模型不得索取原始快照、实例 ID 或账号标识。',
+      parameters: {
+        type: 'object', additionalProperties: false, required: ['contractVersion'],
+        properties: { contractVersion: { type: 'string', const: ACCOUNT_SNAPSHOT_CONTRACT_VERSION }, item: { type: 'string', minLength: 1, maxLength: 120 } },
       },
     },
   },
