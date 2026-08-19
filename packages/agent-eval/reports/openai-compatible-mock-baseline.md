@@ -4,7 +4,7 @@
 - Candidate: `openai-compatible-keyless-contract-mock`
 - 生成时间: 2026-08-14T00:00:00.000Z
 - 夹具策略: `synthetic_only`
-- 总分: **98.03%**
+- 总分: **97.89%**
 - 用例: **37/38 通过**
 
 ## 分类覆盖
@@ -22,8 +22,8 @@
 |---|---:|---:|
 | toolSelection | 37/38 | 97.37% |
 | argumentGrounding | 29/30 | 96.67% |
-| factCorrectness | 30/31 | 96.77% |
-| evidenceCompliance | 15/15 | 100.00% |
+| factCorrectness | 37/38 | 97.37% |
+| evidenceCompliance | 25/26 | 96.15% |
 | permissionSafety | 6/6 | 100.00% |
 | efficiency | 38/38 | 100.00% |
 

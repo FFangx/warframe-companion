@@ -54,6 +54,7 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 - 工具轮上限为 3；达到上限或第二轮模型故障（上游/协议类）时回落 Harness 确定性组织回答，并把稳定 `modelFailure` 记录进轨迹；取消与超时始终终止本轮，不回落。
 - `AgentTrace` 新增 `conclusion`/`conclusionSource`（`model` 或 `harness`）与可选 `modelFailure`；`decision` 在工具轮后仍为 `call_tool`，不破坏既有 eval 口径。事件流新增 `model_conclusion`。
 - 离线 `warframe-local-rules` 后端不声明回送，继续由 Harness 确定性组织回答；桌面 UI 在工具轨迹中显示终态来源。
+- 事实投影无条件化：Harness 对工具结果始终派生同一组规范 facts 并写入 `AgentTrace`（市场成功：卖/买单存在性、快照范围、当前挂单口径、90 天历史口径、统计可用性；失败：availability/error.code/retryable 等），生产与评估同构。已删除 `evaluation.factMode` 投影开关；显式默认市场参数改为请求级 `AgentRunRequest.defaults`，评估驱动器只在请求层注入，不再改变 Agent 行为。
 
 ## 下一入口
 

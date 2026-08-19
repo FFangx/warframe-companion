@@ -4,7 +4,6 @@ import {
   createOpenAICompatibleProfile,
   localRulesModelAdapter,
   runDesktopAgent,
-  type AgentFactMode,
   type AgentTrace,
   type ModelTurn,
 } from '@warframe-companion/agent-runtime';
@@ -12,11 +11,6 @@ import type { AgentEvalCase } from './index.js';
 import { MOCK_MARKET_QUERY_REQUEST } from '@warframe-companion/market-query-contract/mocks';
 import { createSyntheticDropResult, createSyntheticMarketResultForCase } from './desktop-harness-baseline.js';
 
-const MODE_BY_ID: Record<string, AgentFactMode> = {
-  'evidence-001': 'orders', 'evidence-002': 'absent', 'evidence-003': 'unavailable',
-  'evidence-004': 'stale', 'evidence-005': 'statistics', 'evidence-006': 'split-orders',
-  'evidence-007': 'basis', 'evidence-008': 'snapshot',
-};
 const profile = createOpenAICompatibleProfile({
   id: 'openai-compatible-contract-mock', label: 'OpenAI-compatible contract mock', model: 'synthetic-contract-model',
   description: 'Synthetic keyless Chat Completions fixture',
@@ -74,12 +68,7 @@ export async function createOpenAICompatibleMockTrace(testCase: AgentEvalCase): 
   const isFailure = testCase.category === 'failure-degradation';
   const run = await runDesktopAgent({
     requestId: testCase.id, message: testCase.prompt, modelProfileId: profile.id, context: testCase.context,
-    ...(!isDrop && (isEvidence || isFailure) ? {
-      evaluation: {
-        factMode: isFailure ? 'failure' as const : MODE_BY_ID[testCase.id]!,
-        defaultMarketRequest: { ...MOCK_MARKET_QUERY_REQUEST },
-      },
-    } : {}),
+    ...(!isDrop && (isEvidence || isFailure) ? { defaults: { ...MOCK_MARKET_QUERY_REQUEST } } : {}),
   }, {
     profiles: [profile], adapters: [adapter],
     marketQuery: async () => createSyntheticMarketResultForCase(testCase),

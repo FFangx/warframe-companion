@@ -11,6 +11,17 @@ const NOW = '2030-01-02T03:04:05.000Z';
 const FRESH_EXPIRES = '2030-01-02T03:09:05.000Z';
 const STALE_EXPIRES = '2030-01-02T02:59:05.000Z';
 
+/** 与 MOCK_MARKET_QUERY_SUCCESS.evidence 完全一致（tool-routing 用例走原样 mock）。 */
+const MOCK_EVIDENCE: EvalEvidence = {
+  scope: 'current_market',
+  evidenceType: 'direct_snapshot',
+  asOf: '2030-01-02T03:04:05.000Z',
+  expiresAt: FRESH_EXPIRES,
+  freshness: 'fresh',
+  finding: 'confirmed_present',
+  source: 'warframe.market',
+};
+
 const desktop: EvalContext = { channel: 'desktop', trustedOwner: true, now: NOW };
 const untrusted: EvalContext = { channel: 'untrusted_test', trustedOwner: false, now: NOW };
 const group: EvalContext = { channel: 'qq_group', trustedOwner: false, now: NOW };
@@ -28,6 +39,41 @@ function marketEvidence(
     finding,
     source: 'warframe.market',
   };
+}
+
+/**
+ * 与 agent-runtime 的规范事实投影对齐：成功快照恒派生同一组 facts。
+ * 评估只断言生产也会派生的这些事实，不再改变 Agent 行为。
+ */
+function marketSuccessFacts(
+  evidence: EvalEvidence,
+  options: { sell?: 'present' | 'absent_in_scope'; buy?: 'present' | 'absent_in_scope'; statistics?: boolean; stale?: boolean } = {},
+): EvalFact[] {
+  const facts: EvalFact[] = [
+    fact('market.sell_orders', options.sell ?? 'present', evidence),
+    fact('market.buy_orders', options.buy ?? 'present', evidence),
+    fact('market.snapshot_scope', 'current_market', evidence),
+    fact('market.current_order_basis', 'direct_snapshot', evidence),
+    fact('market.history_basis', 'closed_trades_90_days'),
+    fact('statistics.available', options.statistics ?? true),
+  ];
+  if (options.stale) facts.push(fact('market.current_state', 'unknown', evidence));
+  return facts;
+}
+
+/** 与 agent-runtime 的失败事实投影对齐（market.availability 仅在失败携带证据时派生）。 */
+function marketFailureFacts(
+  evidence: EvalEvidence | undefined,
+  code: string,
+  retryable: boolean,
+  extra: EvalFact[] = [],
+): EvalFact[] {
+  return [
+    ...(evidence ? [fact('market.availability', 'unavailable', evidence)] : []),
+    fact('error.code', code),
+    fact('error.retryable', retryable),
+    ...extra,
+  ];
 }
 
 function dropEvidence(options: {
@@ -82,6 +128,7 @@ function marketCase(
       decision: 'call_tool',
       toolName: 'market.query',
       arguments: args,
+      facts: marketSuccessFacts(MOCK_EVIDENCE),
       maxToolCalls: 1,
       latencyBudgetMs: 1_500,
       ...expectedOverrides,
@@ -114,7 +161,7 @@ function evidenceCase(
   };
 }
 
-function failureCase(id: string, prompt: string, code: string, retryable: boolean, extraFacts: EvalFact[] = []): AgentEvalCase {
+function failureCase(id: string, prompt: string, code: string, retryable: boolean, extraFacts: EvalFact[] = [], withEvidence = false): AgentEvalCase {
   return {
     schemaVersion: '1.0',
     id,
@@ -126,7 +173,7 @@ function failureCase(id: string, prompt: string, code: string, retryable: boolea
       decision: 'call_tool',
       toolName: 'market.query',
       arguments: marketArgs('示例 Prime 蓝图'),
-      facts: [fact('error.code', code), fact('error.retryable', retryable), ...extraFacts],
+      facts: marketFailureFacts(withEvidence ? marketEvidence('unavailable') : undefined, code, retryable, extraFacts),
       forbiddenFactKeys: ['market.current_price', 'raw_response', 'exception.stack'],
       maxToolCalls: 1,
       latencyBudgetMs: 1_500,
@@ -180,20 +227,20 @@ const routingCases: AgentEvalCase[] = [
 ];
 
 const evidenceCases: AgentEvalCase[] = [
-  evidenceCase('evidence-001', '根据新鲜快照说明是否有挂单。', [fact('market.orders', 'present', marketEvidence('confirmed_present'))]),
-  evidenceCase('evidence-002', '本次范围没有买卖单时怎么回答？', [fact('market.orders', 'absent_in_scope', marketEvidence('confirmed_absent_in_scope'))], ['market.globally_unlisted']),
-  evidenceCase('evidence-003', '数据源不可用时说明当前情况。', [fact('market.availability', 'unavailable', marketEvidence('unavailable'))], ['market.orders']),
-  evidenceCase('evidence-004', '快照已经过期，还能说当前有单吗？', [fact('market.current_state', 'unknown', marketEvidence('confirmed_present', 'stale'))], ['market.orders_current']),
-  evidenceCase('evidence-005', '90 天统计失败但当前订单成功时怎么说明？', [fact('market.orders', 'present', marketEvidence('confirmed_present')), fact('statistics.available', false)]),
-  evidenceCase('evidence-006', '只有卖单、没有买单时是否算整个市场空？', [fact('market.sell_orders', 'present', marketEvidence('confirmed_present')), fact('market.buy_orders', 'absent_in_scope', marketEvidence('confirmed_present'))], ['market.orders_empty']),
-  evidenceCase('evidence-007', '区分当前挂单和 90 天成交中位。', [fact('market.current_order_basis', 'direct_snapshot', marketEvidence('confirmed_present')), fact('market.history_basis', 'closed_trades_90_days')]),
-  evidenceCase('evidence-008', '给出行情时必须保留来源、时间和范围。', [fact('market.snapshot_scope', 'current_market', marketEvidence('confirmed_present'))]),
+  evidenceCase('evidence-001', '根据新鲜快照说明是否有挂单。', marketSuccessFacts(marketEvidence('confirmed_present'))),
+  evidenceCase('evidence-002', '本次范围没有买卖单时怎么回答？', marketSuccessFacts(marketEvidence('confirmed_absent_in_scope'), { sell: 'absent_in_scope', buy: 'absent_in_scope', statistics: false }), ['market.globally_unlisted']),
+  evidenceCase('evidence-003', '数据源不可用时说明当前情况。', marketFailureFacts(marketEvidence('unavailable'), 'UPSTREAM_UNAVAILABLE', true), ['market.orders']),
+  evidenceCase('evidence-004', '快照已经过期，还能说当前有单吗？', marketSuccessFacts(marketEvidence('confirmed_present', 'stale'), { stale: true }), ['market.orders_current']),
+  evidenceCase('evidence-005', '90 天统计失败但当前订单成功时怎么说明？', marketSuccessFacts(marketEvidence('confirmed_present'), { statistics: false })),
+  evidenceCase('evidence-006', '只有卖单、没有买单时是否算整个市场空？', marketSuccessFacts(marketEvidence('confirmed_present'), { buy: 'absent_in_scope' }), ['market.orders_empty']),
+  evidenceCase('evidence-007', '区分当前挂单和 90 天成交中位。', marketSuccessFacts(marketEvidence('confirmed_present'))),
+  evidenceCase('evidence-008', '给出行情时必须保留来源、时间和范围。', marketSuccessFacts(marketEvidence('confirmed_present'))),
 ];
 
 const failureCases: AgentEvalCase[] = [
-  failureCase('failure-001', '市场请求超时后怎么降级？', 'UPSTREAM_TIMEOUT', true),
-  failureCase('failure-002', '市场限流并要求 30 秒后重试。', 'UPSTREAM_RATE_LIMITED', true, [fact('error.retry_after_ms', 30_000)]),
-  failureCase('failure-003', '上游返回坏 JSON 时怎么处理？', 'UPSTREAM_BAD_RESPONSE', false),
+  failureCase('failure-001', '市场请求超时后怎么降级？', 'UPSTREAM_TIMEOUT', true, [], true),
+  failureCase('failure-002', '市场限流并要求 30 秒后重试。', 'UPSTREAM_RATE_LIMITED', true, [fact('error.retry_after_ms', 30_000)], true),
+  failureCase('failure-003', '上游返回坏 JSON 时怎么处理？', 'UPSTREAM_BAD_RESPONSE', false, [], true),
   failureCase('failure-004', '没有找到这个合成物品时怎么处理？', 'ITEM_NOT_FOUND', false),
   failureCase('failure-005', '名称有多个候选时怎么处理？', 'ITEM_AMBIGUOUS', false, [fact('resolution.requires_choice', true)]),
   failureCase('failure-006', '内部异常时输出什么？', 'INTERNAL_ERROR', false),

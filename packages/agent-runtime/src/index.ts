@@ -1,6 +1,5 @@
 import {
   MARKET_QUERY_CONTRACT_VERSION,
-  type MarketEvidence,
   type MarketPlatform,
   type MarketQueryRequest,
   type MarketQueryResult,
@@ -165,14 +164,18 @@ export const DEFAULT_MODEL_PROFILES: readonly ModelProfile[] = [
 ] as const;
 const REQUIRED_AGENT_CAPABILITIES: Array<keyof Omit<ModelCapabilities, 'contextWindow'>> = ['text', 'nativeTools', 'structuredOutput', 'cancellation'];
 
-export type AgentFactMode = 'none' | 'orders' | 'absent' | 'unavailable' | 'stale' | 'statistics' | 'split-orders' | 'basis' | 'snapshot' | 'failure';
 export interface AgentRunRequest {
   requestId: string;
   message: string;
   modelProfileId?: string;
   timeoutMs?: number;
+  /**
+   * 显式默认市场参数（可选）。生产桌面路径不传：缺失平台/跨平台/等级时由
+   * adapter 澄清；评估驱动器可在请求层注入，保持生产与评估同构（不再藏在
+   * evaluation 内部改变 Agent 行为）。
+   */
+  defaults?: MarketQueryRequest;
   context: { channel: 'desktop' | 'qq_private' | 'qq_group' | 'untrusted_test'; trustedOwner: boolean; now: string };
-  evaluation?: { factMode: AgentFactMode; defaultMarketRequest?: MarketQueryRequest };
 }
 export type AgentStreamEvent =
   | { type: 'status'; phase: 'thinking' | 'tool' | 'composing'; text: string }
@@ -288,29 +291,32 @@ export async function checkModelProfile(profileId: string, options: { profiles?:
   return { profileId, status: health.available ? 'healthy' : 'unavailable', checkedAt, summary: health.summary, missingCapabilities: [], ...(health.error ? { error: health.error } : {}) };
 }
 
-function toEvalEvidence(evidence: MarketEvidence): EvalEvidence { return { ...evidence }; }
-function factsFor(result: MarketQueryResult, mode: AgentFactMode): EvalFact[] {
-  if (mode === 'none') return [];
-  const evidence = result.evidence ? toEvalEvidence(result.evidence) : undefined;
-  if (mode === 'failure') {
-    if (result.ok) return [];
-    const facts: EvalFact[] = [{ key: 'error.code', value: result.error.code }, { key: 'error.retryable', value: result.error.retryable }];
+/**
+ * 市场工具结果的规范事实投影：无论生产还是评估，Harness 都无条件从工具结果
+ * 派生同一组 facts 写入轨迹（不再有 evaluation.factMode 切换投影形态）。
+ * 评估只断言这些事实，不再改变 Agent 的生产行为。
+ */
+function marketFacts(result: MarketQueryResult): EvalFact[] {
+  if (!result.ok) {
+    const facts: EvalFact[] = [];
+    if (result.evidence) facts.push({ key: 'market.availability', value: 'unavailable', evidence: result.evidence });
+    facts.push({ key: 'error.code', value: result.error.code });
+    facts.push({ key: 'error.retryable', value: result.error.retryable });
     if (result.error.details?.retryAfterMs !== undefined) facts.push({ key: 'error.retry_after_ms', value: result.error.details.retryAfterMs });
     if (result.error.code === 'ITEM_AMBIGUOUS') facts.push({ key: 'resolution.requires_choice', value: true });
     return facts;
   }
-  if (mode === 'unavailable') return evidence ? [{ key: 'market.availability', value: 'unavailable', evidence }] : [];
-  if (!result.ok || !evidence) return [];
-  if (mode === 'orders') return [{ key: 'market.orders', value: 'present', evidence }];
-  if (mode === 'absent') return [{ key: 'market.orders', value: 'absent_in_scope', evidence }];
-  if (mode === 'stale') return [{ key: 'market.current_state', value: 'unknown', evidence }];
-  if (mode === 'statistics') return [{ key: 'market.orders', value: 'present', evidence }, { key: 'statistics.available', value: Boolean(result.data.statistics) }];
-  if (mode === 'split-orders') return [
-    { key: 'market.sell_orders', value: result.data.sellOrders.length ? 'present' : 'absent_in_scope', evidence },
-    { key: 'market.buy_orders', value: result.data.buyOrders.length ? 'present' : 'absent_in_scope', evidence },
+  if (!result.evidence) return [];
+  const facts: EvalFact[] = [
+    { key: 'market.sell_orders', value: result.data.sellOrders.length ? 'present' : 'absent_in_scope', evidence: result.evidence },
+    { key: 'market.buy_orders', value: result.data.buyOrders.length ? 'present' : 'absent_in_scope', evidence: result.evidence },
+    { key: 'market.snapshot_scope', value: 'current_market', evidence: result.evidence },
+    { key: 'market.current_order_basis', value: 'direct_snapshot', evidence: result.evidence },
+    { key: 'market.history_basis', value: 'closed_trades_90_days' },
+    { key: 'statistics.available', value: Boolean(result.data.statistics) },
   ];
-  if (mode === 'basis') return [{ key: 'market.current_order_basis', value: 'direct_snapshot', evidence }, { key: 'market.history_basis', value: 'closed_trades_90_days' }];
-  return [{ key: 'market.snapshot_scope', value: 'current_market', evidence }];
+  if (result.evidence.freshness === 'stale') facts.push({ key: 'market.current_state', value: 'unknown', evidence: result.evidence });
+  return facts;
 }
 function responseFor(result: MarketQueryResult): string {
   if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
@@ -398,7 +404,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       await emit(deps, { type: 'message_delta', delta: denied.text });
       return await finish(denied.text, 'refuse', 'completed', denied.reason);
     }
-    const defaults = request.evaluation?.defaultMarketRequest;
+    const defaults = request.defaults;
     let streamedText = '';
     const onTextDelta = async (delta: string) => {
       streamedText += delta;
@@ -446,7 +452,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         const result = await abortable(deps.marketQuery(turn.request), controller.signal);
         if (controller.signal.aborted) throw abortError(controller.signal);
         await emit(deps, { type: 'tool_result', name: 'market.query', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
-        facts = factsFor(result, request.evaluation?.factMode ?? 'none');
+        facts = marketFacts(result);
         lastText = responseFor(result);
         lastOk = result.ok;
         toolRounds.push({ toolName: 'market.query', toolCall: { ...turn.request }, toolResultSummary: marketToolSummary(result) });

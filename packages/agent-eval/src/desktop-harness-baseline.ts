@@ -1,6 +1,5 @@
 import {
   runDesktopAgent,
-  type AgentFactMode,
   type AgentTrace,
 } from '@warframe-companion/agent-runtime';
 import {
@@ -12,12 +11,6 @@ import {
 import type { MarketQueryResult } from '@warframe-companion/market-query-contract';
 import type { AgentEvalCase } from './index.js';
 import type { DropSearchResult } from '@warframe-companion/warframe-data-service';
-
-const MODE_BY_ID: Record<string, AgentFactMode> = {
-  'evidence-001': 'orders', 'evidence-002': 'absent', 'evidence-003': 'unavailable',
-  'evidence-004': 'stale', 'evidence-005': 'statistics', 'evidence-006': 'split-orders',
-  'evidence-007': 'basis', 'evidence-008': 'snapshot',
-};
 
 const FAILURE_BY_ID: Record<string, MarketQueryResult> = {
   'failure-001': MOCK_MARKET_QUERY_FAILURES.timeout,
@@ -84,7 +77,11 @@ export function createSyntheticDropResult(testCase: AgentEvalCase): DropSearchRe
 }
 export function createSyntheticMarketResultForCase(testCase: AgentEvalCase): MarketQueryResult {
   if (testCase.category === 'evidence') return createSyntheticMarketResult(testCase);
-  if (testCase.category === 'failure-degradation') return structuredClone(FAILURE_BY_ID[testCase.id]!);
+  if (testCase.category === 'failure-degradation') {
+    const result = structuredClone(FAILURE_BY_ID[testCase.id]!);
+    if (!result.ok && result.evidence) result.evidence = { ...expectedEvidence, finding: 'unavailable' };
+    return result;
+  }
   return structuredClone(MOCK_MARKET_QUERY_SUCCESS);
 }
 
@@ -108,12 +105,7 @@ export async function createDesktopHarnessTrace(testCase: AgentEvalCase): Promis
     requestId: testCase.id,
     message: testCase.prompt,
     context: testCase.context,
-    ...((isEvidence || isFailure) ? {
-      evaluation: {
-        factMode: isFailure ? 'failure' : MODE_BY_ID[testCase.id]!,
-        defaultMarketRequest: { ...MOCK_MARKET_QUERY_REQUEST },
-      },
-    } : {}),
+    ...((isEvidence || isFailure) ? { defaults: { ...MOCK_MARKET_QUERY_REQUEST } } : {}),
   }, { marketQuery: async () => result, now: syntheticNow });
   return run.trace;
 }

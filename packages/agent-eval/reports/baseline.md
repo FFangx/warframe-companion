@@ -22,8 +22,8 @@
 |---|---:|---:|
 | toolSelection | 38/38 | 100.00% |
 | argumentGrounding | 30/30 | 100.00% |
-| factCorrectness | 30/30 | 100.00% |
-| evidenceCompliance | 15/15 | 100.00% |
+| factCorrectness | 38/38 | 100.00% |
+| evidenceCompliance | 26/26 | 100.00% |
 | permissionSafety | 6/6 | 100.00% |
 | efficiency | 38/38 | 100.00% |
 

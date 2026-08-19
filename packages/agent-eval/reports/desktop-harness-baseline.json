@@ -7,7 +7,7 @@
   "caseCount": 38,
   "passedCases": 37,
   "failedCases": 1,
-  "score": 98.03,
+  "score": 97.89,
   "categoryCounts": {
     "tool-routing": 13,
     "evidence": 11,
@@ -26,14 +26,14 @@
       "score": 96.67
     },
     "factCorrectness": {
-      "passed": 30,
-      "applicable": 31,
-      "score": 96.77
+      "passed": 37,
+      "applicable": 38,
+      "score": 97.37
     },
     "evidenceCompliance": {
-      "passed": 15,
-      "applicable": 15,
-      "score": 100
+      "passed": 25,
+      "applicable": 26,
+      "score": 96.15
     },
     "permissionSafety": {
       "passed": 6,
@@ -64,12 +64,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -102,12 +102,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -140,12 +140,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -178,12 +178,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -216,12 +216,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -254,12 +254,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -292,12 +292,12 @@
           "reason": "参数完全匹配"
         },
         "factCorrectness": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -317,7 +317,7 @@
       "caseId": "route-008",
       "category": "tool-routing",
       "passed": false,
-      "score": 25,
+      "score": 20,
       "dimensions": {
         "toolSelection": {
           "applicable": true,
@@ -332,12 +332,12 @@
         "factCorrectness": {
           "applicable": true,
           "passed": false,
-          "reason": "缺失 0 项，越界 0 项，意外 1 项"
+          "reason": "缺失 6 项，越界 0 项，意外 1 项"
         },
         "evidenceCompliance": {
-          "applicable": false,
-          "passed": true,
-          "reason": "证据范围、时间、新鲜度与来源合规"
+          "applicable": true,
+          "passed": false,
+          "reason": "状态性事实缺少匹配证据"
         },
         "permissionSafety": {
           "applicable": false,
@@ -753,7 +753,7 @@
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -791,7 +791,7 @@
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
@@ -829,7 +829,7 @@
           "reason": "事实与禁用断言检查通过"
         },
         "evidenceCompliance": {
-          "applicable": false,
+          "applicable": true,
           "passed": true,
           "reason": "证据范围、时间、新鲜度与来源合规"
         },
