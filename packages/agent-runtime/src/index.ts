@@ -50,6 +50,9 @@ export interface AgentTrace {
   conclusion?: 'answered' | 'insufficient_data';
   conclusionSource?: 'model' | 'harness';
   modelFailure?: ModelFailure;
+  adapterVersion?: number;
+  usage?: ModelUsage;
+  finishReason?: ModelFinishReason;
 }
 
 export interface ModelCapabilities {
@@ -128,8 +131,26 @@ export interface ToolRoundStep {
   toolCall: Record<string, unknown>;
   toolResultSummary: string;
 }
+export interface ModelUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+export type ModelFinishReason = string;
+export interface ModelTurnResult {
+  turn: ModelTurn;
+  /** 模型响应的 token 用量（adapter 可观察时提供），Harness 汇总进 AgentTrace。 */
+  usage?: ModelUsage;
+  /** 本次模型响应结束原因（stop/tool_calls/length/...），取最后一轮。 */
+  finishReason?: ModelFinishReason;
+}
 export interface ModelAdapter {
   id: string;
+  /**
+   * adapter 接口版本。新增能力、字段或语义时必须递增，避免无声破坏既有
+   * profile/backend；Harness 把它记录进 AgentTrace 便于审计与迁移。
+   */
+  adapterVersion: number;
   /**
    * 声明该 adapter 支持工具结果回送的多轮生成。为 true 时，Harness 在每次工具
    * 执行后把脱敏的工具轮记录回传给 generateTurn，期待 answer 或 agent.conclude
@@ -143,7 +164,7 @@ export interface ModelAdapter {
     history?: readonly ToolRoundStep[];
     signal: AbortSignal;
     onTextDelta?: (delta: string) => void | Promise<void>;
-  }, profile: ModelProfile): Promise<ModelTurn>;
+  }, profile: ModelProfile): Promise<ModelTurnResult>;
 }
 
 const LOCAL_CAPABILITIES: ModelCapabilities = {
@@ -248,31 +269,32 @@ function dropItemFrom(message: string): string | undefined {
 
 export const localRulesModelAdapter: ModelAdapter = {
   id: 'warframe-local-rules',
+  adapterVersion: 1,
   async checkHealth(profile) {
     return { available: profile.adapterId === this.id, summary: '本地规则后端可用；不会读取密钥或发起模型请求。' };
   },
   async generateTurn({ message, defaults, signal }) {
     if (signal.aborted) throw signal.reason;
     if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号/u.test(message)) {
-      return { kind: 'answer', text: '桌面 Agent 当前尚未接入个人快照；本切片只支持公开市场查询。' };
+      return { turn: { kind: 'answer', text: '桌面 Agent 当前尚未接入个人快照；本切片只支持公开市场查询。' } };
     }
     const dropItem = dropItemFrom(message);
     if (!defaults && dropItem) {
-      return { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } };
+      return { turn: { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } } };
     }
     if (!defaults && !/查|查询|价格|行情|多少钱/u.test(message)) {
-      return { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' };
+      return { turn: { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' } };
     }
     const rank = rankFrom(message);
-    if (rank === null) return { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] };
+    if (rank === null) return { turn: { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] } };
     const item = itemFrom(message) ?? defaults?.item;
     const platform = platformFrom(message) ?? defaults?.platform;
     const crossplay = /不跨平台|单平台/u.test(message) ? false : /跨平台/u.test(message) ? true : defaults?.crossplay;
     const resolvedRank = rank ?? defaults?.rank ?? (platform && crossplay !== undefined ? 0 : undefined);
     if (!item || !platform || crossplay === undefined || resolvedRank === undefined) {
-      return { kind: 'clarify', text: '请明确平台、是否跨平台交易，以及等级（非负整数或 max）。', facts: [{ key: 'missing_field', value: 'platform,crossplay,rank' }] };
+      return { turn: { kind: 'clarify', text: '请明确平台、是否跨平台交易，以及等级（非负整数或 max）。', facts: [{ key: 'missing_field', value: 'platform,crossplay,rank' }] } };
     }
-    return { kind: 'market_query', request: { contractVersion: MARKET_QUERY_CONTRACT_VERSION, item, platform, crossplay, rank: resolvedRank } };
+    return { turn: { kind: 'market_query', request: { contractVersion: MARKET_QUERY_CONTRACT_VERSION, item, platform, crossplay, rank: resolvedRank } } };
   },
 };
 
@@ -317,6 +339,14 @@ function marketFacts(result: MarketQueryResult): EvalFact[] {
   ];
   if (result.evidence.freshness === 'stale') facts.push({ key: 'market.current_state', value: 'unknown', evidence: result.evidence });
   return facts;
+}
+function addUsage(current: ModelUsage | undefined, next: ModelUsage): ModelUsage {
+  if (!current) return { ...next };
+  return {
+    promptTokens: current.promptTokens + next.promptTokens,
+    completionTokens: current.completionTokens + next.completionTokens,
+    totalTokens: current.totalTokens + next.totalTokens,
+  };
 }
 function responseFor(result: MarketQueryResult): string {
   if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
@@ -372,6 +402,8 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   const elapsed = () => (deps.now?.() ?? Date.now()) - started;
   const toolCalls: ToolCallTrace[] = [];
   let facts: EvalFact[] = [];
+  let usage: ModelUsage | undefined;
+  let finishReason: ModelFinishReason | undefined;
   const timeout = Math.min(Math.max(request.timeoutMs ?? 15_000, 100), 60_000);
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(new Error('timeout')), timeout);
@@ -380,6 +412,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   const profileId = request.modelProfileId ?? DEFAULT_MODEL_PROFILES[0]!.id;
   const profile = profileRegistry(deps.profiles).get(profileId);
   const adapter = profile ? adapterRegistry(deps.adapters).get(profile.adapterId) : undefined;
+  const adapterVersion = adapter?.adapterVersion;
   const finish = async (
     message: string, decision: AgentDecision, terminalReason: AgentTrace['terminalReason'] = 'completed', refusalReason?: RefusalReason,
     conclusion?: AgentTrace['conclusion'], conclusionSource?: AgentTrace['conclusionSource'], modelFailure?: ModelFailure,
@@ -389,6 +422,9 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       ...(refusalReason ? { refusalReason } : {}),
       ...(conclusion && conclusionSource ? { conclusion, conclusionSource } : {}),
       ...(modelFailure ? { modelFailure } : {}),
+      ...(adapterVersion !== undefined ? { adapterVersion } : {}),
+      ...(usage ? { usage } : {}),
+      ...(finishReason ? { finishReason } : {}),
     };
     await emit(deps, { type: 'completed', message, trace });
     return { message, trace };
@@ -410,13 +446,16 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       streamedText += delta;
       await emit(deps, { type: 'message_delta', delta });
     };
-    let turn = await abortable(adapter.generateTurn({
+    let turnResult = await abortable(adapter.generateTurn({
       message: request.message,
       signal: controller.signal,
       ...(defaults ? { defaults } : {}),
       onTextDelta,
     }, profile), controller.signal);
     if (controller.signal.aborted) throw abortError(controller.signal);
+    let turn = turnResult.turn;
+    if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
+    if (turnResult.finishReason) finishReason = turnResult.finishReason;
     if (turn.kind === 'answer') {
       if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
       return await finish(turn.text, 'answer');
@@ -501,12 +540,15 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       if (!adapter.supportsToolRoundTrip || toolRounds.length >= MAX_TOOL_ROUNDS) return await deterministicFinish();
       await emit(deps, { type: 'status', phase: 'composing', text: '正在把工具结果回送模型生成回答' });
       try {
-        turn = await abortable(adapter.generateTurn({
+        turnResult = await abortable(adapter.generateTurn({
           message: request.message,
           history: toolRounds,
           signal: controller.signal,
           onTextDelta,
         }, profile), controller.signal);
+        turn = turnResult.turn;
+        if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
+        if (turnResult.finishReason) finishReason = turnResult.finishReason;
       } catch (error) {
         if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
           modelFailure = error.failure;

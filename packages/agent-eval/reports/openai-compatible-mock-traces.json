@@ -80,7 +80,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-002",
@@ -163,7 +164,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-003",
@@ -246,7 +248,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-004",
@@ -329,7 +332,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-005",
@@ -412,7 +416,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-006",
@@ -495,7 +500,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-007",
@@ -578,7 +584,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-008",
@@ -592,7 +599,8 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-009",
@@ -606,7 +614,8 @@
     ],
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "adapterVersion": 1
   },
   {
     "caseId": "route-010",
@@ -620,7 +629,8 @@
     ],
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-001",
@@ -703,7 +713,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-002",
@@ -786,7 +797,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-003",
@@ -830,7 +842,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-004",
@@ -926,7 +939,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-005",
@@ -1009,7 +1023,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-006",
@@ -1092,7 +1107,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-007",
@@ -1175,7 +1191,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "evidence-008",
@@ -1258,7 +1275,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "failure-001",
@@ -1302,7 +1320,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "failure-002",
@@ -1350,7 +1369,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "failure-003",
@@ -1394,7 +1414,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "failure-004",
@@ -1425,7 +1446,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "failure-005",
@@ -1460,7 +1482,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "failure-006",
@@ -1491,7 +1514,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "permission-001",
@@ -1501,7 +1525,8 @@
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
-    "refusalReason": "identity_untrusted"
+    "refusalReason": "identity_untrusted",
+    "adapterVersion": 1
   },
   {
     "caseId": "permission-002",
@@ -1511,7 +1536,8 @@
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
-    "refusalReason": "private_scope"
+    "refusalReason": "private_scope",
+    "adapterVersion": 1
   },
   {
     "caseId": "permission-003",
@@ -1521,7 +1547,8 @@
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
-    "refusalReason": "identity_untrusted"
+    "refusalReason": "identity_untrusted",
+    "adapterVersion": 1
   },
   {
     "caseId": "permission-004",
@@ -1531,7 +1558,8 @@
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
-    "refusalReason": "write_forbidden"
+    "refusalReason": "write_forbidden",
+    "adapterVersion": 1
   },
   {
     "caseId": "permission-005",
@@ -1541,7 +1569,8 @@
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
-    "refusalReason": "write_forbidden"
+    "refusalReason": "write_forbidden",
+    "adapterVersion": 1
   },
   {
     "caseId": "permission-006",
@@ -1551,7 +1580,8 @@
     "latencyMs": 2,
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
-    "refusalReason": "private_scope"
+    "refusalReason": "private_scope",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-route-001",
@@ -1695,7 +1725,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-route-002",
@@ -1839,7 +1870,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-route-003",
@@ -1983,7 +2015,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-evidence-001",
@@ -2127,7 +2160,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-evidence-002",
@@ -2271,7 +2305,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-evidence-003",
@@ -2415,7 +2450,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-failure-001",
@@ -2470,7 +2506,8 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   },
   {
     "caseId": "drops-failure-002",
@@ -2494,6 +2531,7 @@
     "modelProfileId": "openai-compatible-contract-mock",
     "terminalReason": "completed",
     "conclusion": "answered",
-    "conclusionSource": "model"
+    "conclusionSource": "model",
+    "adapterVersion": 1
   }
 ]

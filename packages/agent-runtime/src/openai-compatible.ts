@@ -7,8 +7,11 @@ import {
   type ModelAdapter,
   type ModelCapabilities,
   type ModelFailure,
+  type ModelFinishReason,
   type ModelProfile,
   type ModelTurn,
+  type ModelTurnResult,
+  type ModelUsage,
   type OpenAICompatibleConfiguration,
   type ToolRoundStep,
 } from './index.js';
@@ -160,6 +163,20 @@ async function parseJsonResponse(response: Response): Promise<Record<string, unk
   if (!data) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型服务返回结构无效。', false));
   return data;
 }
+function parseUsage(value: unknown): ModelUsage | undefined {
+  const data = record(value);
+  if (!data) return undefined;
+  const token = (entry: unknown): number | undefined =>
+    typeof entry === 'number' && Number.isInteger(entry) && entry >= 0 ? entry : undefined;
+  const promptTokens = token(data.prompt_tokens);
+  const completionTokens = token(data.completion_tokens);
+  const totalTokens = token(data.total_tokens);
+  if (promptTokens === undefined || completionTokens === undefined || totalTokens === undefined) return undefined;
+  return { promptTokens, completionTokens, totalTokens };
+}
+function finishReasonOf(choice: Record<string, unknown> | undefined): ModelFinishReason | undefined {
+  return typeof choice?.finish_reason === 'string' ? choice.finish_reason : undefined;
+}
 function parseToolTurn(name: unknown, rawArguments: unknown): ModelTurn {
   if (typeof name !== 'string' || typeof rawArguments !== 'string') throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型工具调用缺少函数名或 JSON 参数。', false));
   let args: unknown;
@@ -207,27 +224,44 @@ function parseMessageTurn(message: unknown): ModelTurn {
   if (typeof data.content !== 'string' || !data.content.trim()) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型响应既没有工具调用，也没有文本。', false));
   return { kind: 'answer', text: data.content };
 }
-async function parseNonStreaming(response: Response): Promise<ModelTurn> {
+async function parseNonStreaming(response: Response): Promise<ModelTurnResult> {
   const payload = await parseJsonResponse(response);
   const choices = payload.choices;
   if (!Array.isArray(choices) || choices.length !== 1) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型响应 choices 数量无效。', false));
-  return parseMessageTurn(record(choices[0])?.message);
+  const choice = record(choices[0]);
+  const usage = parseUsage(payload.usage);
+  const finishReason = finishReasonOf(choice ?? undefined);
+  return {
+    turn: parseMessageTurn(choice?.message),
+    ...(usage ? { usage } : {}),
+    ...(finishReason ? { finishReason } : {}),
+  };
 }
-async function parseStreaming(response: Response, onDelta?: (delta: string) => void | Promise<void>): Promise<ModelTurn> {
+async function parseStreaming(response: Response, onDelta?: (delta: string) => void | Promise<void>): Promise<ModelTurnResult> {
   if (!response.body) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型声明流式响应但没有响应体。', false));
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let text = '';
+  let usage: ModelUsage | undefined;
+  let finishReason: ModelFinishReason | undefined;
   const calls = new Map<number, { name: string; arguments: string }>();
   const consume = async (block: string) => {
     const payloadText = block.split(/\r?\n/u).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n');
     if (!payloadText || payloadText === '[DONE]') return;
     let payload: unknown;
     try { payload = JSON.parse(payloadText); } catch { throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型 SSE 数据不是有效 JSON。', false)); }
-    const choices = record(payload)?.choices;
+    const payloadRecord = record(payload);
+    const choices = payloadRecord?.choices;
     if (!Array.isArray(choices) || choices.length !== 1) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型 SSE choices 数量无效。', false));
-    const delta = record(record(choices[0])?.delta);
+    const choice = record(choices[0]);
+    if (choice) {
+      const rawFinish = choice.finish_reason;
+      if (typeof rawFinish === 'string') finishReason = rawFinish;
+    }
+    const parsedUsage = parseUsage(payloadRecord?.usage);
+    if (parsedUsage) usage = parsedUsage;
+    const delta = record(choice?.delta);
     if (!delta) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型 SSE 缺少 delta。', false));
     if (typeof delta.content === 'string' && delta.content) { text += delta.content; await onDelta?.(delta.content); }
     if (Array.isArray(delta.tool_calls)) for (const rawCall of delta.tool_calls) {
@@ -254,10 +288,18 @@ async function parseStreaming(response: Response, onDelta?: (delta: string) => v
   if (calls.size) {
     if (calls.size !== 1 || !calls.has(0)) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '当前单轮只允许一个结构化工具调用。', false));
     const call = calls.get(0)!;
-    return parseToolTurn(call.name, call.arguments);
+    return {
+      turn: parseToolTurn(call.name, call.arguments),
+      ...(usage ? { usage } : {}),
+      ...(finishReason ? { finishReason } : {}),
+    };
   }
   if (!text.trim()) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型流式响应没有文本或工具调用。', false));
-  return { kind: 'answer', text, streamed: true };
+  return {
+    turn: { kind: 'answer', text, streamed: true },
+    ...(usage ? { usage } : {}),
+    ...(finishReason ? { finishReason } : {}),
+  };
 }
 
 const TOOLS = [
@@ -308,6 +350,7 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
   const resolver = options.resolveCredential ?? defaultCredentialResolver;
   return {
     id: OPENAI_COMPATIBLE_ADAPTER_ID,
+    adapterVersion: 1,
     supportsToolRoundTrip: true,
     async checkHealth(profile, externalSignal) {
       let configuration: OpenAICompatibleConfiguration;

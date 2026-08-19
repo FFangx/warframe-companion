@@ -54,8 +54,8 @@ const adapter = createOpenAICompatibleAdapter({
     const user = body.messages.find((message) => message.role === 'user')?.content ?? '';
     const rawDefaults = system.match(/调用方提供的显式默认参数：(.*)$/u)?.[1];
     const defaults = rawDefaults ? JSON.parse(rawDefaults) : undefined;
-    const turn = await localRulesModelAdapter.generateTurn({ message: user, signal: init?.signal ?? new AbortController().signal, ...(defaults ? { defaults } : {}) }, DEFAULT_MODEL_PROFILES[0]!);
-    return turnResponse(turn);
+    const turnResult = await localRulesModelAdapter.generateTurn({ message: user, signal: init?.signal ?? new AbortController().signal, ...(defaults ? { defaults } : {}) }, DEFAULT_MODEL_PROFILES[0]!);
+    return turnResponse(turnResult.turn);
   },
 });
 
