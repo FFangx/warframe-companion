@@ -72,14 +72,73 @@ test('禁止写操作在调用工具前拒绝', async () => {
   assert.equal(called, false);
 });
 
-test('未接入的个人快照不会误路由到市场工具', async () => {
+test('可信桌面的个人查询路由到快照工具；未配置服务时诚实降级', async () => {
   let called = false;
   const result = await runDesktopAgent({ requestId: 'synthetic-personal', message: '读取我的个人库存。', context }, {
     marketQuery: async () => { called = true; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
   });
   assert.equal(result.trace.decision, 'answer');
-  assert.match(result.message, /尚未接入个人快照/u);
+  assert.equal(result.trace.terminalReason, 'error');
+  assert.equal(result.trace.toolCalls[0].name, 'account.snapshot');
+  assert.match(result.message, /个人快照服务尚未配置/u);
   assert.equal(called, false);
+});
+
+test('群聊或非主人的个人查询在工具前被策略拒绝', async () => {
+  let called = false;
+  const group = await runDesktopAgent({ requestId: 'synthetic-group-personal', message: '我的白金余额是多少？', context: { channel: 'qq_group', trustedOwner: false, now: '2030-01-02T03:04:05.000Z' } }, {
+    marketQuery: async () => { called = true; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+  });
+  assert.equal(group.trace.decision, 'refuse');
+  assert.equal(group.trace.refusalReason, 'private_scope');
+  assert.equal(group.trace.toolCalls.length, 0);
+  const untrusted = await runDesktopAgent({ requestId: 'synthetic-untrusted-personal', message: '读取我的个人库存。', context: { channel: 'untrusted_test', trustedOwner: false, now: '2030-01-02T03:04:05.000Z' } }, {
+    marketQuery: async () => { called = true; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+  });
+  assert.equal(untrusted.trace.decision, 'refuse');
+  assert.equal(untrusted.trace.refusalReason, 'identity_untrusted');
+  assert.equal(called, false);
+});
+
+test('account.snapshot 执行并只投影脱敏摘要事实', async () => {
+  const events = [];
+  const result = await runDesktopAgent({ requestId: 'synthetic-account', message: '我的库存 古纪V3', context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS),
+    getSnapshot: async () => ({
+      contractVersion: '1.0', ok: true,
+      data: { requestedItem: '古纪V3', totals: { masteryRank: 30, platinum: 1234, credits: 567890, ducats: 456 }, items: [{ name: '古纪V3', count: 2 }], snapshotAt: '2030-01-02T03:04:05.000Z' },
+      evidence: { scope: 'personal_snapshot', evidenceType: 'local_snapshot', asOf: '2030-01-02T03:04:05.000Z', expiresAt: '2030-01-02T03:09:05.000Z', freshness: 'fresh', finding: 'confirmed_present', source: 'synthetic.local' },
+      warnings: [],
+    }),
+    onEvent: (event) => events.push(event),
+  });
+  assert.equal(result.trace.decision, 'call_tool');
+  assert.equal(result.trace.toolCalls[0].name, 'account.snapshot');
+  assert.deepEqual(result.trace.toolCalls[0].arguments, { contractVersion: '1.0', item: '古纪V3' });
+  const factMap = new Map(result.trace.facts.map((fact) => [fact.key, fact.value]));
+  assert.equal(factMap.get('personal.snapshot_scope'), 'personal_snapshot');
+  assert.equal(factMap.get('personal.matched'), 1);
+  assert.equal(factMap.get('personal.item.古纪v3'), 2);
+  assert.equal(factMap.get('personal.platinum'), 1234);
+  assert.match(result.message, /个人账号快照/u);
+  assert.match(result.message, /古纪V3×2/u);
+  assert.ok(events.some((event) => event.type === 'tool_call' && event.name === 'account.snapshot'));
+});
+
+test('account.snapshot 数据源不可用时诚实降级', async () => {
+  const result = await runDesktopAgent({ requestId: 'synthetic-account-failure', message: '账号状态', context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS),
+    getSnapshot: async () => ({
+      contractVersion: '1.0', ok: false,
+      error: { code: 'SNAPSHOT_UNAVAILABLE', message: '本机账号快照暂时不可用。', retryable: true },
+      evidence: { scope: 'personal_snapshot', evidenceType: 'local_snapshot', asOf: '2030-01-02T03:04:05.000Z', expiresAt: '2030-01-02T03:09:05.000Z', freshness: 'fresh', finding: 'unavailable', source: 'synthetic.local' },
+    }),
+  });
+  assert.equal(result.trace.decision, 'call_tool');
+  const factMap = new Map(result.trace.facts.map((fact) => [fact.key, fact.value]));
+  assert.equal(factMap.get('personal.availability'), 'unavailable');
+  assert.equal(factMap.get('error.code'), 'SNAPSHOT_UNAVAILABLE');
+  assert.match(result.message, /快照暂时不可用/u);
 });
 
 test('模型 profile 可枚举并经过能力与健康门禁', async () => {

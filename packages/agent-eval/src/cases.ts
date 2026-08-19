@@ -6,6 +6,7 @@ import {
   type ExpectedTrace,
   type RefusalReason,
 } from './index.js';
+import { factKeyFor } from '@warframe-companion/agent-runtime';
 
 const NOW = '2030-01-02T03:04:05.000Z';
 const FRESH_EXPIRES = '2030-01-02T03:09:05.000Z';
@@ -259,6 +260,69 @@ function dropArgs(item: string) {
   return { contractVersion: '1.1', item };
 }
 
+function accountEvidence(finding: EvalEvidence['finding'] = 'confirmed_present'): EvalEvidence {
+  return {
+    scope: 'personal_snapshot', evidenceType: 'local_snapshot',
+    asOf: '2030-01-02T03:04:05.000Z', expiresAt: FRESH_EXPIRES,
+    freshness: 'fresh', finding, source: 'synthetic.local',
+  };
+}
+
+/** 与 agent-runtime 的 accountFacts 规范投影一致（脱敏摘要，无原始字段）。 */
+function accountSuccessFacts(
+  totals: { masteryRank: number; platinum: number; credits: number; ducats: number },
+  items: Array<{ name: string; count: number }>,
+): EvalFact[] {
+  return [
+    fact('personal.snapshot_scope', 'personal_snapshot', accountEvidence()),
+    fact('personal.snapshot_at', '2030-01-02T03:04:05.000Z', accountEvidence()),
+    fact('personal.mastery_rank', totals.masteryRank),
+    fact('personal.platinum', totals.platinum),
+    fact('personal.ducats', totals.ducats),
+    fact('personal.credits', totals.credits),
+    fact('personal.matched', items.length),
+    ...items.map((item) => fact(`personal.item.${factKeyFor(item.name)}`, item.count)),
+  ];
+}
+
+const ACCOUNT_AGENT_EVAL_CASES: AgentEvalCase[] = [
+  {
+    schemaVersion: '1.0', id: 'account-001', category: 'tool-routing', prompt: '我的库存 古纪V3', context: desktop,
+    availableTools: ['account.snapshot'],
+    expected: {
+      decision: 'call_tool', toolName: 'account.snapshot',
+      arguments: { contractVersion: '1.0', item: '古纪V3' },
+      facts: accountSuccessFacts({ masteryRank: 30, platinum: 1234, credits: 567890, ducats: 456 }, [{ name: '古纪V3', count: 2 }]),
+      maxToolCalls: 1, latencyBudgetMs: 1_500,
+    },
+  },
+  {
+    schemaVersion: '1.0', id: 'account-002', category: 'tool-routing', prompt: '账号状态', context: desktop,
+    availableTools: ['account.snapshot'],
+    expected: {
+      decision: 'call_tool', toolName: 'account.snapshot',
+      arguments: { contractVersion: '1.0' },
+      facts: accountSuccessFacts({ masteryRank: 30, platinum: 1234, credits: 567890, ducats: 456 }, []),
+      maxToolCalls: 1, latencyBudgetMs: 1_500,
+    },
+  },
+  {
+    schemaVersion: '1.0', id: 'account-failure-001', category: 'failure-degradation', prompt: '账号状态', context: desktop,
+    availableTools: ['account.snapshot'],
+    expected: {
+      decision: 'call_tool', toolName: 'account.snapshot',
+      arguments: { contractVersion: '1.0' },
+      facts: [
+        fact('personal.availability', 'unavailable', accountEvidence('unavailable')),
+        fact('error.code', 'SNAPSHOT_UNAVAILABLE'),
+        fact('error.retryable', true),
+      ],
+      forbiddenFactKeys: ['personal.raw_snapshot', 'personal.instance_id', 'personal.ingame_name'],
+      maxToolCalls: 1, latencyBudgetMs: 1_500,
+    },
+  },
+];
+
 function dropFacts(evidence: EvalEvidence, totalDrops = 3): EvalFact[] {
   return [
     fact('drops.source_count', totalDrops, evidence),
@@ -316,4 +380,5 @@ export const FIRST_AGENT_EVAL_CASES: readonly AgentEvalCase[] = [
   ...failureCases,
   ...permissionCases,
   ...DROP_AGENT_EVAL_CASES,
+  ...ACCOUNT_AGENT_EVAL_CASES,
 ];

@@ -12,16 +12,17 @@ import {
 
 const generatedAt = '2030-01-02T03:04:05.000Z';
 
-test('评估集包含原 30 条与 8 条掉落工具用例，并覆盖四个类别', () => {
-  assert.equal(FIRST_AGENT_EVAL_CASES.length, 38);
+test('评估集包含原 30 条、8 条掉落与 3 条账号快照用例，并覆盖四个类别', () => {
+  assert.equal(FIRST_AGENT_EVAL_CASES.length, 41);
   assert.deepEqual(
     Object.fromEntries(['tool-routing', 'evidence', 'failure-degradation', 'permission'].map((category) => [
       category, FIRST_AGENT_EVAL_CASES.filter((entry) => entry.category === category).length,
     ])),
-    { 'tool-routing': 13, evidence: 11, 'failure-degradation': 8, permission: 6 },
+    { 'tool-routing': 15, evidence: 11, 'failure-degradation': 9, permission: 6 },
   );
   assert.equal(FIRST_AGENT_EVAL_CASES.filter((entry) => entry.id.startsWith('drops-')).length, 8);
-  assert.equal(new Set(FIRST_AGENT_EVAL_CASES.map((entry) => entry.id)).size, 38);
+  assert.equal(FIRST_AGENT_EVAL_CASES.filter((entry) => entry.id.startsWith('account-')).length, 3);
+  assert.equal(new Set(FIRST_AGENT_EVAL_CASES.map((entry) => entry.id)).size, 41);
   assert.equal(V2_AGENT_EVAL_CASES.length, 30, '历史 v2 只重评原 30 条已保存 trace');
 });
 
@@ -31,15 +32,15 @@ test('所有夹具均为合成数据且不含敏感键或本机路径', () => {
   assert.doesNotMatch(serialized, /ingameName|accountId|senderId|instanceId/iu);
 });
 
-test('参考契约基线 38 条全部通过并生成稳定报告', () => {
+test('参考契约基线 41 条全部通过并生成稳定报告', () => {
   const traces = FIRST_AGENT_EVAL_CASES.map(createReferenceTrace);
   const summary = evaluateAgentTraces(FIRST_AGENT_EVAL_CASES, traces, {
     candidate: 'reference-contract-oracle', generatedAt,
   });
-  assert.equal(summary.caseCount, 38);
-  assert.equal(summary.passedCases, 38);
+  assert.equal(summary.caseCount, 41);
+  assert.equal(summary.passedCases, 41);
   assert.equal(summary.score, 100);
-  assert.match(renderMarkdownReport(summary), /38\/38 通过/u);
+  assert.match(renderMarkdownReport(summary), /41\/41 通过/u);
 });
 
 test('runner 会捕获错误工具、无证据断言、越权调用和超预算', () => {
