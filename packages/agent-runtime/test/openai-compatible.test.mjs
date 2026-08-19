@@ -88,8 +88,9 @@ test('非流式 Chat Completions 结构化调用 market.query', async () => {
   const turn = await adapter.generateTurn({ message: 'synthetic market query', signal: new AbortController().signal }, profile());
   assert.equal(turn.kind, 'market_query');
   assert.equal(turn.request.item, 'Synthetic Prime');
-  assert.deepEqual(requestBody.tools.map((tool) => tool.function.name), ['market.query', 'drops.search', 'agent.clarify']);
+  assert.deepEqual(requestBody.tools.map((tool) => tool.function.name), ['market.query', 'drops.search', 'agent.clarify', 'agent.conclude']);
   assert.equal(requestBody.stream, false);
+  assert.equal(requestBody.messages.length, 2);
 });
 
 test('SSE 可拼接结构化 drops.search 工具参数', async () => {
@@ -114,6 +115,48 @@ test('SSE 文本按增量回调并返回一致终态', async () => {
   }, profile({ capabilities: { ...capabilities, streaming: true } }));
   assert.deepEqual(deltas, ['请补充', '平台与等级。']);
   assert.deepEqual(turn, { kind: 'answer', text: '请补充平台与等级。', streamed: true });
+});
+
+test('工具轮历史按 assistant tool_calls + tool 角色拼接且不夹带原始结果', async () => {
+  let requestBody;
+  const adapter = createOpenAICompatibleAdapter({ fetch: async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return json({ choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent.conclude', arguments: JSON.stringify({ text: '已核实。', conclusion: 'answered' }) } }] } }] });
+  } });
+  const turn = await adapter.generateTurn({
+    message: 'synthetic second pass', signal: new AbortController().signal,
+    history: [
+      { toolName: 'market.query', toolCall: { contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }, toolResultSummary: 'market.query 成功：卖单 1 条。' },
+      { toolName: 'drops.search', toolCall: { contractVersion: '1.1', item: 'Synthetic Blueprint' }, toolResultSummary: 'drops.search 失败：SOURCE_TOO_OLD。' },
+    ],
+  }, profile());
+  assert.equal(turn.kind, 'conclude');
+  assert.equal(turn.conclusion, 'answered');
+  assert.deepEqual(requestBody.messages.map((message) => message.role), ['system', 'user', 'assistant', 'tool', 'assistant', 'tool']);
+  const firstAssistant = requestBody.messages[2];
+  assert.equal(firstAssistant.content, null);
+  assert.equal(firstAssistant.tool_calls[0].id, 'tool_round_0');
+  assert.equal(firstAssistant.tool_calls[0].function.name, 'market.query');
+  const firstTool = requestBody.messages[3];
+  assert.equal(firstTool.tool_call_id, 'tool_round_0');
+  assert.match(firstTool.content, /卖单 1 条/u);
+  assert.doesNotMatch(JSON.stringify(requestBody.messages), /sellOrders|buyOrders|evidence|rawPayload/u);
+});
+
+test('agent.conclude 终态只接受 answered 与 insufficient_data', async () => {
+  const answered = createOpenAICompatibleAdapter({ fetch: async () => json({
+    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent.conclude', arguments: JSON.stringify({ text: '根据工具结果作答。', conclusion: 'answered' }) } }] } }],
+  }) });
+  const good = await answered.generateTurn({ message: 'synthetic', signal: new AbortController().signal, history: [{ toolName: 'market.query', toolCall: {}, toolResultSummary: 'synthetic' }] }, profile());
+  assert.deepEqual(good, { kind: 'conclude', text: '根据工具结果作答。', conclusion: 'answered' });
+
+  const bad = createOpenAICompatibleAdapter({ fetch: async () => json({
+    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent.conclude', arguments: JSON.stringify({ text: '我拒绝。', conclusion: 'refused' }) } }] } }],
+  }) });
+  await assert.rejects(
+    bad.generateTurn({ message: 'synthetic', signal: new AbortController().signal, history: [{ toolName: 'market.query', toolCall: {}, toolResultSummary: 'synthetic' }] }, profile()),
+    (error) => error instanceof ModelAdapterError && error.failure.code === 'MODEL_BAD_RESPONSE',
+  );
 });
 
 test('HTTP 与坏响应映射为稳定错误分类', async () => {

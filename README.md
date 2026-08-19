@@ -4,7 +4,7 @@
 
 当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 38 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
 
-桌面 Agent 的稳定核心现由 Companion 自有的 Warframe Harness 承载：`ModelProfile`、`ModelAdapter`、能力/健康门禁、可信策略、工具执行、取消/超时和轨迹。除两个零费用本地规则 profile 外，桌面现可保存本机 OpenAI-compatible profile：只持久化 Base URL、模型名、能力声明和凭据环境变量引用，不保存 key；适配器支持 `/models` 健康检查、Chat Completions 结构化工具、SSE、取消与稳定错误分类。未经用户主动配置和发送，不调用远程模型。详见 [`docs/AGENT_HARNESS.md`](docs/AGENT_HARNESS.md)。
+桌面 Agent 的稳定核心现由 Companion 自有的 Warframe Harness 承载：`ModelProfile`、`ModelAdapter`、能力/健康门禁、可信策略、工具执行、取消/超时和轨迹。除两个零费用本地规则 profile 外，桌面现可保存本机 OpenAI-compatible profile：只持久化 Base URL、模型名、能力声明和凭据环境变量引用，不保存 key；适配器支持 `/models` 健康检查、Chat Completions 结构化工具、SSE、取消与稳定错误分类。支持工具结果回送的 adapter 在每次工具执行后收到脱敏结果摘要，用文本回答或内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态——事实、证据、身份、拒绝与延迟永远由 Harness 决定，第二轮故障回落确定性回答。未经用户主动配置和发送，不调用远程模型。详见 [`docs/AGENT_HARNESS.md`](docs/AGENT_HARNESS.md)。
 
 DeepSeek Harness 已完成固定上游提交的独立审计、原样构建，以及隔离插件/门禁/事件适配器的 keyless 预检。固定候选的 v1 0/30、20.22% 与同 trace 的 v2 5/30、53.72% 仅保留为 DSH 集成冒烟和评分协议演进历史：运行配置、隐藏默认参数与名称规范化契约都不足以支持模型、框架或 Harness 选型比较。[v1/v2 对比](packages/agent-eval/reports/v2/v1-v2-comparison.md)已明确这一降级定位。
 

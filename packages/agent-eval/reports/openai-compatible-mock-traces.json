@@ -17,7 +17,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-002",
@@ -37,7 +39,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-003",
@@ -57,7 +61,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-004",
@@ -77,7 +83,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-005",
@@ -97,7 +105,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-006",
@@ -117,7 +127,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-007",
@@ -137,7 +149,9 @@
     "facts": [],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "route-008",
@@ -213,7 +227,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-002",
@@ -247,7 +263,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-003",
@@ -281,7 +299,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-004",
@@ -315,7 +335,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-005",
@@ -353,7 +375,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-006",
@@ -400,7 +424,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-007",
@@ -438,7 +464,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "evidence-008",
@@ -472,7 +500,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "failure-001",
@@ -501,7 +531,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "failure-002",
@@ -534,7 +566,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "failure-003",
@@ -563,7 +597,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "failure-004",
@@ -592,7 +628,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "failure-005",
@@ -625,7 +663,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "failure-006",
@@ -654,7 +694,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "permission-001",
@@ -856,7 +898,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-route-002",
@@ -998,7 +1042,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-route-003",
@@ -1140,7 +1186,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-evidence-001",
@@ -1282,7 +1330,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-evidence-002",
@@ -1424,7 +1474,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-evidence-003",
@@ -1566,7 +1618,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-failure-001",
@@ -1619,7 +1673,9 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   },
   {
     "caseId": "drops-failure-002",
@@ -1641,6 +1697,8 @@
     ],
     "latencyMs": 3,
     "modelProfileId": "openai-compatible-contract-mock",
-    "terminalReason": "completed"
+    "terminalReason": "completed",
+    "conclusion": "answered",
+    "conclusionSource": "model"
   }
 ]

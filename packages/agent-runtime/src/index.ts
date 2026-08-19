@@ -48,6 +48,9 @@ export interface AgentTrace {
   latencyMs: number;
   modelProfileId?: string;
   terminalReason?: 'completed' | 'cancelled' | 'timeout' | 'error';
+  conclusion?: 'answered' | 'insufficient_data';
+  conclusionSource?: 'model' | 'harness';
+  modelFailure?: ModelFailure;
 }
 
 export interface ModelCapabilities {
@@ -119,11 +122,29 @@ export type ModelTurn =
   | { kind: 'market_query'; request: MarketQueryRequest }
   | { kind: 'drop_search'; request: DropSearchRequest }
   | { kind: 'clarify'; text: string; facts: EvalFact[] }
-  | { kind: 'answer'; text: string; streamed?: boolean };
+  | { kind: 'answer'; text: string; streamed?: boolean }
+  | { kind: 'conclude'; text: string; conclusion: 'answered' | 'insufficient_data' };
+export interface ToolRoundStep {
+  toolName: 'market.query' | 'drops.search';
+  toolCall: Record<string, unknown>;
+  toolResultSummary: string;
+}
 export interface ModelAdapter {
   id: string;
+  /**
+   * 声明该 adapter 支持工具结果回送的多轮生成。为 true 时，Harness 在每次工具
+   * 执行后把脱敏的工具轮记录回传给 generateTurn，期待 answer 或 agent.conclude
+   * 终态；为 false 时继续使用 Harness 确定性组织回答（本地规则后端）。
+   */
+  supportsToolRoundTrip?: boolean;
   checkHealth(profile: ModelProfile, signal?: AbortSignal): Promise<{ available: boolean; summary: string; error?: ModelFailure }>;
-  generateTurn(input: { message: string; defaults?: MarketQueryRequest; signal: AbortSignal; onTextDelta?: (delta: string) => void | Promise<void> }, profile: ModelProfile): Promise<ModelTurn>;
+  generateTurn(input: {
+    message: string;
+    defaults?: MarketQueryRequest;
+    history?: readonly ToolRoundStep[];
+    signal: AbortSignal;
+    onTextDelta?: (delta: string) => void | Promise<void>;
+  }, profile: ModelProfile): Promise<ModelTurn>;
 }
 
 const LOCAL_CAPABILITIES: ModelCapabilities = {
@@ -161,6 +182,7 @@ export type AgentStreamEvent =
   | { type: 'tool_result'; name: 'market.query' | 'drops.search'; ok: boolean; summary: string }
   | { type: 'model_error'; error: ModelFailure }
   | { type: 'message_delta'; delta: string }
+  | { type: 'model_conclusion'; conclusion: 'answered' | 'insufficient_data'; source: 'model' | 'harness' }
   | { type: 'completed'; message: string; trace: AgentTrace };
 export interface AgentRunDependencies {
   marketQuery(request: MarketQueryRequest): Promise<MarketQueryResult>;
@@ -325,6 +347,20 @@ async function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T
   ]);
 }
 
+function marketToolSummary(result: MarketQueryResult): string {
+  if (!result.ok) return `market.query 失败：${result.error.code} ${result.error.message}${result.error.retryable ? '（可重试）' : ''}。`;
+  const { item, sellOrders, buyOrders, statistics } = result.data;
+  return `market.query 成功：${item.name.zhHans}（等级 ${item.rank.resolved}/${item.rank.maxRank}），卖单 ${sellOrders.length} 条、买单 ${buyOrders.length} 条${statistics ? `，90 日成交中位数 ${statistics.median} 白金` : ''}；快照时间 ${result.evidence.asOf}，来源 warframe.market。`;
+}
+function dropToolSummary(result: DropSearchResult): string {
+  if (!result.ok) {
+    const age = result.evidence ? `；源年龄 ${result.evidence.sourceAge.status}` : '';
+    return `drops.search 失败：${result.error.code} ${result.error.message}${age}。`;
+  }
+  const locations = result.data.drops.slice(0, 5).map((drop) => `${drop.place}（${drop.chance}%）`).join('、');
+  return `drops.search 成功：${result.data.resolvedItem} 共 ${result.data.totalDrops} 条公开掉落来源，最高概率前五：${locations}；缓存 ${result.evidence.cacheFreshness}、源年龄 ${result.evidence.sourceAge.status}、替代源对照 ${result.evidence.alternativeComparison.status}，来源 wfcd.drop-data。`;
+}
+
 export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDependencies): Promise<{ message: string; trace: AgentTrace }> {
   const started = deps.now?.() ?? Date.now();
   const elapsed = () => (deps.now?.() ?? Date.now()) - started;
@@ -338,8 +374,16 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   const profileId = request.modelProfileId ?? DEFAULT_MODEL_PROFILES[0]!.id;
   const profile = profileRegistry(deps.profiles).get(profileId);
   const adapter = profile ? adapterRegistry(deps.adapters).get(profile.adapterId) : undefined;
-  const finish = async (message: string, decision: AgentDecision, terminalReason: AgentTrace['terminalReason'] = 'completed', refusalReason?: RefusalReason) => {
-    const trace: AgentTrace = { caseId: request.requestId, decision, toolCalls, facts, latencyMs: elapsed(), modelProfileId: profileId, terminalReason, ...(refusalReason ? { refusalReason } : {}) };
+  const finish = async (
+    message: string, decision: AgentDecision, terminalReason: AgentTrace['terminalReason'] = 'completed', refusalReason?: RefusalReason,
+    conclusion?: AgentTrace['conclusion'], conclusionSource?: AgentTrace['conclusionSource'], modelFailure?: ModelFailure,
+  ) => {
+    const trace: AgentTrace = {
+      caseId: request.requestId, decision, toolCalls, facts, latencyMs: elapsed(), modelProfileId: profileId, terminalReason,
+      ...(refusalReason ? { refusalReason } : {}),
+      ...(conclusion && conclusionSource ? { conclusion, conclusionSource } : {}),
+      ...(modelFailure ? { modelFailure } : {}),
+    };
     await emit(deps, { type: 'completed', message, trace });
     return { message, trace };
   };
@@ -356,14 +400,15 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
     }
     const defaults = request.evaluation?.defaultMarketRequest;
     let streamedText = '';
-    const turn = await abortable(adapter.generateTurn({
+    const onTextDelta = async (delta: string) => {
+      streamedText += delta;
+      await emit(deps, { type: 'message_delta', delta });
+    };
+    let turn = await abortable(adapter.generateTurn({
       message: request.message,
       signal: controller.signal,
       ...(defaults ? { defaults } : {}),
-      onTextDelta: async (delta) => {
-        streamedText += delta;
-        await emit(deps, { type: 'message_delta', delta });
-      },
+      onTextDelta,
     }, profile), controller.signal);
     if (controller.signal.aborted) throw abortError(controller.signal);
     if (turn.kind === 'answer') {
@@ -371,40 +416,101 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       return await finish(turn.text, 'answer');
     }
     if (turn.kind === 'clarify') { facts = turn.facts; await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'clarify'); }
-    if (turn.kind === 'drop_search') {
-      toolCalls.push({ name: 'drops.search', arguments: { ...turn.request } });
-      await emit(deps, { type: 'status', phase: 'tool', text: '正在读取版本化公共掉落快照' });
-      await emit(deps, { type: 'tool_call', name: 'drops.search', arguments: turn.request });
-      if (!deps.searchDrops) return await finish('本地掉落数据服务尚未配置。', 'answer', 'error');
-      const result = await abortable(deps.searchDrops(turn.request), controller.signal);
-      await emit(deps, { type: 'tool_result', name: 'drops.search', ok: result.ok, summary: result.ok ? result.evidence.freshness : result.error.code });
-      if (result.ok) {
-        facts = [
-          { key: 'drops.source_count', value: result.data.totalDrops, evidence: { ...result.evidence } },
-          { key: 'drops.cache_freshness', value: result.evidence.cacheFreshness, evidence: { ...result.evidence } },
-          { key: 'drops.source_age_status', value: result.evidence.sourceAge.status, evidence: { ...result.evidence } },
-          { key: 'drops.alternative_status', value: result.evidence.alternativeComparison.status, evidence: { ...result.evidence } },
-        ];
-      } else facts = [
-        { key: 'drops.error', value: result.error.code },
-        ...(result.evidence ? [{ key: 'drops.source_age_status', value: result.evidence.sourceAge.status, evidence: { ...result.evidence } } satisfies EvalFact] : []),
-      ];
-      const text = dropResponseFor(result);
-      await emit(deps, { type: 'status', phase: 'composing', text: '正在按静态掉落证据组织回答' });
-      for (const delta of text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
-      return await finish(text, 'call_tool');
+    if (turn.kind === 'conclude') {
+      await emit(deps, { type: 'model_error', error: { code: 'MODEL_BAD_RESPONSE', category: 'protocol', message: '模型在工具执行前提交了终态。', retryable: false } });
+      return await finish('模型在工具执行前提交了终态，属于协议错误。', 'answer', 'error');
     }
-    toolCalls.push({ name: 'market.query', arguments: { ...turn.request } });
-    await emit(deps, { type: 'status', phase: 'tool', text: '正在查询公开市场快照' });
-    await emit(deps, { type: 'tool_call', name: 'market.query', arguments: turn.request });
-    const result = await abortable(deps.marketQuery(turn.request), controller.signal);
-    if (controller.signal.aborted) throw abortError(controller.signal);
-    await emit(deps, { type: 'tool_result', name: 'market.query', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
-    facts = factsFor(result, request.evaluation?.factMode ?? 'none');
-    const text = responseFor(result);
-    await emit(deps, { type: 'status', phase: 'composing', text: '正在按证据组织回答' });
-    for (const delta of text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
-    return await finish(text, 'call_tool');
+
+    const MAX_TOOL_ROUNDS = 3;
+    const toolRounds: ToolRoundStep[] = [];
+    let lastText = '';
+    let lastOk = false;
+    let modelFailure: ModelFailure | undefined;
+    const deterministicFinish = async () => {
+      await emit(deps, { type: 'status', phase: 'composing', text: '正在按工具证据组织回答' });
+      for (const delta of lastText.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
+      const conclusion: NonNullable<AgentTrace['conclusion']> = lastOk ? 'answered' : 'insufficient_data';
+      await emit(deps, { type: 'model_conclusion', conclusion, source: 'harness' });
+      return await finish(lastText, 'call_tool', 'completed', undefined, conclusion, 'harness', modelFailure);
+    };
+    const modelFinish = async (text: string, conclusion: NonNullable<AgentTrace['conclusion']>) => {
+      await emit(deps, { type: 'model_conclusion', conclusion, source: 'model' });
+      return await finish(text, 'call_tool', 'completed', undefined, conclusion, 'model', modelFailure);
+    };
+
+    for (;;) {
+      if (turn.kind === 'market_query') {
+        toolCalls.push({ name: 'market.query', arguments: { ...turn.request } });
+        await emit(deps, { type: 'status', phase: 'tool', text: '正在查询公开市场快照' });
+        await emit(deps, { type: 'tool_call', name: 'market.query', arguments: turn.request });
+        const result = await abortable(deps.marketQuery(turn.request), controller.signal);
+        if (controller.signal.aborted) throw abortError(controller.signal);
+        await emit(deps, { type: 'tool_result', name: 'market.query', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
+        facts = factsFor(result, request.evaluation?.factMode ?? 'none');
+        lastText = responseFor(result);
+        lastOk = result.ok;
+        toolRounds.push({ toolName: 'market.query', toolCall: { ...turn.request }, toolResultSummary: marketToolSummary(result) });
+      } else if (turn.kind === 'drop_search') {
+        toolCalls.push({ name: 'drops.search', arguments: { ...turn.request } });
+        await emit(deps, { type: 'status', phase: 'tool', text: '正在读取版本化公共掉落快照' });
+        await emit(deps, { type: 'tool_call', name: 'drops.search', arguments: turn.request });
+        if (!deps.searchDrops) return await finish('本地掉落数据服务尚未配置。', 'answer', 'error');
+        const result = await abortable(deps.searchDrops(turn.request), controller.signal);
+        if (controller.signal.aborted) throw abortError(controller.signal);
+        await emit(deps, { type: 'tool_result', name: 'drops.search', ok: result.ok, summary: result.ok ? result.evidence.freshness : result.error.code });
+        if (result.ok) {
+          facts = [
+            { key: 'drops.source_count', value: result.data.totalDrops, evidence: { ...result.evidence } },
+            { key: 'drops.cache_freshness', value: result.evidence.cacheFreshness, evidence: { ...result.evidence } },
+            { key: 'drops.source_age_status', value: result.evidence.sourceAge.status, evidence: { ...result.evidence } },
+            { key: 'drops.alternative_status', value: result.evidence.alternativeComparison.status, evidence: { ...result.evidence } },
+          ];
+        } else facts = [
+          { key: 'drops.error', value: result.error.code },
+          ...(result.evidence ? [{ key: 'drops.source_age_status', value: result.evidence.sourceAge.status, evidence: { ...result.evidence } } satisfies EvalFact] : []),
+        ];
+        lastText = dropResponseFor(result);
+        lastOk = result.ok;
+        toolRounds.push({ toolName: 'drops.search', toolCall: { ...turn.request }, toolResultSummary: dropToolSummary(result) });
+      } else {
+        // 第二轮起才允许非工具轮：answer 与 agent.conclude 是唯二合法终态，
+        // clarify 等一律回落 Harness 确定性组织回答（模型不得在工具后自行澄清/拒绝）。
+        if (turn.kind === 'answer') {
+          if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
+          return await modelFinish(turn.text, 'answered');
+        }
+        if (turn.kind === 'conclude' && turn.conclusion === 'answered') {
+          await emit(deps, { type: 'status', phase: 'composing', text: '正在采用模型提交的终态回答' });
+          for (const delta of turn.text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
+          return await modelFinish(turn.text, 'answered');
+        }
+        if (turn.kind === 'conclude' && turn.conclusion === 'insufficient_data' && !lastOk) {
+          await emit(deps, { type: 'status', phase: 'composing', text: '模型声明数据不足，采用确定性工具结果' });
+          for (const delta of lastText.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
+          return await modelFinish(lastText, 'insufficient_data');
+        }
+        // 工具成功后声明数据不足、工具后澄清等都属于终态滥用，回落 Harness 确定性回答。
+        return await deterministicFinish();
+      }
+      if (!adapter.supportsToolRoundTrip || toolRounds.length >= MAX_TOOL_ROUNDS) return await deterministicFinish();
+      await emit(deps, { type: 'status', phase: 'composing', text: '正在把工具结果回送模型生成回答' });
+      try {
+        turn = await abortable(adapter.generateTurn({
+          message: request.message,
+          history: toolRounds,
+          signal: controller.signal,
+          onTextDelta,
+        }, profile), controller.signal);
+      } catch (error) {
+        if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
+          modelFailure = error.failure;
+          await emit(deps, { type: 'model_error', error: error.failure });
+          return await deterministicFinish();
+        }
+        throw error;
+      }
+      if (controller.signal.aborted) throw abortError(controller.signal);
+    }
   } catch (error) {
     const timedOut = controller.signal.reason instanceof Error && controller.signal.reason.message === 'timeout';
     if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {

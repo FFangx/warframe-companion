@@ -44,10 +44,17 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 - 配置契约只允许保存 profile 元数据、Base URL、模型名、显式能力、输出上限和凭据引用。凭据引用只能是 `none` 或大写环境变量名；内联 key、Authorization、密码字段和 URL 内凭据均被拒绝。
 - 普通 HTTP 只允许 `localhost`、`127.0.0.1` 和 `::1`；其他地址必须使用 HTTPS。本机配置原子写入 Electron `userData/config/model-profiles.v1.json`，不使用 SQLite。
 - 健康检查调用无生成费用的 `GET /models`，区分配置错误、凭据引用缺失、鉴权拒绝、限流、超时、不可用和坏响应。模型未出现在列表中会给兼容性提示，不伪装成已验证模型别名。
-- Chat Completions adapter 注册 `market.query`、`drops.search` 和内部 `agent.clarify` JSON Schema；只接受一个已注册的结构化调用，运行时再次校验参数白名单。
+- Chat Completions adapter 注册 `market.query`、`drops.search`、内部 `agent.clarify` 与终态工具 `agent.conclude` JSON Schema；只接受一个已注册的结构化调用，运行时再次校验参数白名单。
 - 声明 `streaming:true` 时解析 SSE 文本和增量工具参数；AbortSignal 直接传给 HTTP 请求。稳定错误进入 `model_error` 事件和 `AgentTrace`，不会被错误归类为空结果。
-- 当前工具结果仍由 Harness 的确定性证据层组织最终回答；尚未实现把工具结果回送模型的多轮生成。真实模型只在用户主动保存 profile、健康检查并发送消息后调用。
+
+## 工具结果回送与可审计终态（Session 15 切片）
+
+- `ModelAdapter` 通过可选 `supportsToolRoundTrip` 声明多轮能力；`generateTurn` 的 `history` 按 OpenAI 语义拼接 assistant `tool_calls` 与 `tool` 角色消息，工具结果只回送脱敏摘要，不回送原始订单、响应体或证据对象。
+- Harness 在每次工具执行后把结果回送模型，模型可用文本 `answer` 或 `agent.conclude { text, conclusion }` 终态；`conclusion` 只有 `answered` 与 `insufficient_data`，且 `insufficient_data` 仅在上一次工具实际失败时被接受。模型不能提交事实、证据、身份、拒绝、延迟或调用次数；工具成功后的 `insufficient_data`、工具后的 `clarify` 与工具前的 `conclude` 都按协议滥用处理。
+- 工具轮上限为 3；达到上限或第二轮模型故障（上游/协议类）时回落 Harness 确定性组织回答，并把稳定 `modelFailure` 记录进轨迹；取消与超时始终终止本轮，不回落。
+- `AgentTrace` 新增 `conclusion`/`conclusionSource`（`model` 或 `harness`）与可选 `modelFailure`；`decision` 在工具轮后仍为 `call_tool`，不破坏既有 eval 口径。事件流新增 `model_conclusion`。
+- 离线 `warframe-local-rules` 后端不声明回送，继续由 Harness 确定性组织回答；桌面 UI 在工具轨迹中显示终态来源。
 
 ## 下一入口
 
-后续首选在同一契约上增加工具结果回送与可审计的多轮终态，再设计视觉模型和 fallback；不得让文本模型伪装成支持截图，也不得自动探测或迁移密钥。
+后续首选设计视觉模型与 fallback：先定义视觉输入的观察协议，再实现回退 profile 与健康路由；不得让文本模型伪装成支持截图，也不得自动探测或迁移密钥。真实远程模型仍只在用户主动保存 profile、健康检查并发送消息后调用。

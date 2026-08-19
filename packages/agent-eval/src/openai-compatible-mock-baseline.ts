@@ -50,6 +50,12 @@ const adapter = createOpenAICompatibleAdapter({
   fetch: async (url, init) => {
     if (url.endsWith('/models')) return new Response(JSON.stringify({ data: [{ id: profile.model }] }), { status: 200, headers: { 'content-type': 'application/json' } });
     const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
+    // 第二轮起：请求里带有 tool 角色的工具结果，用 agent.conclude 提交终态，
+    // 覆盖 Harness 工具结果回送的完整合同路径（工具轮 -> 回送 -> 结构化终态）。
+    const toolMessage = body.messages.find((message) => message.role === 'tool');
+    if (toolMessage) {
+      return toolPayload('agent.conclude', { text: `工具结果已核实：${String(toolMessage.content).slice(0, 200)}`, conclusion: 'answered' });
+    }
     const system = body.messages.find((message) => message.role === 'system')?.content ?? '';
     const user = body.messages.find((message) => message.role === 'user')?.content ?? '';
     const rawDefaults = system.match(/调用方提供的显式默认参数：(.*)$/u)?.[1];

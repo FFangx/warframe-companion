@@ -188,6 +188,7 @@ function traceEventText(entry: AgentStreamEvent): string {
   if (entry.type === 'tool_call') return `${entry.name} ${JSON.stringify(entry.arguments)}`;
   if (entry.type === 'tool_result') return `${entry.name} · ${entry.summary}`;
   if (entry.type === 'model_error') return `${entry.error.code} · ${entry.error.message}`;
+  if (entry.type === 'model_conclusion') return `终态 ${entry.conclusion} · ${entry.source === 'model' ? '模型' : 'Harness'}`;
   return entry.type === 'message_delta' ? entry.delta : entry.message;
 }
 

@@ -10,6 +10,7 @@ import {
   type ModelProfile,
   type ModelTurn,
   type OpenAICompatibleConfiguration,
+  type ToolRoundStep,
 } from './index.js';
 
 export const OPENAI_COMPATIBLE_ADAPTER_ID = 'openai-compatible' as const;
@@ -184,6 +185,14 @@ function parseToolTurn(name: unknown, rawArguments: unknown): ModelTurn {
     }
     return { kind: 'clarify', text: data.text.trim(), facts: [{ key: data.reason === 'invalid' ? 'invalid_field' : 'missing_field', value: data.field }] };
   }
+  if (name === 'agent.conclude') {
+    const data = record(args);
+    if (!data || !exactKeys(data, ['text', 'conclusion']) || typeof data.text !== 'string' || !data.text.trim()
+      || !['answered', 'insufficient_data'].includes(String(data.conclusion))) {
+      throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型提交的终态参数不符合契约。', false));
+    }
+    return { kind: 'conclude', text: data.text.trim(), conclusion: data.conclusion as 'answered' | 'insufficient_data' };
+  }
   throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', `模型请求了未注册工具 ${name}。`, false));
 }
 function parseMessageTurn(message: unknown): ModelTurn {
@@ -283,6 +292,15 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function', function: {
+      name: 'agent.conclude', description: '至少一个工具已执行后提交本轮终态：answered 表示已基于工具结果作答；insufficient_data 表示工具结果不足以作答。不得提交事实、身份、拒绝、延迟或调用次数。',
+      parameters: {
+        type: 'object', additionalProperties: false, required: ['text', 'conclusion'],
+        properties: { text: { type: 'string', minLength: 1 }, conclusion: { type: 'string', enum: ['answered', 'insufficient_data'] } },
+      },
+    },
+  },
 ] as const;
 
 export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOptions = {}): ModelAdapter {
@@ -290,6 +308,7 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
   const resolver = options.resolveCredential ?? defaultCredentialResolver;
   return {
     id: OPENAI_COMPATIBLE_ADAPTER_ID,
+    supportsToolRoundTrip: true,
     async checkHealth(profile, externalSignal) {
       let configuration: OpenAICompatibleConfiguration;
       try { configuration = profileConfiguration(profile); }
@@ -330,14 +349,22 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
       }
       const headers = { 'content-type': 'application/json', ...(await credentialHeaders(configuration, resolver)) };
       const defaults = input.defaults ? `\n调用方提供的显式默认参数：${JSON.stringify(input.defaults)}` : '';
+      const messages: Array<Record<string, unknown>> = [
+        { role: 'system', content: `你是只读 Warframe 工具路由器。需要实时行情或掉落事实时必须调用注册工具；禁止交易、聊天和账号写操作。缺少市场平台、跨平台范围或等级时直接用文本澄清，不得猜测。工具执行后必须基于脱敏的工具结果作答，并用 agent.conclude 提交终态；事实、证据、身份、延迟和拒绝永远由调用方决定，不得自行提交。${defaults}` },
+        { role: 'user', content: input.message },
+      ];
+      (input.history ?? []).forEach((step: ToolRoundStep, index: number) => {
+        messages.push({
+          role: 'assistant', content: null,
+          tool_calls: [{ id: `tool_round_${index}`, type: 'function', function: { name: step.toolName, arguments: JSON.stringify(step.toolCall) } }],
+        });
+        messages.push({ role: 'tool', tool_call_id: `tool_round_${index}`, content: step.toolResultSummary });
+      });
       const body = {
         model: profile.model,
         stream: profile.capabilities.streaming,
         max_tokens: configuration.maxOutputTokens,
-        messages: [
-          { role: 'system', content: `你是只读 Warframe 工具路由器。需要实时行情或掉落事实时必须调用注册工具；禁止交易、聊天和账号写操作。缺少市场平台、跨平台范围或等级时直接用文本澄清，不得猜测。${defaults}` },
-          { role: 'user', content: input.message },
-        ],
+        messages,
         tools: TOOLS,
         tool_choice: 'auto',
       };
