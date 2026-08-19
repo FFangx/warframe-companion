@@ -55,6 +55,8 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 - `AgentTrace` 新增 `conclusion`/`conclusionSource`（`model` 或 `harness`）与可选 `modelFailure`；`decision` 在工具轮后仍为 `call_tool`，不破坏既有 eval 口径。事件流新增 `model_conclusion`。
 - 离线 `warframe-local-rules` 后端不声明回送，继续由 Harness 确定性组织回答；桌面 UI 在工具轨迹中显示终态来源。
 - 事实投影无条件化：Harness 对工具结果始终派生同一组规范 facts 并写入 `AgentTrace`（市场成功：卖/买单存在性、快照范围、当前挂单口径、90 天历史口径、统计可用性；失败：availability/error.code/retryable 等），生产与评估同构。已删除 `evaluation.factMode` 投影开关；显式默认市场参数改为请求级 `AgentRunRequest.defaults`，评估驱动器只在请求层注入，不再改变 Agent 行为。
+- adapter 接口版本化：`ModelAdapter.adapterVersion` 为必填，`generateTurn` 返回 `ModelTurnResult { turn, usage?, finishReason? }`；Harness 把 adapter 版本、多轮累计 token 用量与最后结束原因记入 `AgentTrace`，为视觉/fallback 等能力扩展保留演化空间，也提供作品集可观测性素材。
+- 真实远程模型冒烟：`npm run smoke:live --workspace @warframe-companion/agent-runtime` 使用真实 DeepSeek（OpenAI-compatible）与真实 Market/掉落工具验证「工具调用 → 回送 → 终态」链路；运行前由用户自行设置 `DEEPSEEK_API_KEY` 环境变量，脚本不打印、不记录 key。
 
 ## 下一入口
 
