@@ -21,6 +21,12 @@ test('桌面 Harness 执行市场工具并流式导出同一轨迹', async () =>
   assert.equal(result.trace.toolCalls[0].name, 'market.query');
   assert.equal(result.trace.conclusion, 'answered');
   assert.equal(result.trace.conclusionSource, 'harness');
+  // 生产路径（不注入任何 evaluation 开关）也必须派生规范事实投影：生产与评估同构。
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'market.sell_orders' && fact.value === 'present'));
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'market.buy_orders' && fact.value === 'present'));
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'market.snapshot_scope' && fact.value === 'current_market'));
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'market.history_basis' && fact.value === 'closed_trades_90_days'));
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'statistics.available' && fact.value === true));
   assert.ok(events.some((event) => event.type === 'tool_call'));
   assert.ok(events.some((event) => event.type === 'message_delta'));
   assert.ok(events.some((event) => event.type === 'model_conclusion' && event.conclusion === 'answered' && event.source === 'harness'));
@@ -140,14 +146,14 @@ test('回送轮：模型基于工具结果给出最终回答，终态记录模�
     },
   };
   const profile = roundTripProfile('synthetic-round-trip', adapter);
-  const result = await runDesktopAgent({ requestId: 'synthetic-round-trip', message: '查一下示例 Prime 当前行情。', modelProfileId: profile.id, context, evaluation: { factMode: 'orders' } }, {
+  const result = await runDesktopAgent({ requestId: 'synthetic-round-trip', message: '查一下示例 Prime 当前行情。', modelProfileId: profile.id, context }, {
     marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
   });
   assert.equal(result.trace.decision, 'call_tool');
   assert.equal(result.trace.conclusion, 'answered');
   assert.equal(result.trace.conclusionSource, 'model');
   assert.match(result.message, /根据工具结果/u);
-  assert.equal(result.trace.facts[0].key, 'market.orders');
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'market.sell_orders'));
   assert.ok(events.some((event) => event.type === 'model_conclusion' && event.source === 'model'));
 });
 
@@ -233,13 +239,13 @@ test('回送轮：第二轮模型故障降级为确定性回答并记录稳定�
     },
   };
   const profile = roundTripProfile('synthetic-second-failure', adapter);
-  const result = await runDesktopAgent({ requestId: 'synthetic-second-failure', message: '查行情。', modelProfileId: profile.id, context, evaluation: { factMode: 'orders' } }, {
+  const result = await runDesktopAgent({ requestId: 'synthetic-second-failure', message: '查行情。', modelProfileId: profile.id, context }, {
     marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
   });
   assert.equal(result.trace.terminalReason, 'completed');
   assert.equal(result.trace.conclusionSource, 'harness');
   assert.equal(result.trace.modelFailure.code, 'MODEL_UNAVAILABLE');
-  assert.equal(result.trace.facts[0].key, 'market.orders');
+  assert.ok(result.trace.facts.some((fact) => fact.key === 'market.sell_orders'));
   assert.ok(events.some((event) => event.type === 'model_error' && event.error.code === 'MODEL_UNAVAILABLE'));
 });
 
