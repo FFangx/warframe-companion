@@ -130,6 +130,8 @@ export interface ToolRoundStep {
   toolName: 'market.query' | 'drops.search';
   toolCall: Record<string, unknown>;
   toolResultSummary: string;
+  /** 产生该工具调用的模型思维链，回送时按 provider 要求原样拼回 assistant 消息。 */
+  assistantReasoning?: string;
 }
 export interface ModelUsage {
   promptTokens: number;
@@ -143,6 +145,12 @@ export interface ModelTurnResult {
   usage?: ModelUsage;
   /** 本次模型响应结束原因（stop/tool_calls/length/...），取最后一轮。 */
   finishReason?: ModelFinishReason;
+  /**
+   * 模型思维链（如 DeepSeek reasoning_content）。Harness 只把它作为不透明数据
+   * 原样回传给需要它的 provider（思考模式要求回传），不进入 AgentTrace、
+   * 不展示给用户，也不参与评估。
+   */
+  reasoning?: string;
 }
 export interface ModelAdapter {
   id: string;
@@ -494,7 +502,12 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         facts = marketFacts(result);
         lastText = responseFor(result);
         lastOk = result.ok;
-        toolRounds.push({ toolName: 'market.query', toolCall: { ...turn.request }, toolResultSummary: marketToolSummary(result) });
+        toolRounds.push({
+          toolName: 'market.query',
+          toolCall: { ...turn.request },
+          toolResultSummary: marketToolSummary(result),
+          ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
+        });
       } else if (turn.kind === 'drop_search') {
         toolCalls.push({ name: 'drops.search', arguments: { ...turn.request } });
         await emit(deps, { type: 'status', phase: 'tool', text: '正在读取版本化公共掉落快照' });
@@ -516,7 +529,12 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         ];
         lastText = dropResponseFor(result);
         lastOk = result.ok;
-        toolRounds.push({ toolName: 'drops.search', toolCall: { ...turn.request }, toolResultSummary: dropToolSummary(result) });
+        toolRounds.push({
+          toolName: 'drops.search',
+          toolCall: { ...turn.request },
+          toolResultSummary: dropToolSummary(result),
+          ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
+        });
       } else {
         // 第二轮起才允许非工具轮：answer 与 agent.conclude 是唯二合法终态，
         // clarify 等一律回落 Harness 确定性组织回答（模型不得在工具后自行澄清/拒绝）。

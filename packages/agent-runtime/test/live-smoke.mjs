@@ -20,6 +20,7 @@ import {
 } from '../dist/index.js';
 
 const KEY_VARIABLE = 'DEEPSEEK_API_KEY';
+const MODEL = process.env.DEEPSEEK_SMOKE_MODEL ?? 'deepseek-v4-flash';
 if (!process.env[KEY_VARIABLE]) {
   console.error(`未检测到环境变量 ${KEY_VARIABLE}。请先在当前终端设置后重试（不要把 key 值发到聊天、代码或记忆文件）。`);
   process.exit(1);
@@ -28,7 +29,7 @@ if (!process.env[KEY_VARIABLE]) {
 const profile = createOpenAICompatibleProfile({
   id: 'deepseek-live-smoke',
   label: 'DeepSeek live smoke',
-  model: 'deepseek-chat',
+  model: MODEL,
   description: '人工真实模型冒烟；凭据仅引用环境变量。',
   capabilities: {
     text: true, vision: false, nativeTools: true, structuredOutput: true,
@@ -40,7 +41,22 @@ const profile = createOpenAICompatibleProfile({
   },
 });
 
-const adapter = createOpenAICompatibleAdapter();
+const baseAdapter = createOpenAICompatibleAdapter({ healthTimeoutMs: 10_000 });
+const roundLogs = [];
+const adapter = {
+  id: baseAdapter.id,
+  adapterVersion: baseAdapter.adapterVersion,
+  supportsToolRoundTrip: baseAdapter.supportsToolRoundTrip,
+  async checkHealth(profile, signal) { return baseAdapter.checkHealth(profile, signal); },
+  async generateTurn(input, profile) {
+    const result = await baseAdapter.generateTurn(input, profile);
+    const log = { round: (input.history?.length ?? 0) + 1, kind: result.turn.kind, reasoningChars: result.reasoning?.length ?? 0 };
+    if (result.turn.kind === 'market_query' || result.turn.kind === 'drop_search') log.tool = result.turn.kind;
+    if (result.turn.kind === 'conclude') log.conclusion = result.turn.conclusion;
+    roundLogs.push(log);
+    return result;
+  },
+};
 const marketQuery = createWarframeMarketQueryService();
 const cacheDirectory = await mkdtemp(path.join(tmpdir(), 'warframe-companion-smoke-'));
 const dataService = createWarframeDataService({ cacheDirectory });
@@ -49,6 +65,7 @@ const context = { channel: 'desktop', trustedOwner: true, now: new Date().toISOS
 function brief(message) { return message.length > 160 ? `${message.slice(0, 157)}…` : message; }
 
 async function runCase(label, message, requiredTool) {
+  roundLogs.length = 0;
   let result;
   try {
     result = await runDesktopAgent({
@@ -70,7 +87,8 @@ async function runCase(label, message, requiredTool) {
   console.log(`\n[${label}] ${ok ? 'PASS' : 'FAIL'}`);
   console.log(`  decision=${trace.decision} terminal=${trace.terminalReason} conclusion=${trace.conclusion ?? '-'}/${trace.conclusionSource ?? '-'}`);
   console.log(`  tools=${trace.toolCalls.map((call) => call.name).join(',') || '-'} latency=${trace.latencyMs}ms adapterVersion=${trace.adapterVersion ?? '-'}`);
-  console.log(`  usage=${trace.usage ? `${trace.usage.promptTokens}/${trace.usage.completionTokens}/${trace.usage.totalTokens}` : '-'} finishReason=${trace.finishReason ?? '-'}`);
+  console.log(`  rounds=${roundLogs.map((entry) => `${entry.round}:${entry.kind}${entry.tool ? `(${entry.tool})` : ''}${entry.conclusion ? `[${entry.conclusion}]` : ''}${entry.reasoningChars ? `,reasoning=${entry.reasoningChars}chars` : ''}`).join(' -> ') || '-'}`);
+  console.log(`  usage=${trace.usage ? `${trace.usage.promptTokens}/${trace.usage.completionTokens}/${trace.usage.totalTokens}` : '-'} finishReason=${trace.finishReason ?? '-'} modelFailure=${trace.modelFailure?.code ?? '-'}`);
   console.log(`  answer=${brief(result.message)}`);
   return ok;
 }

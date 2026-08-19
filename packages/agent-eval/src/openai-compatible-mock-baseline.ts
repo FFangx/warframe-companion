@@ -32,11 +32,11 @@ function toolPayload(name: string, args: Record<string, unknown>): Response {
   return sse({ choices: [{ delta: { tool_calls: [{ index: 0, function: { name, arguments: JSON.stringify(args) } }] } }] });
 }
 async function turnResponse(turn: ModelTurn): Promise<Response> {
-  if (turn.kind === 'market_query') return toolPayload('market.query', turn.request as unknown as Record<string, unknown>);
-  if (turn.kind === 'drop_search') return toolPayload('drops.search', turn.request as unknown as Record<string, unknown>);
+  if (turn.kind === 'market_query') return toolPayload('market_query', turn.request as unknown as Record<string, unknown>);
+  if (turn.kind === 'drop_search') return toolPayload('drop_search', turn.request as unknown as Record<string, unknown>);
   if (turn.kind === 'clarify') {
     const fact = turn.facts[0];
-    return toolPayload('agent.clarify', { text: turn.text, field: String(fact?.value ?? 'unknown'), reason: fact?.key === 'invalid_field' ? 'invalid' : 'missing' });
+    return toolPayload('agent_clarify', { text: turn.text, field: String(fact?.value ?? 'unknown'), reason: fact?.key === 'invalid_field' ? 'invalid' : 'missing' });
   }
   return sse({ choices: [{ delta: { content: turn.text } }] });
 }
@@ -48,7 +48,7 @@ const adapter = createOpenAICompatibleAdapter({
     // 覆盖 Harness 工具结果回送的完整合同路径（工具轮 -> 回送 -> 结构化终态）。
     const toolMessage = body.messages.find((message) => message.role === 'tool');
     if (toolMessage) {
-      return toolPayload('agent.conclude', { text: `工具结果已核实：${String(toolMessage.content).slice(0, 200)}`, conclusion: 'answered' });
+      return toolPayload('agent_conclude', { text: `工具结果已核实：${String(toolMessage.content).slice(0, 200)}`, conclusion: 'answered' });
     }
     const system = body.messages.find((message) => message.role === 'system')?.content ?? '';
     const user = body.messages.find((message) => message.role === 'user')?.content ?? '';

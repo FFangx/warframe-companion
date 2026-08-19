@@ -56,7 +56,10 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 - 离线 `warframe-local-rules` 后端不声明回送，继续由 Harness 确定性组织回答；桌面 UI 在工具轨迹中显示终态来源。
 - 事实投影无条件化：Harness 对工具结果始终派生同一组规范 facts 并写入 `AgentTrace`（市场成功：卖/买单存在性、快照范围、当前挂单口径、90 天历史口径、统计可用性；失败：availability/error.code/retryable 等），生产与评估同构。已删除 `evaluation.factMode` 投影开关；显式默认市场参数改为请求级 `AgentRunRequest.defaults`，评估驱动器只在请求层注入，不再改变 Agent 行为。
 - adapter 接口版本化：`ModelAdapter.adapterVersion` 为必填，`generateTurn` 返回 `ModelTurnResult { turn, usage?, finishReason? }`；Harness 把 adapter 版本、多轮累计 token 用量与最后结束原因记入 `AgentTrace`，为视觉/fallback 等能力扩展保留演化空间，也提供作品集可观测性素材。
-- 真实远程模型冒烟：`npm run smoke:live --workspace @warframe-companion/agent-runtime` 使用真实 DeepSeek（OpenAI-compatible）与真实 Market/掉落工具验证「工具调用 → 回送 → 终态」链路；运行前由用户自行设置 `DEEPSEEK_API_KEY` 环境变量，脚本不打印、不记录 key。
+- 真实远程模型冒烟：`npm run smoke:live --workspace @warframe-companion/agent-runtime` 使用真实 DeepSeek（OpenAI-compatible）与真实 Market/掉落工具验证「工具调用 → 回送 → 终态」链路；运行前由用户自行设置 `DEEPSEEK_API_KEY` 环境变量，脚本不打印、不记录 key。2026-08-19 首次真实模型验收通过（3/3，DeepSeek v4-flash：market 回送、drops 回送、缺参澄清均完成，第二轮由模型提交 `agent.conclude[answered]`），并实测出两条 provider 兼容性约束：
+  - 线上工具名必须匹配 `^[a-zA-Z0-9_-]+$`（DeepSeek 拒绝带点号工具名），adapter 在 wire 层映射 `market.query→market_query` 等，内部逻辑名不变。
+  - DeepSeek 思考模式要求把上一轮响应的 `reasoning_content` 原样回传，否则第二轮返回 400；adapter 捕获思维链并随工具轮回送（`ToolRoundStep.assistantReasoning`），Harness 只作不透明回传，不进 `AgentTrace`、不展示、不参与评估。
+  - 健康检查默认 5 秒超时对真实 API 偶发不足，冒烟脚本使用 10 秒。
 
 ## 下一入口
 

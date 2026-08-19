@@ -138,13 +138,16 @@ test('模型适配器稳定错误进入事件与轨迹而不被误报为取消',
 
 test('回送轮：模型基于工具结果给出最终回答，终态记录模型来源', async () => {
   const events = [];
+  let seenHistory;
   const adapter = {
     id: 'synthetic-round-trip', adapterVersion: 1, supportsToolRoundTrip: true,
     async checkHealth() { return { available: true, summary: 'synthetic' }; },
     async generateTurn(input) {
-      return input.history
-        ? { turn: { kind: 'answer', text: '根据工具结果：示例 Prime 当前有两笔卖单。' }, usage: { promptTokens: 20, completionTokens: 5, totalTokens: 25 }, finishReason: 'stop' }
-        : { turn: marketTurn(), usage: { promptTokens: 10, completionTokens: 8, totalTokens: 18 }, finishReason: 'tool_calls' };
+      if (input.history) {
+        seenHistory = input.history;
+        return { turn: { kind: 'answer', text: '根据工具结果：示例 Prime 当前有两笔卖单。' }, usage: { promptTokens: 20, completionTokens: 5, totalTokens: 25 }, finishReason: 'stop' };
+      }
+      return { turn: marketTurn(), usage: { promptTokens: 10, completionTokens: 8, totalTokens: 18 }, finishReason: 'tool_calls', reasoning: 'synthetic reasoning chain' };
     },
   };
   const profile = roundTripProfile('synthetic-round-trip', adapter);
@@ -161,6 +164,9 @@ test('回送轮：模型基于工具结果给出最终回答，终态记录模�
   assert.equal(result.trace.usage.totalTokens, 43);
   assert.equal(result.trace.usage.promptTokens, 30);
   assert.equal(result.trace.finishReason, 'stop');
+  // 思维链作为不透明数据随工具轮回送（供 DeepSeek 思考模式回传），不进轨迹。
+  assert.equal(seenHistory[0].assistantReasoning, 'synthetic reasoning chain');
+  assert.equal(result.trace.reasoning, undefined);
   assert.ok(events.some((event) => event.type === 'model_conclusion' && event.source === 'model'));
 });
 

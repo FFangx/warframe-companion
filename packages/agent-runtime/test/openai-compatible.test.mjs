@@ -84,7 +84,7 @@ test('非流式 Chat Completions 结构化调用 market.query 并解析用量与
   const adapter = createOpenAICompatibleAdapter({ fetch: async (_url, init) => {
     requestBody = JSON.parse(init.body);
     return json({
-      choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'market.query', arguments: JSON.stringify({ contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }) } }] }, finish_reason: 'tool_calls' }],
+      choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'market_query', arguments: JSON.stringify({ contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }) } }] }, finish_reason: 'tool_calls' }],
       usage: { prompt_tokens: 12, completion_tokens: 34, total_tokens: 46 },
     });
   } });
@@ -92,14 +92,14 @@ test('非流式 Chat Completions 结构化调用 market.query 并解析用量与
   assert.equal(result.turn.request.item, 'Synthetic Prime');
   assert.deepEqual(result.usage, { promptTokens: 12, completionTokens: 34, totalTokens: 46 });
   assert.equal(result.finishReason, 'tool_calls');
-  assert.deepEqual(requestBody.tools.map((tool) => tool.function.name), ['market.query', 'drops.search', 'agent.clarify', 'agent.conclude']);
+  assert.deepEqual(requestBody.tools.map((tool) => tool.function.name), ['market_query', 'drop_search', 'agent_clarify', 'agent_conclude']);
   assert.equal(requestBody.stream, false);
   assert.equal(requestBody.messages.length, 2);
 });
 
 test('SSE 可拼接结构化 drops.search 工具参数', async () => {
   const adapter = createOpenAICompatibleAdapter({ fetch: async () => sse([
-    { choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'drops.search', arguments: '{"contractVersion":"1.1",' } }] } }] },
+    { choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'drop_search', arguments: '{"contractVersion":"1.1",' } }] } }] },
     { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"item":"Synthetic Blueprint"}' } }] }, finish_reason: 'tool_calls' }] },
     { choices: [{ delta: {} }], usage: { prompt_tokens: 5, completion_tokens: 6, total_tokens: 11 } },
   ]) });
@@ -129,12 +129,12 @@ test('工具轮历史按 assistant tool_calls + tool 角色拼接且不夹带原
   let requestBody;
   const adapter = createOpenAICompatibleAdapter({ fetch: async (_url, init) => {
     requestBody = JSON.parse(init.body);
-    return json({ choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent.conclude', arguments: JSON.stringify({ text: '已核实。', conclusion: 'answered' }) } }] } }] });
+    return json({ choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent_conclude', arguments: JSON.stringify({ text: '已核实。', conclusion: 'answered' }) } }] } }] });
   } });
   const result = await adapter.generateTurn({
     message: 'synthetic second pass', signal: new AbortController().signal,
     history: [
-      { toolName: 'market.query', toolCall: { contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }, toolResultSummary: 'market.query 成功：卖单 1 条。' },
+      { toolName: 'market.query', toolCall: { contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }, toolResultSummary: 'market.query 成功：卖单 1 条。', assistantReasoning: 'synthetic chain' },
       { toolName: 'drops.search', toolCall: { contractVersion: '1.1', item: 'Synthetic Blueprint' }, toolResultSummary: 'drops.search 失败：SOURCE_TOO_OLD。' },
     ],
   }, profile());
@@ -143,23 +143,36 @@ test('工具轮历史按 assistant tool_calls + tool 角色拼接且不夹带原
   assert.deepEqual(requestBody.messages.map((message) => message.role), ['system', 'user', 'assistant', 'tool', 'assistant', 'tool']);
   const firstAssistant = requestBody.messages[2];
   assert.equal(firstAssistant.content, null);
+  assert.equal(firstAssistant.reasoning_content, 'synthetic chain');
   assert.equal(firstAssistant.tool_calls[0].id, 'tool_round_0');
-  assert.equal(firstAssistant.tool_calls[0].function.name, 'market.query');
+  assert.equal(firstAssistant.tool_calls[0].function.name, 'market_query');
   const firstTool = requestBody.messages[3];
   assert.equal(firstTool.tool_call_id, 'tool_round_0');
   assert.match(firstTool.content, /卖单 1 条/u);
   assert.doesNotMatch(JSON.stringify(requestBody.messages), /sellOrders|buyOrders|evidence|rawPayload/u);
 });
 
+test('SSE 捕获推理模型 reasoning_content 供回送回传', async () => {
+  const adapter = createOpenAICompatibleAdapter({ fetch: async () => sse([
+    { choices: [{ delta: { role: 'assistant', content: null, reasoning_content: '用户想' } }] },
+    { choices: [{ delta: { reasoning_content: '查询市场' } }] },
+    { choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'market_query', arguments: JSON.stringify({ contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }) } }] }, finish_reason: 'tool_calls' }] },
+  ]) });
+  const streamingProfile = profile({ capabilities: { ...capabilities, streaming: true } });
+  const result = await adapter.generateTurn({ message: 'synthetic', signal: new AbortController().signal }, streamingProfile);
+  assert.equal(result.turn.kind, 'market_query');
+  assert.equal(result.reasoning, '用户想查询市场');
+});
+
 test('agent.conclude 终态只接受 answered 与 insufficient_data', async () => {
   const answered = createOpenAICompatibleAdapter({ fetch: async () => json({
-    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent.conclude', arguments: JSON.stringify({ text: '根据工具结果作答。', conclusion: 'answered' }) } }] } }],
+    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent_conclude', arguments: JSON.stringify({ text: '根据工具结果作答。', conclusion: 'answered' }) } }] } }],
   }) });
   const good = await answered.generateTurn({ message: 'synthetic', signal: new AbortController().signal, history: [{ toolName: 'market.query', toolCall: {}, toolResultSummary: 'synthetic' }] }, profile());
   assert.deepEqual(good.turn, { kind: 'conclude', text: '根据工具结果作答。', conclusion: 'answered' });
 
   const bad = createOpenAICompatibleAdapter({ fetch: async () => json({
-    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent.conclude', arguments: JSON.stringify({ text: '我拒绝。', conclusion: 'refused' }) } }] } }],
+    choices: [{ message: { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'agent_conclude', arguments: JSON.stringify({ text: '我拒绝。', conclusion: 'refused' }) } }] } }],
   }) });
   await assert.rejects(
     bad.generateTurn({ message: 'synthetic', signal: new AbortController().signal, history: [{ toolName: 'market.query', toolCall: {}, toolResultSummary: 'synthetic' }] }, profile()),
