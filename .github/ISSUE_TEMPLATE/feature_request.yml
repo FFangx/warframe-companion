@@ -1,0 +1,26 @@
+name: Feature Request
+description: 建议一个符合本地优先、只读和证据驱动边界的改进。
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不接受市场写操作、自动交易/聊天、游戏自动化或绕过身份门的功能。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 描述用户任务与当前缺口，不要包含个人数据。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 说明数据来源、证据、新鲜度、故障降级和权限边界。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已考虑的替代方案
