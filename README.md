@@ -1,5 +1,11 @@
 # Warframe Companion
 
+[![CI](https://github.com/FFangx/warframe-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/FFangx/warframe-companion/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+
+> **当前状态：早期开发版。** 源码与可重复验证流程公开，但尚未发布经过安装、升级、卸载和实机验收的 Windows 安装包。不要把源码测试通过等同于可安装产品已经发布。
+
 一个 Windows 本地优先、只读、证据驱动的 Warframe 国际服个人助手。目标是把现有确定性查询、个人快照、订阅诊断和 Agent 能力交付为可安装桌面应用，同时保留 QQ/OpenClaw 作为远程渠道。
 
 当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 38 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
@@ -29,8 +35,11 @@ experiments/deepseek-harness    固定 DSH 的隔离工具/策略/轨迹实验�
 
 ```powershell
 npm ci
+npm run check:repo
+npm run build
 npm test
 npm run eval --workspace @warframe-companion/agent-eval
+npm audit --omit=dev --audit-level=high
 npm run smoke:live --workspace @warframe-companion/warframe-data-service
 npm run start -w @warframe-companion/desktop
 
@@ -47,7 +56,9 @@ npm run preflight --prefix experiments/deepseek-harness
 - 状态性结论必须带匹配对象、范围、时间、新鲜度和来源的确定性证据。
 - Mock、评估集、截图与演示数据必须合成或完成脱敏。
 
-详细定义见 [产品文档](docs/PRODUCT.md) 与 [目标架构](docs/ARCHITECTURE.md)。
+安全问题请通过 [SECURITY.md](SECURITY.md) 中的私有漏洞报告渠道提交，不要在公开 issue 中附带凭据、个人数据或漏洞细节。
+
+详细定义见 [产品文档](docs/PRODUCT.md) 与 [目标架构](docs/ARCHITECTURE.md)。验收分层见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)，已知依赖风险见 [docs/DEPENDENCY_RISK.md](docs/DEPENDENCY_RISK.md)，贡献要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 相关仓库边界
 
@@ -55,3 +66,7 @@ npm run preflight --prefix experiments/deepseek-harness
 - `WFInfo-CN-DPI-Fix`：WFInfo 独立程序及其游戏内奖励辅助能力。
 - `deepseek-harness`：与本仓库同级的固定上游调研副本；仅用于旁路插件实验，不是桌面稳定链路依赖。
 - 本仓库：共享契约、应用服务、桌面应用和 Agent 评估体系。
+
+## License 与支持
+
+代码采用 [MIT License](LICENSE)。Warframe、相关游戏数据、名称与商标的归属及第三方数据边界见 [NOTICE.md](NOTICE.md)。本项目是个人维护的业余项目，没有 SLA，详见 [SUPPORT.md](SUPPORT.md)。

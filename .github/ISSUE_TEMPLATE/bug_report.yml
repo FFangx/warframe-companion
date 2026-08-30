@@ -1,0 +1,38 @@
+name: Bug Report
+description: 报告可复现的功能、桌面、数据、测试或文档问题。安全漏洞请走 SECURITY.md。
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请删除凭据、账号标识、真实玩家/聊天、个人快照、本机日志和用户目录。安全漏洞不要公开提交。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 场景与复现步骤
+      description: 从干净状态开始的最小复现步骤。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 只贴脱敏后的错误分类或截图。
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: 版本或提交
+      placeholder: commit SHA / 未发布源码
+  - type: dropdown
+    id: node
+    attributes:
+      label: Node.js 版本
+      options: ["22.x", "24.x", "其他/不确定"]

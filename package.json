@@ -11,6 +11,7 @@
     "packages/*"
   ],
   "scripts": {
+    "check:repo": "node scripts/public-repo-check.mjs",
     "build": "npm run build --workspace @warframe-companion/market-query-contract && npm run build --workspace @warframe-companion/market-query-service && npm run build --workspace @warframe-companion/warframe-data-service && npm run build --workspace @warframe-companion/agent-runtime && npm run build --workspace @warframe-companion/agent-eval && npm run build --workspace @warframe-companion/desktop",
     "test": "npm run test --workspace @warframe-companion/market-query-contract && npm run test --workspace @warframe-companion/market-query-service && npm run test --workspace @warframe-companion/warframe-data-service && npm run test --workspace @warframe-companion/agent-runtime && npm run test --workspace @warframe-companion/agent-eval && npm run test --workspace @warframe-companion/desktop"
   },
