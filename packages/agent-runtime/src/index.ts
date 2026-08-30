@@ -234,13 +234,15 @@ export interface AgentRunDependencies {
   adapters?: readonly ModelAdapter[];
 }
 
+function personalScopeRefusal(request: AgentRunRequest): { reason: RefusalReason; text: string } | null {
+  if (request.context.channel === 'qq_group') return { reason: 'private_scope', text: '个人数据不能在群聊中展示。' };
+  if (!request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能读取个人数据。' };
+  return null;
+}
 function policyRefusal(message: string, request: AgentRunRequest): { reason: RefusalReason; text: string } | null {
   if (/替.*(?:挂|改|删).*单|(?:创建|修改|删除|自动).*订单|发送游戏私聊|给买家发送|自动交易/u.test(message)) return { reason: 'write_forbidden', text: '我不能操作市场、交易或游戏聊天；可以帮你查公开行情并由你手动处理。' };
   if (/原始账号快照|完整快照|导出.*快照/u.test(message)) return { reason: 'private_scope', text: '原始个人快照不能导出或展示。' };
-  if (/个人库存|我的库存|白金余额|个人白金/u.test(message)) {
-    if (request.context.channel === 'qq_group') return { reason: 'private_scope', text: '个人数据不能在群聊中展示。' };
-    if (!request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能读取个人数据。' };
-  }
+  if (/个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) return personalScopeRefusal(request);
   if (/创建提醒订阅|替.*订阅/u.test(message) && !request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能创建订阅。' };
   return null;
 }
@@ -594,6 +596,13 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
           ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
         });
       } else if (turn.kind === 'account_snapshot') {
+        // 模型工具选择不可作为授权依据。即使初始文本没有命中个人数据关键词，
+        // 也必须在实际读取前再次执行不可绕过的频道与主人身份门禁。
+        const denied = personalScopeRefusal(request);
+        if (denied) {
+          await emit(deps, { type: 'message_delta', delta: denied.text });
+          return await finish(denied.text, 'refuse', 'completed', denied.reason);
+        }
         toolCalls.push({ name: 'account.snapshot', arguments: { ...turn.request } });
         await emit(deps, { type: 'status', phase: 'tool', text: '正在读取本机账号快照摘要' });
         await emit(deps, { type: 'tool_call', name: 'account.snapshot', arguments: turn.request });

@@ -100,6 +100,31 @@ test('群聊或非主人的个人查询在工具前被策略拒绝', async () =>
   assert.equal(called, false);
 });
 
+test('模型不能用 account.snapshot 工具选择绕过个人数据门禁', async () => {
+  let snapshotCalled = false;
+  const adapter = {
+    id: 'synthetic-forced-account', adapterVersion: 1,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn() {
+      return { turn: { kind: 'account_snapshot', request: { contractVersion: '1.0' } } };
+    },
+  };
+  const profile = roundTripProfile('synthetic-forced-account-profile', adapter);
+  const result = await runDesktopAgent({
+    requestId: 'synthetic-forced-account', message: '你好',
+    modelProfileId: profile.id,
+    context: { channel: 'untrusted_test', trustedOwner: false, now: '2030-01-02T03:04:05.000Z' },
+  }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS),
+    getSnapshot: async () => { snapshotCalled = true; throw new Error('must not be called'); },
+    profiles: [profile], adapters: [adapter],
+  });
+  assert.equal(result.trace.decision, 'refuse');
+  assert.equal(result.trace.refusalReason, 'identity_untrusted');
+  assert.equal(result.trace.toolCalls.length, 0);
+  assert.equal(snapshotCalled, false);
+});
+
 test('account.snapshot 执行并只投影脱敏摘要事实', async () => {
   const events = [];
   const result = await runDesktopAgent({ requestId: 'synthetic-account', message: '我的库存 古纪V3', context }, {

@@ -143,18 +143,18 @@ Companion 自己拥有频道合同，但不建设通用社媒自动化平台。�
 - Companion 自有 Agent Harness、离线 profile、OpenAI-compatible adapter、SSE、取消、工具结果回送和稳定终态。
 - `account.snapshot` 的权限/脱敏尖峰；生产数据服务尚未接入。
 - 41 条合成/脱敏评估和确定性 runner。
-- Electron 开发打包可完成；当前还没有 CI、正式 `make`/安装验收或 GitHub Release 自动化。
+- Electron 开发打包可完成；Windows/Node 22 CI、生产依赖审计和公开仓库合同已建立。当前还没有正式 `make`/安装验收或 GitHub Release 自动化。
 
-### 待处理的候选分支
+### 已审查的候选分支
 
-`deepseek/eval-prod-isomorphism` 比 `main` 领先四个提交：
+`deepseek/eval-prod-isomorphism` 的四个能力提交已逐项重放并纳入主线候选：
 
 1. 生产与 eval 事实投影同构。
 2. adapter 版本与 token/finish reason trace。
 3. DeepSeek wire 工具名和 thinking-mode 回送兼容。
 4. `account.snapshot` 权限尖峰。
 
-本机根级 `npm run build` 与 `npm test` 已通过，但这只证明当前工作树可构建、可测试，不替代代码审查、GitHub CI、安装包或实机验收。
+审查发现个人快照的文本关键词门禁可被模型直接选择工具绕过，已把主人身份与频道授权下沉到 `account.snapshot` 实际执行点，并加入回归测试。根级 build/test/eval 与 GitHub CI 仍只证明源码与 CI 层，不替代安装包或实机验收。
 
 ## 5. 执行路线
 
@@ -163,6 +163,8 @@ Companion 自己拥有频道合同，但不建设通用社媒自动化平台。�
 ### Phase 0：主线与工程自证
 
 #### P0.1 最小 CI
+
+状态：已实现；Windows/Node 22 的干净 runner 已通过，公开后将该检查设为 `main` 必需检查。
 
 从 `main` 建独立小 PR，加入：
 
@@ -175,6 +177,8 @@ Companion 自己拥有频道合同，但不建设通用社媒自动化平台。�
 
 #### P0.2 候选分支审查与落地
 
+状态：已完成审查、最新主线重放与权限补强；以 PR CI 全绿和合并提交作为最终证据。
+
 - 逐提交审查 `b000576..b602204`，重点检查生产/eval 同构、trace 隐私、thinking 内容不落盘、账号权限和大量生成报告的必要性。
 - 在最新 `main` 上重放；若某提交不能独立解释或回滚，则拆分后再 PR。
 - CI 全绿后合并；README、架构和基线数字与最终代码同位更新。
@@ -182,6 +186,8 @@ Companion 自己拥有频道合同，但不建设通用社媒自动化平台。�
 退出条件：`main` 含经审查的目标能力，分支无未解释差异；不要用“原分支已存在”替代 PR 评审。
 
 #### P0.3 仓库治理
+
+状态：已实现公开仓库模板、治理文档、Dependabot、生产依赖门禁与公开内容自检。
 
 - PR/Issue 模板、CODEOWNERS、Dependabot、贡献流程。
 - README 增加开发总纲和验收入口。
@@ -352,6 +358,6 @@ Market 已在两条线存在，适合作为第一个去重证明：
 
 ## 10. 下一入口
 
-下一切片固定为 **P0.1 最小 CI**：从 `main=70f4302` 建小分支，只加入零费用、可复现的 Windows/Node 22 build、test 与 eval 冒烟；完成 PR 与必需检查后，再进入 **P0.2 候选分支审查与落地**。
+Phase 0 合并并完成公开仓库保护后，下一切片固定为 **P1.1 版本和制品身份**。在此之前不发布安装包，也不把源码或 CI 通过描述为可安装产品已经验收。
 
-在这两个切片完成前，不开始共享核心抽取，不继续叠加新的 Warframe 功能，也不把 `b602204` 描述为已合并或已发布。
+进入 P1.1 后仍按切片推进：在版本、制品身份和四层验收闭环前，不把开发打包描述为已发布产品，也不提前开始跨仓库共享核心抽取。
