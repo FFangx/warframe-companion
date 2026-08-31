@@ -4,19 +4,13 @@ import {
   createOpenAICompatibleProfile,
   localRulesModelAdapter,
   runDesktopAgent,
-  type AgentFactMode,
   type AgentTrace,
   type ModelTurn,
 } from '@warframe-companion/agent-runtime';
 import type { AgentEvalCase } from './index.js';
 import { MOCK_MARKET_QUERY_REQUEST } from '@warframe-companion/market-query-contract/mocks';
-import { createSyntheticDropResult, createSyntheticMarketResultForCase } from './desktop-harness-baseline.js';
+import { createSyntheticAccountResult, createSyntheticDropResult, createSyntheticMarketResultForCase } from './desktop-harness-baseline.js';
 
-const MODE_BY_ID: Record<string, AgentFactMode> = {
-  'evidence-001': 'orders', 'evidence-002': 'absent', 'evidence-003': 'unavailable',
-  'evidence-004': 'stale', 'evidence-005': 'statistics', 'evidence-006': 'split-orders',
-  'evidence-007': 'basis', 'evidence-008': 'snapshot',
-};
 const profile = createOpenAICompatibleProfile({
   id: 'openai-compatible-contract-mock', label: 'OpenAI-compatible contract mock', model: 'synthetic-contract-model',
   description: 'Synthetic keyless Chat Completions fixture',
@@ -38,11 +32,12 @@ function toolPayload(name: string, args: Record<string, unknown>): Response {
   return sse({ choices: [{ delta: { tool_calls: [{ index: 0, function: { name, arguments: JSON.stringify(args) } }] } }] });
 }
 async function turnResponse(turn: ModelTurn): Promise<Response> {
-  if (turn.kind === 'market_query') return toolPayload('market.query', turn.request as unknown as Record<string, unknown>);
-  if (turn.kind === 'drop_search') return toolPayload('drops.search', turn.request as unknown as Record<string, unknown>);
+  if (turn.kind === 'market_query') return toolPayload('market_query', turn.request as unknown as Record<string, unknown>);
+  if (turn.kind === 'drop_search') return toolPayload('drop_search', turn.request as unknown as Record<string, unknown>);
+  if (turn.kind === 'account_snapshot') return toolPayload('account_snapshot', turn.request as unknown as Record<string, unknown>);
   if (turn.kind === 'clarify') {
     const fact = turn.facts[0];
-    return toolPayload('agent.clarify', { text: turn.text, field: String(fact?.value ?? 'unknown'), reason: fact?.key === 'invalid_field' ? 'invalid' : 'missing' });
+    return toolPayload('agent_clarify', { text: turn.text, field: String(fact?.value ?? 'unknown'), reason: fact?.key === 'invalid_field' ? 'invalid' : 'missing' });
   }
   return sse({ choices: [{ delta: { content: turn.text } }] });
 }
@@ -54,14 +49,14 @@ const adapter = createOpenAICompatibleAdapter({
     // 覆盖 Harness 工具结果回送的完整合同路径（工具轮 -> 回送 -> 结构化终态）。
     const toolMessage = body.messages.find((message) => message.role === 'tool');
     if (toolMessage) {
-      return toolPayload('agent.conclude', { text: `工具结果已核实：${String(toolMessage.content).slice(0, 200)}`, conclusion: 'answered' });
+      return toolPayload('agent_conclude', { text: `工具结果已核实：${String(toolMessage.content).slice(0, 200)}`, conclusion: 'answered' });
     }
     const system = body.messages.find((message) => message.role === 'system')?.content ?? '';
     const user = body.messages.find((message) => message.role === 'user')?.content ?? '';
     const rawDefaults = system.match(/调用方提供的显式默认参数：(.*)$/u)?.[1];
     const defaults = rawDefaults ? JSON.parse(rawDefaults) : undefined;
-    const turn = await localRulesModelAdapter.generateTurn({ message: user, signal: init?.signal ?? new AbortController().signal, ...(defaults ? { defaults } : {}) }, DEFAULT_MODEL_PROFILES[0]!);
-    return turnResponse(turn);
+    const turnResult = await localRulesModelAdapter.generateTurn({ message: user, signal: init?.signal ?? new AbortController().signal, ...(defaults ? { defaults } : {}) }, DEFAULT_MODEL_PROFILES[0]!);
+    return turnResponse(turnResult.turn);
   },
 });
 
@@ -70,20 +65,17 @@ export async function createOpenAICompatibleMockTrace(testCase: AgentEvalCase): 
   let clockCalls = 0;
   const syntheticNow = () => clockCalls++ === 0 ? 0 : syntheticLatencyMs;
   const isDrop = testCase.id.startsWith('drops-');
+  const isAccount = testCase.id.startsWith('account-');
   const isEvidence = testCase.category === 'evidence';
   const isFailure = testCase.category === 'failure-degradation';
   const run = await runDesktopAgent({
     requestId: testCase.id, message: testCase.prompt, modelProfileId: profile.id, context: testCase.context,
-    ...(!isDrop && (isEvidence || isFailure) ? {
-      evaluation: {
-        factMode: isFailure ? 'failure' as const : MODE_BY_ID[testCase.id]!,
-        defaultMarketRequest: { ...MOCK_MARKET_QUERY_REQUEST },
-      },
-    } : {}),
+    ...(!isDrop && !isAccount && (isEvidence || isFailure) ? { defaults: { ...MOCK_MARKET_QUERY_REQUEST } } : {}),
   }, {
     profiles: [profile], adapters: [adapter],
     marketQuery: async () => createSyntheticMarketResultForCase(testCase),
     searchDrops: async () => createSyntheticDropResult(testCase),
+    ...(isAccount ? { getSnapshot: async () => createSyntheticAccountResult(testCase) } : {}),
     now: syntheticNow,
   });
   return run.trace;

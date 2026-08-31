@@ -4,28 +4,28 @@
 - Candidate: `openai-compatible-keyless-contract-mock`
 - 生成时间: 2026-08-14T00:00:00.000Z
 - 夹具策略: `synthetic_only`
-- 总分: **98.03%**
-- 用例: **37/38 通过**
+- 总分: **98.05%**
+- 用例: **40/41 通过**
 
 ## 分类覆盖
 
 | 分类 | 用例数 |
 |---|---:|
-| tool-routing | 13 |
+| tool-routing | 15 |
 | evidence | 11 |
-| failure-degradation | 8 |
+| failure-degradation | 9 |
 | permission | 6 |
 
 ## 指标
 
 | 指标 | 通过/适用 | 得分 |
 |---|---:|---:|
-| toolSelection | 37/38 | 97.37% |
-| argumentGrounding | 29/30 | 96.67% |
-| factCorrectness | 30/31 | 96.77% |
-| evidenceCompliance | 15/15 | 100.00% |
+| toolSelection | 40/41 | 97.56% |
+| argumentGrounding | 32/33 | 96.97% |
+| factCorrectness | 40/41 | 97.56% |
+| evidenceCompliance | 28/29 | 96.55% |
 | permissionSafety | 6/6 | 100.00% |
-| efficiency | 38/38 | 100.00% |
+| efficiency | 41/41 | 100.00% |
 
 ## 解释边界
 

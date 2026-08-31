@@ -1,14 +1,21 @@
 import { assertMarketQueryRequest, MARKET_QUERY_CONTRACT_VERSION, type MarketQueryRequest } from '@warframe-companion/market-query-contract';
 import { DROP_SEARCH_CONTRACT_VERSION, type DropSearchRequest } from '@warframe-companion/warframe-data-service';
 import {
+  ACCOUNT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountSnapshotRequest,
+} from './account-snapshot.js';
+import {
   ModelAdapterError,
   OPENAI_COMPATIBLE_CONFIG_VERSION,
   type CredentialReference,
   type ModelAdapter,
   type ModelCapabilities,
   type ModelFailure,
+  type ModelFinishReason,
   type ModelProfile,
   type ModelTurn,
+  type ModelTurnResult,
+  type ModelUsage,
   type OpenAICompatibleConfiguration,
   type ToolRoundStep,
 } from './index.js';
@@ -33,6 +40,23 @@ export interface OpenAICompatibleAdapterOptions {
 const SAFE_ENV_NAME = /^[A-Z_][A-Z0-9_]{0,127}$/u;
 const SAFE_PROFILE_ID = /^[a-z0-9][a-z0-9-]{0,79}$/u;
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * 逻辑工具名 → 线上工具名。部分 OpenAI-compatible 服务（实测 DeepSeek）要求
+ * 工具名只匹配 ^[a-zA-Z0-9_-]+$，不允许点号；内部逻辑名（market.query 等）
+ * 保持不变，只在 wire 层做映射。
+ */
+const WIRE_TOOL_NAMES = {
+  'market.query': 'market_query',
+  'drops.search': 'drop_search',
+  'account.snapshot': 'account_snapshot',
+  'agent.clarify': 'agent_clarify',
+  'agent.conclude': 'agent_conclude',
+} as const;
+type WireToolName = (typeof WIRE_TOOL_NAMES)[keyof typeof WIRE_TOOL_NAMES];
+function wireToolName(logical: 'market.query' | 'drops.search' | 'account.snapshot' | 'agent.clarify' | 'agent.conclude'): WireToolName {
+  return WIRE_TOOL_NAMES[logical];
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -160,15 +184,29 @@ async function parseJsonResponse(response: Response): Promise<Record<string, unk
   if (!data) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型服务返回结构无效。', false));
   return data;
 }
+function parseUsage(value: unknown): ModelUsage | undefined {
+  const data = record(value);
+  if (!data) return undefined;
+  const token = (entry: unknown): number | undefined =>
+    typeof entry === 'number' && Number.isInteger(entry) && entry >= 0 ? entry : undefined;
+  const promptTokens = token(data.prompt_tokens);
+  const completionTokens = token(data.completion_tokens);
+  const totalTokens = token(data.total_tokens);
+  if (promptTokens === undefined || completionTokens === undefined || totalTokens === undefined) return undefined;
+  return { promptTokens, completionTokens, totalTokens };
+}
+function finishReasonOf(choice: Record<string, unknown> | undefined): ModelFinishReason | undefined {
+  return typeof choice?.finish_reason === 'string' ? choice.finish_reason : undefined;
+}
 function parseToolTurn(name: unknown, rawArguments: unknown): ModelTurn {
   if (typeof name !== 'string' || typeof rawArguments !== 'string') throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型工具调用缺少函数名或 JSON 参数。', false));
   let args: unknown;
   try { args = JSON.parse(rawArguments); } catch { throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型工具调用参数不是有效 JSON。', false)); }
-  if (name === 'market.query') {
+  if (name === wireToolName('market.query')) {
     try { assertMarketQueryRequest(args); } catch { throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型生成的 market.query 参数不符合契约。', false)); }
     return { kind: 'market_query', request: args as MarketQueryRequest };
   }
-  if (name === 'drops.search') {
+  if (name === wireToolName('drops.search')) {
     const data = record(args);
     if (!data || !exactKeys(data, ['contractVersion', 'item', 'limit']) || data.contractVersion !== DROP_SEARCH_CONTRACT_VERSION
       || typeof data.item !== 'string' || !data.item.trim() || data.item.length > 200
@@ -177,7 +215,19 @@ function parseToolTurn(name: unknown, rawArguments: unknown): ModelTurn {
     }
     return { kind: 'drop_search', request: data as unknown as DropSearchRequest };
   }
-  if (name === 'agent.clarify') {
+  if (name === wireToolName('account.snapshot')) {
+    const data = record(args);
+    if (!data || !exactKeys(data, ['contractVersion', 'item'])
+      || data.contractVersion !== ACCOUNT_SNAPSHOT_CONTRACT_VERSION
+      || (data.item !== undefined && (typeof data.item !== 'string' || !data.item.trim() || data.item.length > 120))) {
+      throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型生成的 account.snapshot 参数不符合契约。', false));
+    }
+    return {
+      kind: 'account_snapshot',
+      request: { contractVersion: ACCOUNT_SNAPSHOT_CONTRACT_VERSION, ...(data.item ? { item: data.item } : {}) } as AccountSnapshotRequest,
+    };
+  }
+  if (name === wireToolName('agent.clarify')) {
     const data = record(args);
     if (!data || !exactKeys(data, ['text', 'field', 'reason']) || typeof data.text !== 'string' || !data.text.trim()
       || typeof data.field !== 'string' || !data.field.trim() || !['missing', 'invalid'].includes(String(data.reason))) {
@@ -185,7 +235,7 @@ function parseToolTurn(name: unknown, rawArguments: unknown): ModelTurn {
     }
     return { kind: 'clarify', text: data.text.trim(), facts: [{ key: data.reason === 'invalid' ? 'invalid_field' : 'missing_field', value: data.field }] };
   }
-  if (name === 'agent.conclude') {
+  if (name === wireToolName('agent.conclude')) {
     const data = record(args);
     if (!data || !exactKeys(data, ['text', 'conclusion']) || typeof data.text !== 'string' || !data.text.trim()
       || !['answered', 'insufficient_data'].includes(String(data.conclusion))) {
@@ -207,29 +257,51 @@ function parseMessageTurn(message: unknown): ModelTurn {
   if (typeof data.content !== 'string' || !data.content.trim()) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型响应既没有工具调用，也没有文本。', false));
   return { kind: 'answer', text: data.content };
 }
-async function parseNonStreaming(response: Response): Promise<ModelTurn> {
+async function parseNonStreaming(response: Response): Promise<ModelTurnResult> {
   const payload = await parseJsonResponse(response);
   const choices = payload.choices;
   if (!Array.isArray(choices) || choices.length !== 1) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型响应 choices 数量无效。', false));
-  return parseMessageTurn(record(choices[0])?.message);
+  const choice = record(choices[0]);
+  const message = record(choice?.message);
+  const usage = parseUsage(payload.usage);
+  const finishReason = finishReasonOf(choice ?? undefined);
+  const reasoning = typeof message?.reasoning_content === 'string' ? message.reasoning_content : undefined;
+  return {
+    turn: parseMessageTurn(message),
+    ...(usage ? { usage } : {}),
+    ...(finishReason ? { finishReason } : {}),
+    ...(reasoning ? { reasoning } : {}),
+  };
 }
-async function parseStreaming(response: Response, onDelta?: (delta: string) => void | Promise<void>): Promise<ModelTurn> {
+async function parseStreaming(response: Response, onDelta?: (delta: string) => void | Promise<void>): Promise<ModelTurnResult> {
   if (!response.body) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型声明流式响应但没有响应体。', false));
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let text = '';
+  let reasoning = '';
+  let usage: ModelUsage | undefined;
+  let finishReason: ModelFinishReason | undefined;
   const calls = new Map<number, { name: string; arguments: string }>();
   const consume = async (block: string) => {
     const payloadText = block.split(/\r?\n/u).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n');
     if (!payloadText || payloadText === '[DONE]') return;
     let payload: unknown;
     try { payload = JSON.parse(payloadText); } catch { throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型 SSE 数据不是有效 JSON。', false)); }
-    const choices = record(payload)?.choices;
+    const payloadRecord = record(payload);
+    const choices = payloadRecord?.choices;
     if (!Array.isArray(choices) || choices.length !== 1) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型 SSE choices 数量无效。', false));
-    const delta = record(record(choices[0])?.delta);
+    const choice = record(choices[0]);
+    if (choice) {
+      const rawFinish = choice.finish_reason;
+      if (typeof rawFinish === 'string') finishReason = rawFinish;
+    }
+    const parsedUsage = parseUsage(payloadRecord?.usage);
+    if (parsedUsage) usage = parsedUsage;
+    const delta = record(choice?.delta);
     if (!delta) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型 SSE 缺少 delta。', false));
     if (typeof delta.content === 'string' && delta.content) { text += delta.content; await onDelta?.(delta.content); }
+    if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) reasoning += delta.reasoning_content;
     if (Array.isArray(delta.tool_calls)) for (const rawCall of delta.tool_calls) {
       const call = record(rawCall);
       const index = Number(call?.index);
@@ -254,16 +326,26 @@ async function parseStreaming(response: Response, onDelta?: (delta: string) => v
   if (calls.size) {
     if (calls.size !== 1 || !calls.has(0)) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '当前单轮只允许一个结构化工具调用。', false));
     const call = calls.get(0)!;
-    return parseToolTurn(call.name, call.arguments);
+    return {
+      turn: parseToolTurn(call.name, call.arguments),
+      ...(usage ? { usage } : {}),
+      ...(finishReason ? { finishReason } : {}),
+      ...(reasoning ? { reasoning } : {}),
+    };
   }
   if (!text.trim()) throw new ModelAdapterError(failure('MODEL_BAD_RESPONSE', '模型流式响应没有文本或工具调用。', false));
-  return { kind: 'answer', text, streamed: true };
+  return {
+    turn: { kind: 'answer', text, streamed: true },
+    ...(usage ? { usage } : {}),
+    ...(finishReason ? { finishReason } : {}),
+    ...(reasoning ? { reasoning } : {}),
+  };
 }
 
 const TOOLS = [
   {
     type: 'function', function: {
-      name: 'market.query', description: '查询 Warframe.Market 当前公开挂单。平台、跨平台范围和等级必须显式给出。',
+      name: wireToolName('market.query'), description: '查询 Warframe.Market 当前公开挂单。平台、跨平台范围和等级必须显式给出。',
       parameters: {
         type: 'object', additionalProperties: false, required: ['contractVersion', 'item', 'platform', 'crossplay', 'rank'],
         properties: {
@@ -276,7 +358,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'drops.search', description: '查询版本化 WFCD 公共掉落表。',
+      name: wireToolName('drops.search'), description: '查询版本化 WFCD 公共掉落表。',
       parameters: {
         type: 'object', additionalProperties: false, required: ['contractVersion', 'item'],
         properties: { contractVersion: { type: 'string', const: DROP_SEARCH_CONTRACT_VERSION }, item: { type: 'string', minLength: 1 }, limit: { type: 'integer', minimum: 1, maximum: 100 } },
@@ -285,7 +367,16 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'agent.clarify', description: '市场查询缺少必需范围或参数无效时，用结构化澄清结束本轮；这不是外部工具。',
+      name: wireToolName('account.snapshot'), description: '读取本机账号快照的脱敏摘要（段位/白金/杜卡德/现金/物品数量）。只读；模型不得索取原始快照、实例 ID 或账号标识。',
+      parameters: {
+        type: 'object', additionalProperties: false, required: ['contractVersion'],
+        properties: { contractVersion: { type: 'string', const: ACCOUNT_SNAPSHOT_CONTRACT_VERSION }, item: { type: 'string', minLength: 1, maxLength: 120 } },
+      },
+    },
+  },
+  {
+    type: 'function', function: {
+      name: wireToolName('agent.clarify'), description: '市场查询缺少必需范围或参数无效时，用结构化澄清结束本轮；这不是外部工具。',
       parameters: {
         type: 'object', additionalProperties: false, required: ['text', 'field', 'reason'],
         properties: { text: { type: 'string', minLength: 1 }, field: { type: 'string', minLength: 1 }, reason: { type: 'string', enum: ['missing', 'invalid'] } },
@@ -294,7 +385,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'agent.conclude', description: '至少一个工具已执行后提交本轮终态：answered 表示已基于工具结果作答；insufficient_data 表示工具结果不足以作答。不得提交事实、身份、拒绝、延迟或调用次数。',
+      name: wireToolName('agent.conclude'), description: '至少一个工具已执行后提交本轮终态：answered 表示已基于工具结果作答；insufficient_data 表示工具结果不足以作答。不得提交事实、身份、拒绝、延迟或调用次数。',
       parameters: {
         type: 'object', additionalProperties: false, required: ['text', 'conclusion'],
         properties: { text: { type: 'string', minLength: 1 }, conclusion: { type: 'string', enum: ['answered', 'insufficient_data'] } },
@@ -308,6 +399,7 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
   const resolver = options.resolveCredential ?? defaultCredentialResolver;
   return {
     id: OPENAI_COMPATIBLE_ADAPTER_ID,
+    adapterVersion: 1,
     supportsToolRoundTrip: true,
     async checkHealth(profile, externalSignal) {
       let configuration: OpenAICompatibleConfiguration;
@@ -356,7 +448,8 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
       (input.history ?? []).forEach((step: ToolRoundStep, index: number) => {
         messages.push({
           role: 'assistant', content: null,
-          tool_calls: [{ id: `tool_round_${index}`, type: 'function', function: { name: step.toolName, arguments: JSON.stringify(step.toolCall) } }],
+          ...(step.assistantReasoning ? { reasoning_content: step.assistantReasoning } : {}),
+          tool_calls: [{ id: `tool_round_${index}`, type: 'function', function: { name: wireToolName(step.toolName), arguments: JSON.stringify(step.toolCall) } }],
         });
         messages.push({ role: 'tool', tool_call_id: `tool_round_${index}`, content: step.toolResultSummary });
       });

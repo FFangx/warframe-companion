@@ -1,6 +1,6 @@
 # Warframe Companion Agent 目标架构
 
-> 状态：方向性架构，2026-08-14。描述目标边界，不代表全部已经实现。
+> 状态：方向性架构，2026-08-29。描述目标边界，不代表全部已经实现。执行顺序见 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)。
 
 ## 总体结构
 
@@ -25,9 +25,13 @@
 │ 本机只读快照  │ │ 公共数据源   │
 └──────────────┘ └─────────────┘
 
-QQ Bot ── OpenClaw adapter ──┐
-                             └── 共用 Local Application Service
+Remote Channels ── Channel Adapters ── Local Channel Gateway
+OpenClaw / QQ bridge ─────────────────┘
 ```
+
+图中的“共用”是目标代码边界，不表示 Companion 直接依赖已部署 OpenClaw 目录。迁移期先把经过生产验证的事实、证据和错误语义抽成有版本的宿主无关 package；桌面和 OpenClaw adapter 固定消费同一制品，各自保留 IPC/QQ、身份、呈现和部署职责。OpenClaw 当前实现是迁移验收基线，不是供桌面按路径导入的长期 SDK。
+
+远程频道由独立于 React 窗口生命周期的本地 Channel Gateway 承载。Gateway 统一处理入站信封、可信身份、本地绑定、能力协商、Outbox、回执、重连和健康；具体飞书、微信或其他社媒只实现 adapter。OpenClaw/QQ 可在迁移期作为 bridge 保留，不要求为了新合同立即重写。
 
 ## 四个稳定边界
 
@@ -86,8 +90,11 @@ OpenClaw / DSH backend    ┘
 ### 4. 渠道呈现
 
 - 桌面端使用 React 原生组件，支持筛选、复制、展开证据和诊断。
+- Agent 对话按工具结果类型挂载与功能页相同的原生组件；模型文字只解释结果，分页、筛选和复制不经过模型。
+- Market 卖单可由用户显式预览并复制购买私聊文本；结果过期后必须刷新，不自动打开游戏、发送聊天或执行交易，卖家身份不进入 trace/日志/评估。
 - QQ 继续生成固定 PNG/文字，维持确定性直投和去重。
-- 两个渠道共享业务数据结构，不共享最终视觉产物。
+- 其他远程频道先声明能力，再选择原生卡片、按钮、Markdown、图片或纯文字；每种丰富呈现必须有安全文字回退。
+- 所有渠道共享业务数据结构，不共享最终视觉产物。
 
 ## 第一阶段技术选择
 
@@ -95,18 +102,12 @@ OpenClaw / DSH backend    ┘
 - 本地 API：Node/TypeScript；先选进程内接口或仅监听 `127.0.0.1` 的本地服务。
 - 事件：先定义最小事件集合，暂不强制引入 AG-UI。
 - 数据：公共静态数据先用版本化 JSON 快照与内存索引；存储藏在类型化服务接口后。只有真实负载需要事务性用户状态、跨表查询、原子增量更新，或实测超过启动内存/延迟预算时才引入 SQLite，详见 [`LOCAL_DATA_LAYER.md`](LOCAL_DATA_LAYER.md)。
-- Agent：Companion 自有 Warframe Harness 承载桌面产品；OpenClaw 保持现有 QQ 生产入口并作为能力/运维参考；DeepSeek Harness 只保留隔离适配实验。
+- Agent：Companion 自有 Warframe Harness 承载桌面产品；OpenClaw 保持现有 QQ 生产入口和宿主策略，逐项改为消费同一共享确定性核心；DeepSeek Harness 只保留隔离适配实验。
 - 发布：延续受管构建身份、哈希校验、统一验证和可恢复升级原则。
 
 ## 实施顺序
 
-1. 定义并实现 `market.query` 类型化垂直切片。
-2. 建立最小桌面壳和系统健康页面。
-3. 用 React 原生市场卡完成真实查询。
-4. 抽取通用错误、证据和展示协议。
-5. 接入 Agent 对话和流式事件。
-6. 逐项迁移现有功能，保持 QQ 行为不回退。
-7. 最后进行 DeepSeek Harness 旁路适配与对比评估。
+最初的市场、桌面壳、原生卡、Agent 对话和 DeepSeek Harness 旁路评估切片均已有实现，不再作为未来任务重复执行。后续固定顺序为：先补 CI 并审查候选分支，再完成可安装/可追溯发布链，然后用 Market 证明共享核心去重，之后迁移世界状态/裂缝和其他功能。详细入口、退出条件与停切协议以 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) 为准。
 
 ## 当前实现切片
 
@@ -117,9 +118,9 @@ OpenClaw / DSH backend    ┘
 - `packages/warframe-data-service` 已实现第一条本地公共数据切片：按需验证并编译 WFCD 掉落快照，以原子 JSON 缓存和内存键索引支持 `drops.search`。契约分别报告 24 小时缓存新鲜度与 WFCD 源数据年龄；源数据 30 天后告警、90 天后门禁拒绝。刷新会对照同一 MIT 仓库的 jsDelivr/GitHub Raw 元数据并记录版本差异与选源。刷新失败只能在源年龄仍通过门禁时显式使用 stale 快照；无有效掉率的源行会计数、排除并告警，不会静默当作 0。
 - 公共掉落别名采用仓库自维护的中英文小表，随项目 MIT 发布并在解析结果中携带来源/许可证；未摄取无明确许可证的中文公共导出。
 - React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
-- `packages/agent-eval` 已建立 38 条合成/脱敏评估（原 30 条加 8 条 `drops.search`）、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；掉落用例覆盖中英文路由、缓存/源年龄分离、替代源对照、过龄拒绝与无源降级。参考基线只验证评估器上界，不代表真实模型表现。
+- `packages/agent-eval` 已建立 41 条合成/脱敏评估（原 30 条、8 条 `drops.search` 和 3 条 `account.snapshot`）、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；掉落用例覆盖中英文路由、缓存/源年龄分离、替代源对照、过龄拒绝与无源降级，账号用例覆盖可信权限、脱敏投影与数据源不可用。参考基线只验证评估器上界，不代表真实模型表现。
 - `packages/agent-runtime` 已实现 Companion 自有 Harness 的模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场/掉落工具编排、取消/超时、流式事件和 `AgentTrace`。受控 OpenAI-compatible adapter 通过只含引用的凭据契约支持 `/models` 健康检查、Chat Completions JSON Schema 工具、SSE、取消和稳定错误；桌面本机 profile 使用原子 JSON 配置，不引入 SQLite。默认仍只运行零费用离线 profile，真实 provider 仅在用户主动配置与发送后调用。
-- 工具结果回送已实现：声明 `supportsToolRoundTrip` 的 adapter 在每次工具执行后收到脱敏结果摘要并生成最终回答，或通过内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态；模型不得提交事实、身份、拒绝、延迟或调用次数，工具轮上限 3、第二轮故障回落 Harness 确定性回答并在轨迹记录 `modelFailure`，终态与来源写入 `AgentTrace.conclusion`/`conclusionSource`。离线本地规则后端保持确定性组织回答。
+- 工具结果回送已实现：声明 `supportsToolRoundTrip` 的 adapter 在每次工具执行后收到脱敏结果摘要并生成最终回答，或通过内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态；模型不得提交事实、身份、拒绝、延迟或调用次数，工具轮上限 3、第二轮故障回落 Harness 确定性回答并在轨迹记录 `modelFailure`，终态与来源写入 `AgentTrace.conclusion`/`conclusionSource`。离线本地规则后端保持确定性组织回答。工具结果的事实投影已无条件化：生产与评估共用同一组规范 facts，评估不再改变 Agent 行为（显式默认市场参数走请求级 `AgentRunRequest.defaults`）。
 - DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 v1 `deepseek-v4-flash` 基线保持 0/30、20.22%。版本化 v2 runner 离线读取同一批 trace 后为 5/30、53.72%，并将工具后 `answer` 终态、必需/禁止事实语义和远程模型延迟预算从 v1 系统性误差中分离；无支撑事实、证据与权限门禁未放宽。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
 - 模型可配置的最小 Agent 对话、OpenAI-compatible 接口与工具结果回送多轮终态已经实现；当前未用真实远程模型验收，也不包含视觉、OpenClaw/DSH 桌面 backend、fallback、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。

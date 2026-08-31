@@ -4,7 +4,7 @@
 
 ## 开始之前
 
-- 阅读 [README.md](README.md)、[AGENTS.md](AGENTS.md)、[docs/PRODUCT.md](docs/PRODUCT.md) 和 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+- 阅读 [README.md](README.md)、[AGENTS.md](AGENTS.md)、[docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)、[docs/PRODUCT.md](docs/PRODUCT.md) 和 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 - 遵守 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。安全问题走 [SECURITY.md](SECURITY.md) 的私有渠道。
 - 不引入市场写操作、自动交易/聊天、游戏自动化，或绕过可信身份门读取个人数据的能力。
 - 不提交凭据、个人快照、真实玩家/聊天、账号标识、本机日志、绝对用户路径或来源不明的素材。

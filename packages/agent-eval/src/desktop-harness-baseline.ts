@@ -1,6 +1,5 @@
 import {
   runDesktopAgent,
-  type AgentFactMode,
   type AgentTrace,
 } from '@warframe-companion/agent-runtime';
 import {
@@ -10,14 +9,9 @@ import {
   MOCK_MARKET_QUERY_SUCCESS,
 } from '@warframe-companion/market-query-contract/mocks';
 import type { MarketQueryResult } from '@warframe-companion/market-query-contract';
+import type { AccountSnapshotResult } from '@warframe-companion/agent-runtime';
 import type { AgentEvalCase } from './index.js';
 import type { DropSearchResult } from '@warframe-companion/warframe-data-service';
-
-const MODE_BY_ID: Record<string, AgentFactMode> = {
-  'evidence-001': 'orders', 'evidence-002': 'absent', 'evidence-003': 'unavailable',
-  'evidence-004': 'stale', 'evidence-005': 'statistics', 'evidence-006': 'split-orders',
-  'evidence-007': 'basis', 'evidence-008': 'snapshot',
-};
 
 const FAILURE_BY_ID: Record<string, MarketQueryResult> = {
   'failure-001': MOCK_MARKET_QUERY_FAILURES.timeout,
@@ -32,6 +26,33 @@ const expectedEvidence = {
   scope: 'current_market', evidenceType: 'direct_snapshot', asOf: '2030-01-02T03:04:00.000Z',
   expiresAt: '2030-01-02T03:09:05.000Z', freshness: 'fresh', source: 'warframe.market',
 } as const;
+
+const expectedAccountEvidence = {
+  scope: 'personal_snapshot', evidenceType: 'local_snapshot', asOf: '2030-01-02T03:04:05.000Z',
+  expiresAt: '2030-01-02T03:09:05.000Z', freshness: 'fresh', source: 'synthetic.local',
+} as const;
+
+export function createSyntheticAccountResult(testCase: AgentEvalCase): AccountSnapshotResult {
+  if (testCase.id === 'account-failure-001') {
+    return {
+      contractVersion: '1.0', ok: false,
+      error: { code: 'SNAPSHOT_UNAVAILABLE', message: '合成账号快照不可用。', retryable: true },
+      evidence: { ...expectedAccountEvidence, finding: 'unavailable' },
+    };
+  }
+  const requestedItem = typeof testCase.expected.arguments?.item === 'string' ? testCase.expected.arguments.item : undefined;
+  return {
+    contractVersion: '1.0', ok: true,
+    data: {
+      ...(requestedItem ? { requestedItem } : {}),
+      totals: { masteryRank: 30, platinum: 1234, credits: 567890, ducats: 456 },
+      items: requestedItem ? [{ name: requestedItem, count: 2 }] : [],
+      snapshotAt: '2030-01-02T03:04:05.000Z',
+    },
+    evidence: { ...expectedAccountEvidence, finding: 'confirmed_present' },
+    warnings: [],
+  };
+}
 
 export function createSyntheticMarketResult(testCase: AgentEvalCase): MarketQueryResult {
   const base = structuredClone(MOCK_MARKET_QUERY_SUCCESS) as MarketQueryResult;
@@ -84,7 +105,11 @@ export function createSyntheticDropResult(testCase: AgentEvalCase): DropSearchRe
 }
 export function createSyntheticMarketResultForCase(testCase: AgentEvalCase): MarketQueryResult {
   if (testCase.category === 'evidence') return createSyntheticMarketResult(testCase);
-  if (testCase.category === 'failure-degradation') return structuredClone(FAILURE_BY_ID[testCase.id]!);
+  if (testCase.category === 'failure-degradation') {
+    const result = structuredClone(FAILURE_BY_ID[testCase.id]!);
+    if (!result.ok && result.evidence) result.evidence = { ...expectedEvidence, finding: 'unavailable' };
+    return result;
+  }
   return structuredClone(MOCK_MARKET_QUERY_SUCCESS);
 }
 
@@ -93,11 +118,20 @@ export async function createDesktopHarnessTrace(testCase: AgentEvalCase): Promis
   let clockCalls = 0;
   const syntheticNow = () => clockCalls++ === 0 ? 0 : syntheticLatencyMs;
   const isDrop = testCase.id.startsWith('drops-');
+  const isAccount = testCase.id.startsWith('account-');
   if (isDrop) {
     const result = createSyntheticDropResult(testCase);
     const run = await runDesktopAgent({ requestId: testCase.id, message: testCase.prompt, context: testCase.context }, {
       marketQuery: async () => { throw new Error('market.query must not be called for drop eval'); },
       searchDrops: async () => result, now: syntheticNow,
+    });
+    return run.trace;
+  }
+  if (isAccount) {
+    const result = createSyntheticAccountResult(testCase);
+    const run = await runDesktopAgent({ requestId: testCase.id, message: testCase.prompt, context: testCase.context }, {
+      marketQuery: async () => { throw new Error('market.query must not be called for account eval'); },
+      getSnapshot: async () => result, now: syntheticNow,
     });
     return run.trace;
   }
@@ -108,12 +142,7 @@ export async function createDesktopHarnessTrace(testCase: AgentEvalCase): Promis
     requestId: testCase.id,
     message: testCase.prompt,
     context: testCase.context,
-    ...((isEvidence || isFailure) ? {
-      evaluation: {
-        factMode: isFailure ? 'failure' : MODE_BY_ID[testCase.id]!,
-        defaultMarketRequest: { ...MOCK_MARKET_QUERY_REQUEST },
-      },
-    } : {}),
+    ...((isEvidence || isFailure) ? { defaults: { ...MOCK_MARKET_QUERY_REQUEST } } : {}),
   }, { marketQuery: async () => result, now: syntheticNow });
   return run.trace;
 }

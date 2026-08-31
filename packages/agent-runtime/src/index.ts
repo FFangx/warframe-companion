@@ -1,6 +1,5 @@
 import {
   MARKET_QUERY_CONTRACT_VERSION,
-  type MarketEvidence,
   type MarketPlatform,
   type MarketQueryRequest,
   type MarketQueryResult,
@@ -10,6 +9,11 @@ import {
   type DropSearchRequest,
   type DropSearchResult,
 } from '@warframe-companion/warframe-data-service';
+import {
+  ACCOUNT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountSnapshotRequest,
+  type AccountSnapshotResult,
+} from './account-snapshot.js';
 
 export type AgentDecision = 'call_tool' | 'clarify' | 'answer' | 'refuse';
 export type RefusalReason = 'identity_untrusted' | 'private_scope' | 'write_forbidden';
@@ -21,7 +25,7 @@ export interface EvalEvidence {
   loadedAt?: string;
   freshness: 'fresh' | 'stale';
   finding: 'confirmed_present' | 'confirmed_absent_in_scope' | 'unavailable';
-  source: 'warframe.market' | 'synthetic.local' | 'wfcd.drop-data';
+  source: 'warframe.market' | 'synthetic.local' | 'wfcd.drop-data' | 'alecaframe.local';
   sourceHash?: string;
   cacheFreshness?: 'fresh' | 'stale';
   sourceAge?: { ageMs: number; status: 'current' | 'aged' | 'rejected'; warningAfterMs: number; rejectAfterMs: number };
@@ -51,6 +55,9 @@ export interface AgentTrace {
   conclusion?: 'answered' | 'insufficient_data';
   conclusionSource?: 'model' | 'harness';
   modelFailure?: ModelFailure;
+  adapterVersion?: number;
+  usage?: ModelUsage;
+  finishReason?: ModelFinishReason;
 }
 
 export interface ModelCapabilities {
@@ -121,16 +128,43 @@ export interface ModelHealth {
 export type ModelTurn =
   | { kind: 'market_query'; request: MarketQueryRequest }
   | { kind: 'drop_search'; request: DropSearchRequest }
+  | { kind: 'account_snapshot'; request: AccountSnapshotRequest }
   | { kind: 'clarify'; text: string; facts: EvalFact[] }
   | { kind: 'answer'; text: string; streamed?: boolean }
   | { kind: 'conclude'; text: string; conclusion: 'answered' | 'insufficient_data' };
 export interface ToolRoundStep {
-  toolName: 'market.query' | 'drops.search';
+  toolName: 'market.query' | 'drops.search' | 'account.snapshot';
   toolCall: Record<string, unknown>;
   toolResultSummary: string;
+  /** 产生该工具调用的模型思维链，回送时按 provider 要求原样拼回 assistant 消息。 */
+  assistantReasoning?: string;
+}
+export interface ModelUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+export type ModelFinishReason = string;
+export interface ModelTurnResult {
+  turn: ModelTurn;
+  /** 模型响应的 token 用量（adapter 可观察时提供），Harness 汇总进 AgentTrace。 */
+  usage?: ModelUsage;
+  /** 本次模型响应结束原因（stop/tool_calls/length/...），取最后一轮。 */
+  finishReason?: ModelFinishReason;
+  /**
+   * 模型思维链（如 DeepSeek reasoning_content）。Harness 只把它作为不透明数据
+   * 原样回传给需要它的 provider（思考模式要求回传），不进入 AgentTrace、
+   * 不展示给用户，也不参与评估。
+   */
+  reasoning?: string;
 }
 export interface ModelAdapter {
   id: string;
+  /**
+   * adapter 接口版本。新增能力、字段或语义时必须递增，避免无声破坏既有
+   * profile/backend；Harness 把它记录进 AgentTrace 便于审计与迁移。
+   */
+  adapterVersion: number;
   /**
    * 声明该 adapter 支持工具结果回送的多轮生成。为 true 时，Harness 在每次工具
    * 执行后把脱敏的工具轮记录回传给 generateTurn，期待 answer 或 agent.conclude
@@ -144,7 +178,7 @@ export interface ModelAdapter {
     history?: readonly ToolRoundStep[];
     signal: AbortSignal;
     onTextDelta?: (delta: string) => void | Promise<void>;
-  }, profile: ModelProfile): Promise<ModelTurn>;
+  }, profile: ModelProfile): Promise<ModelTurnResult>;
 }
 
 const LOCAL_CAPABILITIES: ModelCapabilities = {
@@ -165,21 +199,26 @@ export const DEFAULT_MODEL_PROFILES: readonly ModelProfile[] = [
 ] as const;
 const REQUIRED_AGENT_CAPABILITIES: Array<keyof Omit<ModelCapabilities, 'contextWindow'>> = ['text', 'nativeTools', 'structuredOutput', 'cancellation'];
 
-export type AgentFactMode = 'none' | 'orders' | 'absent' | 'unavailable' | 'stale' | 'statistics' | 'split-orders' | 'basis' | 'snapshot' | 'failure';
 export interface AgentRunRequest {
   requestId: string;
   message: string;
   modelProfileId?: string;
   timeoutMs?: number;
+  /**
+   * 显式默认市场参数（可选）。生产桌面路径不传：缺失平台/跨平台/等级时由
+   * adapter 澄清；评估驱动器可在请求层注入，保持生产与评估同构（不再藏在
+   * evaluation 内部改变 Agent 行为）。
+   */
+  defaults?: MarketQueryRequest;
   context: { channel: 'desktop' | 'qq_private' | 'qq_group' | 'untrusted_test'; trustedOwner: boolean; now: string };
-  evaluation?: { factMode: AgentFactMode; defaultMarketRequest?: MarketQueryRequest };
 }
 export type AgentStreamEvent =
   | { type: 'status'; phase: 'thinking' | 'tool' | 'composing'; text: string }
   | { type: 'model_selected'; profile: ModelProfile }
   | { type: 'tool_call'; name: 'market.query'; arguments: MarketQueryRequest }
   | { type: 'tool_call'; name: 'drops.search'; arguments: DropSearchRequest }
-  | { type: 'tool_result'; name: 'market.query' | 'drops.search'; ok: boolean; summary: string }
+  | { type: 'tool_call'; name: 'account.snapshot'; arguments: AccountSnapshotRequest }
+  | { type: 'tool_result'; name: 'market.query' | 'drops.search' | 'account.snapshot'; ok: boolean; summary: string }
   | { type: 'model_error'; error: ModelFailure }
   | { type: 'message_delta'; delta: string }
   | { type: 'model_conclusion'; conclusion: 'answered' | 'insufficient_data'; source: 'model' | 'harness' }
@@ -187,6 +226,7 @@ export type AgentStreamEvent =
 export interface AgentRunDependencies {
   marketQuery(request: MarketQueryRequest): Promise<MarketQueryResult>;
   searchDrops?(request: DropSearchRequest): Promise<DropSearchResult>;
+  getSnapshot?(request: AccountSnapshotRequest): Promise<AccountSnapshotResult>;
   onEvent?(event: AgentStreamEvent): void | Promise<void>;
   now?: () => number;
   signal?: AbortSignal;
@@ -194,13 +234,15 @@ export interface AgentRunDependencies {
   adapters?: readonly ModelAdapter[];
 }
 
+function personalScopeRefusal(request: AgentRunRequest): { reason: RefusalReason; text: string } | null {
+  if (request.context.channel === 'qq_group') return { reason: 'private_scope', text: '个人数据不能在群聊中展示。' };
+  if (!request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能读取个人数据。' };
+  return null;
+}
 function policyRefusal(message: string, request: AgentRunRequest): { reason: RefusalReason; text: string } | null {
   if (/替.*(?:挂|改|删).*单|(?:创建|修改|删除|自动).*订单|发送游戏私聊|给买家发送|自动交易/u.test(message)) return { reason: 'write_forbidden', text: '我不能操作市场、交易或游戏聊天；可以帮你查公开行情并由你手动处理。' };
   if (/原始账号快照|完整快照|导出.*快照/u.test(message)) return { reason: 'private_scope', text: '原始个人快照不能导出或展示。' };
-  if (/个人库存|我的库存|白金余额|个人白金/u.test(message)) {
-    if (request.context.channel === 'qq_group') return { reason: 'private_scope', text: '个人数据不能在群聊中展示。' };
-    if (!request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能读取个人数据。' };
-  }
+  if (/个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) return personalScopeRefusal(request);
   if (/创建提醒订阅|替.*订阅/u.test(message) && !request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能创建订阅。' };
   return null;
 }
@@ -245,31 +287,41 @@ function dropItemFrom(message: string): string | undefined {
 
 export const localRulesModelAdapter: ModelAdapter = {
   id: 'warframe-local-rules',
+  adapterVersion: 1,
   async checkHealth(profile) {
     return { available: profile.adapterId === this.id, summary: '本地规则后端可用；不会读取密钥或发起模型请求。' };
   },
   async generateTurn({ message, defaults, signal }) {
     if (signal.aborted) throw signal.reason;
-    if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号/u.test(message)) {
-      return { kind: 'answer', text: '桌面 Agent 当前尚未接入个人快照；本切片只支持公开市场查询。' };
+    if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) {
+      // Harness 的策略门禁已保证走到这里的请求来自可信主人（群聊/非主人/原始导出
+      // 会在 policyRefusal 被拒）；adapter 只做结构化路由，数据可用性由 getSnapshot
+      // 服务决定，模型永远拿不到原始快照。
+      const item = message.match(/我的库存\s*(.+?)(?:[，。；;]|$)/u)?.[1]?.trim();
+      return {
+        turn: {
+          kind: 'account_snapshot',
+          request: { contractVersion: ACCOUNT_SNAPSHOT_CONTRACT_VERSION, ...(item && item.length <= 120 ? { item } : {}) },
+        },
+      };
     }
     const dropItem = dropItemFrom(message);
     if (!defaults && dropItem) {
-      return { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } };
+      return { turn: { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } } };
     }
     if (!defaults && !/查|查询|价格|行情|多少钱/u.test(message)) {
-      return { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' };
+      return { turn: { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' } };
     }
     const rank = rankFrom(message);
-    if (rank === null) return { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] };
+    if (rank === null) return { turn: { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] } };
     const item = itemFrom(message) ?? defaults?.item;
     const platform = platformFrom(message) ?? defaults?.platform;
     const crossplay = /不跨平台|单平台/u.test(message) ? false : /跨平台/u.test(message) ? true : defaults?.crossplay;
     const resolvedRank = rank ?? defaults?.rank ?? (platform && crossplay !== undefined ? 0 : undefined);
     if (!item || !platform || crossplay === undefined || resolvedRank === undefined) {
-      return { kind: 'clarify', text: '请明确平台、是否跨平台交易，以及等级（非负整数或 max）。', facts: [{ key: 'missing_field', value: 'platform,crossplay,rank' }] };
+      return { turn: { kind: 'clarify', text: '请明确平台、是否跨平台交易，以及等级（非负整数或 max）。', facts: [{ key: 'missing_field', value: 'platform,crossplay,rank' }] } };
     }
-    return { kind: 'market_query', request: { contractVersion: MARKET_QUERY_CONTRACT_VERSION, item, platform, crossplay, rank: resolvedRank } };
+    return { turn: { kind: 'market_query', request: { contractVersion: MARKET_QUERY_CONTRACT_VERSION, item, platform, crossplay, rank: resolvedRank } } };
   },
 };
 
@@ -288,29 +340,81 @@ export async function checkModelProfile(profileId: string, options: { profiles?:
   return { profileId, status: health.available ? 'healthy' : 'unavailable', checkedAt, summary: health.summary, missingCapabilities: [], ...(health.error ? { error: health.error } : {}) };
 }
 
-function toEvalEvidence(evidence: MarketEvidence): EvalEvidence { return { ...evidence }; }
-function factsFor(result: MarketQueryResult, mode: AgentFactMode): EvalFact[] {
-  if (mode === 'none') return [];
-  const evidence = result.evidence ? toEvalEvidence(result.evidence) : undefined;
-  if (mode === 'failure') {
-    if (result.ok) return [];
-    const facts: EvalFact[] = [{ key: 'error.code', value: result.error.code }, { key: 'error.retryable', value: result.error.retryable }];
+/**
+ * 市场工具结果的规范事实投影：无论生产还是评估，Harness 都无条件从工具结果
+ * 派生同一组 facts 写入轨迹（不再有 evaluation.factMode 切换投影形态）。
+ * 评估只断言这些事实，不再改变 Agent 的生产行为。
+ */
+function marketFacts(result: MarketQueryResult): EvalFact[] {
+  if (!result.ok) {
+    const facts: EvalFact[] = [];
+    if (result.evidence) facts.push({ key: 'market.availability', value: 'unavailable', evidence: result.evidence });
+    facts.push({ key: 'error.code', value: result.error.code });
+    facts.push({ key: 'error.retryable', value: result.error.retryable });
     if (result.error.details?.retryAfterMs !== undefined) facts.push({ key: 'error.retry_after_ms', value: result.error.details.retryAfterMs });
     if (result.error.code === 'ITEM_AMBIGUOUS') facts.push({ key: 'resolution.requires_choice', value: true });
     return facts;
   }
-  if (mode === 'unavailable') return evidence ? [{ key: 'market.availability', value: 'unavailable', evidence }] : [];
-  if (!result.ok || !evidence) return [];
-  if (mode === 'orders') return [{ key: 'market.orders', value: 'present', evidence }];
-  if (mode === 'absent') return [{ key: 'market.orders', value: 'absent_in_scope', evidence }];
-  if (mode === 'stale') return [{ key: 'market.current_state', value: 'unknown', evidence }];
-  if (mode === 'statistics') return [{ key: 'market.orders', value: 'present', evidence }, { key: 'statistics.available', value: Boolean(result.data.statistics) }];
-  if (mode === 'split-orders') return [
-    { key: 'market.sell_orders', value: result.data.sellOrders.length ? 'present' : 'absent_in_scope', evidence },
-    { key: 'market.buy_orders', value: result.data.buyOrders.length ? 'present' : 'absent_in_scope', evidence },
+  if (!result.evidence) return [];
+  const facts: EvalFact[] = [
+    { key: 'market.sell_orders', value: result.data.sellOrders.length ? 'present' : 'absent_in_scope', evidence: result.evidence },
+    { key: 'market.buy_orders', value: result.data.buyOrders.length ? 'present' : 'absent_in_scope', evidence: result.evidence },
+    { key: 'market.snapshot_scope', value: 'current_market', evidence: result.evidence },
+    { key: 'market.current_order_basis', value: 'direct_snapshot', evidence: result.evidence },
+    { key: 'market.history_basis', value: 'closed_trades_90_days' },
+    { key: 'statistics.available', value: Boolean(result.data.statistics) },
   ];
-  if (mode === 'basis') return [{ key: 'market.current_order_basis', value: 'direct_snapshot', evidence }, { key: 'market.history_basis', value: 'closed_trades_90_days' }];
-  return [{ key: 'market.snapshot_scope', value: 'current_market', evidence }];
+  if (result.evidence.freshness === 'stale') facts.push({ key: 'market.current_state', value: 'unknown', evidence: result.evidence });
+  return facts;
+}
+export function factKeyFor(name: string): string {
+  const normalized = name.normalize('NFKC').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/gu, '_');
+  return normalized || 'item';
+}
+/**
+ * 个人快照的规范事实投影：与市场/掉落一样无条件派生（生产=评估）。
+ * 只投影脱敏摘要事实（数量/总额/时间），不投影任何原始字段。
+ */
+function accountFacts(result: AccountSnapshotResult): EvalFact[] {
+  if (!result.ok) {
+    const facts: EvalFact[] = [];
+    if (result.evidence) facts.push({ key: 'personal.availability', value: 'unavailable', evidence: result.evidence });
+    facts.push({ key: 'error.code', value: result.error.code });
+    facts.push({ key: 'error.retryable', value: result.error.retryable });
+    return facts;
+  }
+  const evidence = result.evidence;
+  const facts: EvalFact[] = [
+    { key: 'personal.snapshot_scope', value: 'personal_snapshot', evidence },
+    { key: 'personal.snapshot_at', value: result.data.snapshotAt, evidence },
+    { key: 'personal.mastery_rank', value: result.data.totals.masteryRank },
+    { key: 'personal.platinum', value: result.data.totals.platinum },
+    { key: 'personal.ducats', value: result.data.totals.ducats },
+    { key: 'personal.credits', value: result.data.totals.credits },
+    { key: 'personal.matched', value: result.data.items.length },
+  ];
+  for (const item of result.data.items) facts.push({ key: `personal.item.${factKeyFor(item.name)}`, value: item.count });
+  return facts;
+}
+function accountResponseFor(result: AccountSnapshotResult): string {
+  if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
+  const { requestedItem, totals, items, snapshotAt } = result.data;
+  const matched = items.length > 0
+    ? `命中 ${items.length} 项：${items.map((item) => `${item.name}×${item.count}`).join('、')}。`
+    : requestedItem ? `${requestedItem} 未持有。` : '无物品明细。';
+  return `个人账号快照（${snapshotAt}）：段位 ${totals.masteryRank}，白金 ${totals.platinum}，杜卡德 ${totals.ducats}，现金 ${totals.credits}；${matched}来源 ${result.evidence.source}。`;
+}
+function accountToolSummary(result: AccountSnapshotResult): string {
+  if (!result.ok) return `account.snapshot 失败：${result.error.code} ${result.error.message}${result.error.retryable ? '（可重试）' : ''}。`;
+  return `account.snapshot 成功：${result.data.items.length} 项命中${result.data.requestedItem ? `（${result.data.requestedItem}）` : ''}，白金 ${result.data.totals.platinum}、杜卡德 ${result.data.totals.ducats}、现金 ${result.data.totals.credits}；快照时间 ${result.data.snapshotAt}，来源 ${result.evidence.source}。`;
+}
+function addUsage(current: ModelUsage | undefined, next: ModelUsage): ModelUsage {
+  if (!current) return { ...next };
+  return {
+    promptTokens: current.promptTokens + next.promptTokens,
+    completionTokens: current.completionTokens + next.completionTokens,
+    totalTokens: current.totalTokens + next.totalTokens,
+  };
 }
 function responseFor(result: MarketQueryResult): string {
   if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
@@ -366,6 +470,8 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   const elapsed = () => (deps.now?.() ?? Date.now()) - started;
   const toolCalls: ToolCallTrace[] = [];
   let facts: EvalFact[] = [];
+  let usage: ModelUsage | undefined;
+  let finishReason: ModelFinishReason | undefined;
   const timeout = Math.min(Math.max(request.timeoutMs ?? 15_000, 100), 60_000);
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(new Error('timeout')), timeout);
@@ -374,6 +480,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   const profileId = request.modelProfileId ?? DEFAULT_MODEL_PROFILES[0]!.id;
   const profile = profileRegistry(deps.profiles).get(profileId);
   const adapter = profile ? adapterRegistry(deps.adapters).get(profile.adapterId) : undefined;
+  const adapterVersion = adapter?.adapterVersion;
   const finish = async (
     message: string, decision: AgentDecision, terminalReason: AgentTrace['terminalReason'] = 'completed', refusalReason?: RefusalReason,
     conclusion?: AgentTrace['conclusion'], conclusionSource?: AgentTrace['conclusionSource'], modelFailure?: ModelFailure,
@@ -383,6 +490,9 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       ...(refusalReason ? { refusalReason } : {}),
       ...(conclusion && conclusionSource ? { conclusion, conclusionSource } : {}),
       ...(modelFailure ? { modelFailure } : {}),
+      ...(adapterVersion !== undefined ? { adapterVersion } : {}),
+      ...(usage ? { usage } : {}),
+      ...(finishReason ? { finishReason } : {}),
     };
     await emit(deps, { type: 'completed', message, trace });
     return { message, trace };
@@ -398,19 +508,22 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       await emit(deps, { type: 'message_delta', delta: denied.text });
       return await finish(denied.text, 'refuse', 'completed', denied.reason);
     }
-    const defaults = request.evaluation?.defaultMarketRequest;
+    const defaults = request.defaults;
     let streamedText = '';
     const onTextDelta = async (delta: string) => {
       streamedText += delta;
       await emit(deps, { type: 'message_delta', delta });
     };
-    let turn = await abortable(adapter.generateTurn({
+    let turnResult = await abortable(adapter.generateTurn({
       message: request.message,
       signal: controller.signal,
       ...(defaults ? { defaults } : {}),
       onTextDelta,
     }, profile), controller.signal);
     if (controller.signal.aborted) throw abortError(controller.signal);
+    let turn = turnResult.turn;
+    if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
+    if (turnResult.finishReason) finishReason = turnResult.finishReason;
     if (turn.kind === 'answer') {
       if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
       return await finish(turn.text, 'answer');
@@ -446,10 +559,15 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         const result = await abortable(deps.marketQuery(turn.request), controller.signal);
         if (controller.signal.aborted) throw abortError(controller.signal);
         await emit(deps, { type: 'tool_result', name: 'market.query', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
-        facts = factsFor(result, request.evaluation?.factMode ?? 'none');
+        facts = marketFacts(result);
         lastText = responseFor(result);
         lastOk = result.ok;
-        toolRounds.push({ toolName: 'market.query', toolCall: { ...turn.request }, toolResultSummary: marketToolSummary(result) });
+        toolRounds.push({
+          toolName: 'market.query',
+          toolCall: { ...turn.request },
+          toolResultSummary: marketToolSummary(result),
+          ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
+        });
       } else if (turn.kind === 'drop_search') {
         toolCalls.push({ name: 'drops.search', arguments: { ...turn.request } });
         await emit(deps, { type: 'status', phase: 'tool', text: '正在读取版本化公共掉落快照' });
@@ -471,7 +589,36 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         ];
         lastText = dropResponseFor(result);
         lastOk = result.ok;
-        toolRounds.push({ toolName: 'drops.search', toolCall: { ...turn.request }, toolResultSummary: dropToolSummary(result) });
+        toolRounds.push({
+          toolName: 'drops.search',
+          toolCall: { ...turn.request },
+          toolResultSummary: dropToolSummary(result),
+          ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
+        });
+      } else if (turn.kind === 'account_snapshot') {
+        // 模型工具选择不可作为授权依据。即使初始文本没有命中个人数据关键词，
+        // 也必须在实际读取前再次执行不可绕过的频道与主人身份门禁。
+        const denied = personalScopeRefusal(request);
+        if (denied) {
+          await emit(deps, { type: 'message_delta', delta: denied.text });
+          return await finish(denied.text, 'refuse', 'completed', denied.reason);
+        }
+        toolCalls.push({ name: 'account.snapshot', arguments: { ...turn.request } });
+        await emit(deps, { type: 'status', phase: 'tool', text: '正在读取本机账号快照摘要' });
+        await emit(deps, { type: 'tool_call', name: 'account.snapshot', arguments: turn.request });
+        if (!deps.getSnapshot) return await finish('个人快照服务尚未配置；当前版本不读取本机账号数据。', 'answer', 'error');
+        const result = await abortable(deps.getSnapshot(turn.request), controller.signal);
+        if (controller.signal.aborted) throw abortError(controller.signal);
+        await emit(deps, { type: 'tool_result', name: 'account.snapshot', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
+        facts = accountFacts(result);
+        lastText = accountResponseFor(result);
+        lastOk = result.ok;
+        toolRounds.push({
+          toolName: 'account.snapshot',
+          toolCall: { ...turn.request },
+          toolResultSummary: accountToolSummary(result),
+          ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
+        });
       } else {
         // 第二轮起才允许非工具轮：answer 与 agent.conclude 是唯二合法终态，
         // clarify 等一律回落 Harness 确定性组织回答（模型不得在工具后自行澄清/拒绝）。
@@ -495,12 +642,15 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       if (!adapter.supportsToolRoundTrip || toolRounds.length >= MAX_TOOL_ROUNDS) return await deterministicFinish();
       await emit(deps, { type: 'status', phase: 'composing', text: '正在把工具结果回送模型生成回答' });
       try {
-        turn = await abortable(adapter.generateTurn({
+        turnResult = await abortable(adapter.generateTurn({
           message: request.message,
           history: toolRounds,
           signal: controller.signal,
           onTextDelta,
         }, profile), controller.signal);
+        turn = turnResult.turn;
+        if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
+        if (turnResult.finishReason) finishReason = turnResult.finishReason;
       } catch (error) {
         if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
           modelFailure = error.failure;
@@ -526,6 +676,18 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
   }
 }
 
+export {
+  ACCOUNT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountSnapshotErrorCode,
+  type AccountSnapshotEvidence,
+  type AccountSnapshotFailure,
+  type AccountSnapshotFinding,
+  type AccountSnapshotItem,
+  type AccountSnapshotRequest,
+  type AccountSnapshotResult,
+  type AccountSnapshotSuccess,
+  type AccountTotals,
+} from './account-snapshot.js';
 export {
   OPENAI_COMPATIBLE_ADAPTER_ID,
   createOpenAICompatibleAdapter,

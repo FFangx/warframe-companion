@@ -54,6 +54,20 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 - 工具轮上限为 3；达到上限或第二轮模型故障（上游/协议类）时回落 Harness 确定性组织回答，并把稳定 `modelFailure` 记录进轨迹；取消与超时始终终止本轮，不回落。
 - `AgentTrace` 新增 `conclusion`/`conclusionSource`（`model` 或 `harness`）与可选 `modelFailure`；`decision` 在工具轮后仍为 `call_tool`，不破坏既有 eval 口径。事件流新增 `model_conclusion`。
 - 离线 `warframe-local-rules` 后端不声明回送，继续由 Harness 确定性组织回答；桌面 UI 在工具轨迹中显示终态来源。
+- 事实投影无条件化：Harness 对工具结果始终派生同一组规范 facts 并写入 `AgentTrace`（市场成功：卖/买单存在性、快照范围、当前挂单口径、90 天历史口径、统计可用性；失败：availability/error.code/retryable 等），生产与评估同构。已删除 `evaluation.factMode` 投影开关；显式默认市场参数改为请求级 `AgentRunRequest.defaults`，评估驱动器只在请求层注入，不再改变 Agent 行为。
+- adapter 接口版本化：`ModelAdapter.adapterVersion` 为必填，`generateTurn` 返回 `ModelTurnResult { turn, usage?, finishReason? }`；Harness 把 adapter 版本、多轮累计 token 用量与最后结束原因记入 `AgentTrace`，为视觉/fallback 等能力扩展保留演化空间，也提供作品集可观测性素材。
+- 真实远程模型冒烟：`npm run smoke:live --workspace @warframe-companion/agent-runtime` 使用真实 DeepSeek（OpenAI-compatible）与真实 Market/掉落工具验证「工具调用 → 回送 → 终态」链路；运行前由用户自行设置 `DEEPSEEK_API_KEY` 环境变量，脚本不打印、不记录 key。2026-08-19 首次真实模型验收通过（3/3，DeepSeek v4-flash：market 回送、drops 回送、缺参澄清均完成，第二轮由模型提交 `agent.conclude[answered]`），并实测出两条 provider 兼容性约束：
+  - 线上工具名必须匹配 `^[a-zA-Z0-9_-]+$`（DeepSeek 拒绝带点号工具名），adapter 在 wire 层映射 `market.query→market_query` 等，内部逻辑名不变。
+  - DeepSeek 思考模式要求把上一轮响应的 `reasoning_content` 原样回传，否则第二轮返回 400；adapter 捕获思维链并随工具轮回送（`ToolRoundStep.assistantReasoning`），Harness 只作不透明回传，不进 `AgentTrace`、不展示、不参与评估。
+  - 健康检查默认 5 秒超时对真实 API 偶发不足，冒烟脚本使用 10 秒。
+
+## 个人快照权限尖峰（Session 16 切片）
+
+- `account.snapshot` 契约定义在 `packages/agent-runtime/src/account-snapshot.ts`（独立模块避免循环依赖）：请求只含 `contractVersion` 与可选 `item`；结果只暴露**脱敏摘要**——段位/白金/杜卡德/现金/物品名称×数量，绝不包含实例 ID、账号标识或原始字段。
+- 权限边界由 Harness 策略层保证，模型不能自行声明：群聊返回 `private_scope`、非可信会话返回 `identity_untrusted`、任何渠道的「导出原始快照」都返回 `private_scope`；只有可信主人（desktop / qq_private + trustedOwner）能路由到工具。
+- 模型视图边界：adapter 只注册 `account_snapshot` wire 工具，工具结果回送模型时只有脱敏摘要文本；事实投影（`personal.snapshot_scope/snapshot_at/mastery_rank/platinum/ducats/credits/matched/item.*`）无条件派生并携带本地快照证据，与市场/掉落同一套「生产=评估」口径。
+- 数据可用性由注入的 `getSnapshot` 服务决定：桌面当前未接真实 AlecaFrame 服务，查询时诚实返回「个人快照服务尚未配置」；合成夹具仅存在于 eval（`createSyntheticAccountResult`），不进入生产。
+- eval 新增 3 条（`account-001` 物品核对、`account-002` 账号状态、`account-failure-001` 快照不可用），评估集 38→41；v2 历史套件保持原 30 条（排除 account-* 与 drops-*）。
 
 ## 下一入口
 
