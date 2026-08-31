@@ -10,7 +10,7 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root })
 const failures = [];
 
 const required = [
-  'LICENSE', 'NOTICE.md', 'SECURITY.md', 'SUPPORT.md', 'CONTRIBUTING.md',
+  'README.md', 'README_EN.md', 'LICENSE', 'NOTICE.md', 'SECURITY.md', 'SUPPORT.md', 'CONTRIBUTING.md',
   'CODE_OF_CONDUCT.md', 'CODEOWNERS', '.github/dependabot.yml',
   '.github/workflows/ci.yml', 'docs/ACCEPTANCE.md', 'docs/DEPENDENCY_RISK.md',
 ];

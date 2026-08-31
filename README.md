@@ -1,5 +1,7 @@
 # Warframe Companion
 
+[简体中文](README.md) | [English](README_EN.md)
+
 [![CI](https://github.com/FFangx/warframe-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/FFangx/warframe-companion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
