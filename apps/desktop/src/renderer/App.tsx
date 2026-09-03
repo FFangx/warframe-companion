@@ -17,7 +17,19 @@ import { MarketResultCard } from './MarketResultCard.js';
 import { formatTime } from './format-time.js';
 import type { MarketPresentationEvent } from '../agent-presentation.js';
 
-type View = 'health' | 'market' | 'agent';
+type View = 'overview' | 'agent';
+
+function SettingsDialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (open) dialog.current?.showModal();
+    else dialog.current?.close();
+  }, [open]);
+  return <dialog ref={dialog} className="settings-dialog" aria-label="设置" onCancel={onClose} onClose={onClose}>
+    <header className="section-heading"><h2>设置</h2><button type="button" onClick={onClose} autoFocus>关闭设置</button></header>
+    {children}
+  </dialog>;
+}
 
 const STATUS_COPY: Record<HealthStatus, { label: string; tone: string }> = {
   healthy: { label: '正常', tone: 'good' },
@@ -79,7 +91,7 @@ function HealthView() {
   </>;
 }
 
-function MarketView() {
+function MarketView({ onResult }: { onResult: (market: MarketPresentationEvent, prompt: string) => void }) {
   const [item, setItem] = useState('古纪V3');
   const [platform, setPlatform] = useState<MarketPlatform>('pc');
   const [crossplay, setCrossplay] = useState(true);
@@ -99,7 +111,9 @@ function MarketView() {
     };
     setResultRequest(request);
     try {
-      setResult(await window.warframeCompanion.market.query(request));
+      const next = await window.warframeCompanion.market.query(request);
+      setResult(next);
+      onResult({ type: 'market_result', request, result: next }, `查询${request.item}，${PLATFORM_LABELS[request.platform]}，${request.crossplay ? '跨平台' : '不跨平台'}，${request.rank === 'max' ? '满级' : `${request.rank}级`}。`);
     } catch { setFormError('桌面进程未能完成查询。请检查系统健康后重试。'); }
     finally { setLoading(false); }
   };
@@ -144,8 +158,30 @@ function traceEventText(entry: AgentStreamEvent): string {
 }
 
 function AgentView() {
-  const [message, setMessage] = useState('查一下古纪V3当前行情，PC 跨平台，0级。');
+  const [view, setView] = useState<View>('overview');
+  const [assistantOpen, setAssistantOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [marketVisited, setMarketVisited] = useState(false);
+  const [detail, setDetail] = useState<{ market: MarketPresentationEvent; prompt: string } | null>(null);
+  const [recent, setRecent] = useState<{ market: MarketPresentationEvent; prompt: string }[]>([]);
+  const recordResult = (market: MarketPresentationEvent, prompt: string) => setRecent((current) => [{ market, prompt }, ...current]);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const conversation = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
+  const showDetail = (market: MarketPresentationEvent, prompt: string) => {
+    setDetail({ market, prompt }); setMarketOpen(false); setView('overview');
+  };
+  const draft = (value: string) => {
+    setMessage(value); setView('agent'); setAssistantOpen(true);
+    requestAnimationFrame(() => composer.current?.focus());
+  };
+  const [message, setMessage] = useState('');
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+  useEffect(() => {
+    if (followLatest.current && conversation.current) conversation.current.scrollTop = conversation.current.scrollHeight;
+  }, [turns, view, assistantOpen]);
   const [running, setRunning] = useState(false);
   const [models, setModels] = useState<ModelProfile[]>([]);
   const [profileId, setProfileId] = useState('');
@@ -221,12 +257,14 @@ function AgentView() {
   const runPrompt = (prompt: string) => {
     if (!prompt.trim() || activeRun.current || modelHealth?.status !== 'healthy') return;
     const id = `desktop-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    followLatest.current = true;
     setTurns((current) => [...current, { id, user: prompt, assistant: '', events: [], markets: [] }]);
     setRunning(true); setActiveRequestId(id); setMessage('');
     activeRun.current = { id, dispose: () => {} };
     try {
       const dispose = window.warframeCompanion.agent.run({ requestId: id, message: prompt, modelProfileId: profileId, timeoutMs: 15_000 }, (streamEvent) => {
         if (activeRun.current?.id !== id) return;
+        if (streamEvent.type === 'market_result') recordResult(streamEvent, prompt);
         setTurns((current) => current.map((turn) => {
           if (turn.id !== id) return turn;
           if (streamEvent.type === 'market_result') return { ...turn, markets: [...turn.markets, streamEvent] };
@@ -255,8 +293,57 @@ function AgentView() {
     if (activeRequestId) window.warframeCompanion.agent.cancel(activeRequestId);
   };
 
-  return <div className="agent-view">
-    <header className="hero market-hero"><div><p className="eyebrow">WARFRAME AGENT HARNESS / MODEL ROUTING</p><h1>Agent 对话</h1><p className="hero__copy">模型 profile、能力门禁、工具、证据、停止与轨迹由 Companion 自有 Harness 统一编排。</p></div><span className="readonly-chip">离线模型后端 · 只读</span></header>
+  return <main className="shell companion-shell">
+    <aside className="sidebar">
+      <div className="brand"><span className="brand__sigil">W</span><span>WARFRAME<br />COMPANION</span></div>
+      <nav aria-label="主导航">
+        <button className={`nav-item ${view === 'overview' ? 'nav-item--active' : ''}`} onClick={() => { setView('overview'); setDetail(null); setMarketOpen(false); }}><span>⌂</span>总览</button>
+        <button className={`nav-item ${view === 'agent' ? 'nav-item--active' : ''}`} onClick={() => { setView('agent'); setAssistantOpen(true); }}><span>◌</span>对话</button>
+      </nav>
+      <button className="settings-entry" onClick={() => setSettingsOpen(true)}>⚙ 设置</button>
+    </aside>
+    <div className={`companion-body ${view === 'agent' ? 'companion-body--focused' : ''} ${!assistantOpen ? 'companion-body--closed' : ''}`}>
+      <section className="workspace" aria-label="总览与结果" hidden={view === 'agent'}>
+        <header className="workspace-bar"><span>{detail ? '行情详情' : marketOpen ? '快捷查询' : '总览'}</span><button onClick={() => { setAssistantOpen((value) => !value); }}>{assistantOpen ? '收起助手' : '展开助手'}</button><button className="mobile-chat" onClick={() => { setView('agent'); setAssistantOpen(true); }}>打开对话</button></header>
+        <div className="workspace-scroll">
+          <div hidden={!!detail || marketOpen}>
+            <header className="overview-heading"><p className="eyebrow">你的星际旅程</p><h1>今天想找些什么？</h1><p>查一件物品，或和助手聊聊。</p></header>
+            <div className="quick-actions">
+              <button onClick={() => { setMarketVisited(true); setMarketOpen(true); }}><span>◇</span><strong>查市场价格</strong><small>选物品、平台与等级，直接看行情</small></button>
+              <button onClick={() => draft('Forma Blueprint 哪里掉落？')}><span>⌕</span><strong>找掉落地点</strong><small>在对话中查询任务与掉落概率</small></button>
+            </div>
+            <section className="recent-results"><h2>本次查询</h2>{recent.length ? <div className="recent-list">{recent.map(({ market, prompt }, index) => <button key={index} onClick={() => showDetail(market, prompt)}><strong>{market.result.ok ? market.result.data.item.name.zhHans : market.request.item}</strong><small>{PLATFORM_LABELS[market.request.platform]} · {market.result.ok ? formatTime(market.result.evidence.asOf) : '查询未完成'} →</small></button>)}</div> : <p>查过的行情会留在这里，随时展开查看。</p>}</section>
+            <p className="overview-note">当前可用：市场行情与掉落查询。活动、周常和个人进度将随功能接入出现在总览。</p>
+          </div>
+          {marketVisited ? <div hidden={!marketOpen}><button className="back-link" onClick={() => setMarketOpen(false)}>← 返回总览</button><MarketView onResult={recordResult} /></div> : null}
+          {detail ? <div><button className="back-link" onClick={() => setDetail(null)}>← 返回总览</button><MarketResultCard result={detail.market.result} request={detail.market.request} onCandidate={(value) => draft(`查询${value}，${PLATFORM_LABELS[detail.market.request.platform]}，${detail.market.request.crossplay ? '跨平台' : '不跨平台'}，${detail.market.request.rank === 'max' ? '满级' : `${detail.market.request.rank}级`}。`)} disabled={running || modelHealth?.status !== 'healthy'} onRetry={() => { runPrompt(detail.prompt); setView('agent'); setAssistantOpen(true); }} /></div> : null}
+        </div>
+      </section>
+      <div className="agent-view" hidden={view !== 'agent' && !assistantOpen}>
+        <header className="assistant-bar"><div><h2>助手</h2><span>{running ? '正在查询…' : selectedProfile?.label ?? '正在连接'}</span></div><button onClick={() => { if (view === 'agent') setView('overview'); else setView('agent'); }}>{view === 'agent' ? '返回总览' : '放大对话'}</button></header>
+        {modelHealth && modelHealth.status !== 'healthy' ? <button className="connection-notice" onClick={() => setSettingsOpen(true)}>{modelHealth.summary} · 打开设置</button> : null}
+        {configMessage?.tone === 'bad' ? <button className="connection-notice" onClick={() => setSettingsOpen(true)}>{configMessage.text} · 打开设置</button> : null}
+  <section className="agent-layout">
+      <div className="conversation" ref={conversation} onScroll={(event) => { const element = event.currentTarget; followLatest.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80; }}>
+        {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>有什么想查的？</h2><p>说出物品名称和你想了解的内容。</p><div className="prompt-chips"><button onClick={() => draft('查一下古纪V3当前行情，PC 跨平台，0级。')}>古纪 V3 多少钱？</button><button onClick={() => draft('Forma Blueprint 哪里掉落？')}>Forma 蓝图哪里刷？</button></div></div> : null}
+        {turns.map((turn) => <article className="chat-turn" key={turn.id}>
+          <div className="bubble bubble--user"><span>你</span><p>{turn.user}</p></div>
+          <div className="bubble bubble--agent"><span>Agent</span><p>{turn.assistant || '正在处理…'}</p></div>
+          {turn.markets.map((market, index) => <MarketResultCard key={index} result={market.result} request={market.request} compact onOpen={() => showDetail(market, turn.user)}
+            onRetry={() => runPrompt(turn.user)} disabled={running || modelHealth?.status !== 'healthy'}
+            onCandidate={(value) => setMessage(`查询${value}，${PLATFORM_LABELS[market.request.platform]}，${market.request.crossplay ? '跨平台' : '不跨平台'}，${market.request.rank === 'max' ? '满级' : `${market.request.rank}级`}。`)} />)}
+          <details className="trace-panel">
+            <summary>执行轨迹 <small>{turn.trace ? `${turn.trace.decision} · ${turn.trace.latencyMs}ms` : '流式更新中'}</small></summary>
+            <div className="trace-events">{turn.events.filter((entry) => entry.type !== 'message_delta' && entry.type !== 'completed').map((entry, index) => <div key={index}>
+              <b>{entry.type}</b><code>{traceEventText(entry)}</code>
+            </div>)}</div>
+          </details>
+        </article>)}
+      </div>
+      <form className="agent-composer" onSubmit={submit}><textarea ref={composer} aria-label="发送给助手" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="问问价格、掉落地点…" rows={2} /><button type={running ? 'button' : 'submit'} className={running ? 'stop-button' : ''} disabled={!running && (!message.trim() || modelHealth?.status !== 'healthy')} onClick={running ? cancel : undefined}>{running ? '停止' : '发送'}</button><small>{selectedProfile?.adapterId === 'warframe-local-rules' ? '本地规则 · 无模型费用' : '使用所选模型服务'} · 查询结果可展开查看</small></form>
+    </section>
+      </div>
+    <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}>
     <section className="model-console">
       <label><span>主 Agent 模型</span><select value={profileId} onChange={(event) => setProfileId(event.target.value)} disabled={running}>{models.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
       <div className="model-summary"><strong>{selectedProfile?.model ?? '正在读取 profile'}</strong><small>{selectedProfile?.description}</small></div>
@@ -288,50 +375,11 @@ function AgentView() {
       <div className="model-config__footer"><p>桌面 Agent 当前必须具备：文本、结构化工具、结构化输出、取消。未声明的能力会明确标为不兼容；视觉能力不会被推断。</p><button type="submit">保存本机配置</button></div>
       {configMessage ? <div className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
     </form> : configMessage ? <div className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
-    <section className="agent-layout">
-      <div className="conversation">
-        {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>从一句可验证请求开始</h2><p>市场例：查一下古纪V3当前行情，PC 跨平台，0级。掉落例：Forma Blueprint 哪里掉落？</p></div> : null}
-        {turns.map((turn) => <article className="chat-turn" key={turn.id}>
-          <div className="bubble bubble--user"><span>你</span><p>{turn.user}</p></div>
-          <div className="bubble bubble--agent"><span>Agent</span><p>{turn.assistant || '正在处理…'}</p></div>
-          {turn.markets.map((market, index) => <MarketResultCard key={index} result={market.result} request={market.request}
-            onRetry={() => runPrompt(turn.user)} disabled={running || modelHealth?.status !== 'healthy'}
-            onCandidate={(value) => setMessage(`查询${value}，${PLATFORM_LABELS[market.request.platform]}，${market.request.crossplay ? '跨平台' : '不跨平台'}，${market.request.rank === 'max' ? '满级' : `${market.request.rank}级`}。`)} />)}
-          <details className="trace-panel">
-            <summary>执行轨迹 <small>{turn.trace ? `${turn.trace.decision} · ${turn.trace.latencyMs}ms` : '流式更新中'}</small></summary>
-            <div className="trace-events">{turn.events.filter((entry) => entry.type !== 'message_delta' && entry.type !== 'completed').map((entry, index) => <div key={index}>
-              <b>{entry.type}</b><code>{traceEventText(entry)}</code>
-            </div>)}</div>
-          </details>
-        </article>)}
-      </div>
-      <form className="agent-composer" onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="输入公开只读查询…" rows={2} /><button type={running ? 'button' : 'submit'} className={running ? 'stop-button' : ''} disabled={!running && (!message.trim() || modelHealth?.status !== 'healthy')} onClick={running ? cancel : undefined}>{running ? '停止' : '发送'}</button><small>15 秒超时 · 可停止 · 不操作游戏、交易、聊天或账号资产；当前模型为本地离线规则后端，不产生模型费用。</small></form>
-    </section>
-  </div>;
-}
+      <details className="health-settings" onToggle={(event) => setHealthOpen(event.currentTarget.open)}><summary>连接与诊断</summary>{healthOpen ? <HealthView /> : null}</details>
+    </SettingsDialog>
 
-export function App() {
-  const [view, setView] = useState<View>('market');
-  const [visited, setVisited] = useState<View[]>(['market']);
-  const navigate = (next: View) => {
-    setVisited((current) => current.includes(next) ? current : [...current, next]);
-    setView(next);
-  };
-  return <main className="shell">
-    <aside className="sidebar">
-      <div className="brand"><span className="brand__sigil">W</span><span>WARFRAME<br />COMPANION</span></div>
-      <nav aria-label="主导航">
-        <button className={`nav-item ${view === 'health' ? 'nav-item--active' : ''}`} type="button" onClick={() => navigate('health')}><span>⌁</span>系统概览</button>
-        <button className={`nav-item ${view === 'market' ? 'nav-item--active' : ''}`} type="button" onClick={() => navigate('market')}><span>◇</span>市场查询<small>原生行情卡</small></button>
-        <button className={`nav-item ${view === 'agent' ? 'nav-item--active' : ''}`} type="button" onClick={() => navigate('agent')}><span>◌</span>Agent 对话<small>行情卡与查询结果</small></button>
-      </nav>
-      <div className="boundary-note"><span>只读模式</span>不操作游戏、交易、聊天或账号资产</div>
-    </aside>
-    <section className="content">
-      {visited.includes('health') ? <div hidden={view !== 'health'}><HealthView /></div> : null}
-      <div hidden={view !== 'market'}><MarketView /></div>
-      {visited.includes('agent') ? <div hidden={view !== 'agent'}><AgentView /></div> : null}
-      <footer><span>Warframe Agent Harness · 模型可配置、公开数据只读</span><span>本地模型 profile → 能力门禁 → market.query / drops.search → 证据与轨迹。</span></footer>
-    </section>
+    </div>
   </main>;
 }
+
+export function App() { return <AgentView />; }

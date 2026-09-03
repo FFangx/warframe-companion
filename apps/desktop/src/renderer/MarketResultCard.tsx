@@ -46,13 +46,23 @@ function MarketFailureCard({ result, onCandidate }: { result: MarketQueryFailure
   </section>;
 }
 
-export function MarketResultCard({ result, request, onCandidate, onRetry, disabled = false }: {
+export function MarketResultCard({ result, request, onCandidate, onRetry, disabled = false, compact = false, onOpen }: {
   result: MarketQueryResult;
   request: MarketQueryRequest;
   onCandidate: (value: string) => void;
   onRetry: () => void;
   disabled?: boolean;
+  compact?: boolean;
+  onOpen?: () => void;
 }) {
+  if (compact && result.ok) return <section className="market-preview">
+    <div className="section-heading"><h3>{result.data.item.name.zhHans}</h3><span>行情</span></div>
+    <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {request.rank === 'max' ? '满级' : `等级 ${request.rank}`}</p>
+    <div className="preview-prices"><div><small>最低卖价</small><strong>{result.data.sellOrders[0] ? formatPlatinum(result.data.sellOrders[0].platinum) : '无卖单'}</strong></div><div><small>最高买价</small><strong>{result.data.buyOrders[0] ? formatPlatinum(result.data.buyOrders[0].platinum) : '无买单'}</strong></div></div>
+    {result.warnings.map((warning) => <p className="preview-warning" key={warning.code}>{warning.message}</p>)}
+    <small className="preview-source">Warframe.Market · {formatTime(result.evidence.asOf)}<br />有效至 {formatTime(result.evidence.expiresAt)}</small>
+    <button className="detail-button" onClick={onOpen}>查看完整行情与订单 →</button>
+  </section>;
   return <div className="market-result-card">
     <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {request.rank === 'max' ? '满级' : `等级 ${request.rank}`}</p>
     {result.ok ? <MarketSuccessCard result={result} /> : <>

@@ -10,7 +10,7 @@
 
 一个 Windows 本地优先、只读、证据驱动的 Warframe 国际服个人 Agent 主机。目标是把现有确定性查询、个人快照、订阅诊断和 Agent 能力交付为可安装桌面应用，同时以受控 Channel Adapter 保留 QQ/OpenClaw，并按真实需求扩展飞书、微信或其他远程频道。
 
-当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 41 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
+当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、总览与助手双区界面、按需行情详情、设置中的健康诊断、流式 Agent 对话，以及 41 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
 
 桌面 Agent 的稳定核心现由 Companion 自有的 Warframe Harness 承载：`ModelProfile`、`ModelAdapter`、能力/健康门禁、可信策略、工具执行、取消/超时和轨迹。除两个零费用本地规则 profile 外，桌面现可保存本机 OpenAI-compatible profile：只持久化 Base URL、模型名、能力声明和凭据环境变量引用，不保存 key；适配器支持 `/models` 健康检查、Chat Completions 结构化工具、SSE、取消与稳定错误分类。支持工具结果回送的 adapter 在每次工具执行后收到脱敏结果摘要，用文本回答或内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态——事实、证据、身份、拒绝与延迟永远由 Harness 决定，第二轮故障回落确定性回答。未经用户主动配置和发送，不调用远程模型。详见 [`docs/AGENT_HARNESS.md`](docs/AGENT_HARNESS.md)。
 

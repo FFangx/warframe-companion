@@ -1,12 +1,12 @@
 # Warframe Companion Desktop
 
-Electron/React 桌面应用当前提供系统健康页、原生市场查询卡与最小 Agent 对话，不包含个人数据视图。
+Electron/React 桌面应用默认打开总览与右侧助手，一级导航仅保留总览和对话。助手可收起或放大，窄窗口切换显示。总览提供市场快捷查询、掉落查询示例与本次行情记录；活动、周常和个人数据仍待接入。
 
-市场页要求显式输入物品、平台、跨平台开关与等级，通过安全 preload IPC 调用真实只读 `market-query-service`。结果分别展示当前买卖挂单、90 日已成交统计、证据时间、来源、警告、空订单和分类故障；不会下单、挂单或发送交易私聊。
+总览中的市场快捷查询要求显式输入物品、平台、跨平台开关与等级，通过安全 preload IPC 调用真实只读 `market-query-service`。结果分别展示当前买卖挂单、90 日已成交统计、证据时间、来源、警告、空订单和分类故障；不会下单、挂单或发送交易私聊。
 
-Agent 页使用 `@warframe-companion/agent-runtime`。用户可选择本地离线 profile，或在界面保存 OpenAI-compatible 本机 profile，查看能力与健康状态，再沿“可信策略 → 模型 adapter → 工具调用 → 工具结果 → 证据回答 → `AgentTrace`”运行；支持 `market.query` 与 `drops.search`、停止和 15 秒超时。模型配置位于 Electron `userData/config/model-profiles.v1.json`，只含凭据环境变量引用，不含 key；掉落数据位于 `userData/public-data`。支持工具结果回送的 adapter 已能接收脱敏摘要并生成后续回答。当前没有接入视觉、模型 fallback、OpenClaw/DeepSeek 桌面 backend、个人快照或订阅写入；真实远程模型桌面试用尚未完成。
+助手使用 `@warframe-companion/agent-runtime`。用户可在设置弹窗中选择本地离线 profile，或保存 OpenAI-compatible 本机 profile，查看能力与健康状态，再沿“可信策略 → 模型 adapter → 工具调用 → 工具结果 → 证据回答 → `AgentTrace`”运行；支持 `market.query` 与 `drops.search`、停止和 15 秒超时。模型配置位于 Electron `userData/config/model-profiles.v1.json`，只含凭据环境变量引用，不含 key；掉落数据位于 `userData/public-data`。支持工具结果回送的 adapter 已能接收脱敏摘要并生成后续回答。当前没有接入视觉、模型 fallback、OpenClaw/DeepSeek 桌面 backend、个人快照或订阅写入；真实远程模型桌面试用尚未完成。
 
-Agent 与市场页现在共用 `MarketResultCard`，直接显示同一次工具查询的订单、统计、来源、时间和查询范围。查询失败可重试；名称有候选时可选择并发送新查询。行情展示数据只保留在桌面会话中，不加入模型或执行轨迹。已打开的页面在切换时保留，因此查询可以在其他页面打开期间完成，返回后仍能查看或停止；关闭应用不保留会话历史。
+Agent 对话使用 `MarketResultCard` 摘要，保留价格、范围、来源与时间；点击后在主工作区展开同一快照的完整订单与统计，不触发重复查询。快捷查询也复用完整卡片。查询失败可重试；名称有候选时可选择并发送新查询。行情展示数据只保留在桌面会话中，不加入模型或执行轨迹。已打开的页面在切换时保留，因此查询可以在其他页面打开期间完成，返回后仍能查看或停止；关闭应用不保留会话历史。
 
 当前按现有助手的功能对照表搭建桌面原型。D1a 已完成，下一步 D1b 补订单分页、筛选、私聊预览与显式复制；随后逐项接掉落/遗物、世界状态/周常/商店、个人数据与决策、愿望单/订阅。入口与模型体验随功能改善。安装发布与跨仓库重构不作为前置，见 [开发计划](../../docs/DEVELOPMENT_PLAN.md)。
 
@@ -17,7 +17,7 @@ npm run start -w @warframe-companion/desktop
 npm run build -w @warframe-companion/desktop
 ```
 
-健康页默认探测 `127.0.0.1:18789` 的 OpenClaw Gateway 和 Warframe.Market 公共接口。WFInfo 与 AlecaFrame 不猜测本机安装路径，可通过以下环境变量显式配置：
+设置 → 连接与诊断默认探测 `127.0.0.1:18789` 的 OpenClaw Gateway 和 Warframe.Market 公共接口。WFInfo 与 AlecaFrame 不猜测本机安装路径，可通过以下环境变量显式配置：
 
 - `WARFRAME_COMPANION_WFINFO_EXE`
 - `WARFRAME_COMPANION_ALECAFRAME_DIR`
