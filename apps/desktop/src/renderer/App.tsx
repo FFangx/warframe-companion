@@ -14,19 +14,20 @@ import {
 } from './market-presentation.js';
 
 import { MarketResultCard } from './MarketResultCard.js';
+import { useLayoutPreference } from './use-layout-preference.js';
 import { formatTime } from './format-time.js';
 import type { MarketPresentationEvent } from '../agent-presentation.js';
 
 type View = 'overview' | 'agent';
 
-function SettingsDialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+function SettingsDialog({ open, onClose, children, title = '设置' }: { open: boolean; onClose: () => void; children: React.ReactNode; title?: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (open) dialog.current?.showModal();
     else dialog.current?.close();
   }, [open]);
-  return <dialog ref={dialog} className="settings-dialog" aria-label="设置" onCancel={onClose} onClose={onClose}>
-    <header className="section-heading"><h2>设置</h2><button type="button" onClick={onClose} autoFocus>关闭设置</button></header>
+  return <dialog ref={dialog} className="settings-dialog" aria-label={title} onCancel={onClose} onClose={onClose}>
+    <header className="section-heading"><h2>{title}</h2><button type="button" onClick={onClose} autoFocus>关闭{title}</button></header>
     {children}
   </dialog>;
 }
@@ -159,7 +160,18 @@ function traceEventText(entry: AgentStreamEvent): string {
 
 function AgentView() {
   const [view, setView] = useState<View>('overview');
-  const [assistantOpen, setAssistantOpen] = useState(true);
+  const [assistantOpen, setAssistantOpen] = useLayoutPreference('companion.assistant-open', true);
+  const [sidebarExpanded, setSidebarExpanded] = useLayoutPreference('companion.sidebar-expanded', false);
+  const [marketPinned, setMarketPinned] = useLayoutPreference('companion.pin-market', false);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [narrow, setNarrow] = useState(window.innerWidth < 1100);
+  useEffect(() => { const resize = () => setNarrow(window.innerWidth < 1100); window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize); }, []);
+  const assistantVisible = assistantOpen && (view === 'agent' || !narrow);
+  const toggleAssistant = () => {
+    if (assistantVisible) { setAssistantOpen(false); setView('overview'); }
+    else { setAssistantOpen(true); if (narrow) setView('agent'); }
+  };
+  const openMarket = () => { setMarketVisited(true); setMarketOpen(true); setDetail(null); setView('overview'); };
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [marketOpen, setMarketOpen] = useState(false);
@@ -293,23 +305,26 @@ function AgentView() {
     if (activeRequestId) window.warframeCompanion.agent.cancel(activeRequestId);
   };
 
-  return <main className="shell companion-shell">
+  return <main className={`shell companion-shell ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
     <aside className="sidebar">
-      <div className="brand"><span className="brand__sigil">W</span><span>WARFRAME<br />COMPANION</span></div>
+      <button className="sidebar-toggle" aria-label={sidebarExpanded ? '收起导航' : '展开导航'} title={sidebarExpanded ? '收起导航' : '展开导航'} aria-expanded={sidebarExpanded} onClick={() => setSidebarExpanded(!sidebarExpanded)}>{sidebarExpanded ? '‹' : '›'}</button>
       <nav aria-label="主导航">
-        <button className={`nav-item ${view === 'overview' ? 'nav-item--active' : ''}`} onClick={() => { setView('overview'); setDetail(null); setMarketOpen(false); }}><span>⌂</span>总览</button>
-        <button className={`nav-item ${view === 'agent' ? 'nav-item--active' : ''}`} onClick={() => { setView('agent'); setAssistantOpen(true); }}><span>◌</span>对话</button>
+        <button title="总览" aria-label="总览" className={`nav-item ${!marketOpen && !detail ? 'nav-item--active' : ''}`} onClick={() => { setView('overview'); setDetail(null); setMarketOpen(false); }}><span aria-hidden="true">⌂</span><b className="nav-label">总览</b></button>
+        {marketPinned ? <button title="市场" aria-label="市场" className={`nav-item ${marketOpen ? 'nav-item--active' : ''}`} onClick={openMarket}><span aria-hidden="true">◇</span><b className="nav-label">市场</b></button> : null}
       </nav>
-      <button className="settings-entry" onClick={() => setSettingsOpen(true)}>⚙ 设置</button>
+      <button className="nav-item add-feature" title="添加功能" aria-label="添加功能" onClick={() => setFeaturesOpen(true)}><span aria-hidden="true">＋</span><b className="nav-label">添加功能</b></button>
+      <button className="settings-entry" title="设置" aria-label="设置" onClick={() => setSettingsOpen(true)}><span aria-hidden="true">⚙</span><b className="nav-label">设置</b></button>
     </aside>
+    <div className="application-main">
+      <header className="app-toolbar"><span>WARFRAME <b>COMPANION</b></span><button aria-label="助手" aria-expanded={assistantVisible} onClick={toggleAssistant}>◌ 助手 {assistantVisible ? '收起' : '展开'}</button></header>
     <div className={`companion-body ${view === 'agent' ? 'companion-body--focused' : ''} ${!assistantOpen ? 'companion-body--closed' : ''}`}>
       <section className="workspace" aria-label="总览与结果" hidden={view === 'agent'}>
-        <header className="workspace-bar"><span>{detail ? '行情详情' : marketOpen ? '快捷查询' : '总览'}</span><button onClick={() => { setAssistantOpen((value) => !value); }}>{assistantOpen ? '收起助手' : '展开助手'}</button><button className="mobile-chat" onClick={() => { setView('agent'); setAssistantOpen(true); }}>打开对话</button></header>
+        <header className="workspace-bar"><span>{detail ? '行情详情' : marketOpen ? '市场' : '总览'}</span></header>
         <div className="workspace-scroll">
           <div hidden={!!detail || marketOpen}>
             <header className="overview-heading"><p className="eyebrow">你的星际旅程</p><h1>今天想找些什么？</h1><p>查一件物品，或和助手聊聊。</p></header>
             <div className="quick-actions">
-              <button onClick={() => { setMarketVisited(true); setMarketOpen(true); }}><span>◇</span><strong>查市场价格</strong><small>选物品、平台与等级，直接看行情</small></button>
+              <button onClick={openMarket}><span>◇</span><strong>查市场价格</strong><small>选物品、平台与等级，直接看行情</small></button>
               <button onClick={() => draft('Forma Blueprint 哪里掉落？')}><span>⌕</span><strong>找掉落地点</strong><small>在对话中查询任务与掉落概率</small></button>
             </div>
             <section className="recent-results"><h2>本次查询</h2>{recent.length ? <div className="recent-list">{recent.map(({ market, prompt }, index) => <button key={index} onClick={() => showDetail(market, prompt)}><strong>{market.result.ok ? market.result.data.item.name.zhHans : market.request.item}</strong><small>{PLATFORM_LABELS[market.request.platform]} · {market.result.ok ? formatTime(market.result.evidence.asOf) : '查询未完成'} →</small></button>)}</div> : <p>查过的行情会留在这里，随时展开查看。</p>}</section>
@@ -320,7 +335,7 @@ function AgentView() {
         </div>
       </section>
       <div className="agent-view" hidden={view !== 'agent' && !assistantOpen}>
-        <header className="assistant-bar"><div><h2>助手</h2><span>{running ? '正在查询…' : selectedProfile?.label ?? '正在连接'}</span></div><button onClick={() => { if (view === 'agent') setView('overview'); else setView('agent'); }}>{view === 'agent' ? '返回总览' : '放大对话'}</button></header>
+        <header className="assistant-bar"><div><h2>助手</h2><span>{running ? '正在查询…' : selectedProfile?.label ?? '正在连接'}</span></div><button onClick={() => { if (view === 'agent') setView('overview'); else setView('agent'); }}>{view === 'agent' ? '还原布局' : '放大对话'}</button></header>
         {modelHealth && modelHealth.status !== 'healthy' ? <button className="connection-notice" onClick={() => setSettingsOpen(true)}>{modelHealth.summary} · 打开设置</button> : null}
         {configMessage?.tone === 'bad' ? <button className="connection-notice" onClick={() => setSettingsOpen(true)}>{configMessage.text} · 打开设置</button> : null}
   <section className="agent-layout">
@@ -343,6 +358,11 @@ function AgentView() {
       <form className="agent-composer" onSubmit={submit}><textarea ref={composer} aria-label="发送给助手" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="问问价格、掉落地点…" rows={2} /><button type={running ? 'button' : 'submit'} className={running ? 'stop-button' : ''} disabled={!running && (!message.trim() || modelHealth?.status !== 'healthy')} onClick={running ? cancel : undefined}>{running ? '停止' : '发送'}</button><small>{selectedProfile?.adapterId === 'warframe-local-rules' ? '本地规则 · 无模型费用' : '使用所选模型服务'} · 查询结果可展开查看</small></form>
     </section>
       </div>
+    <SettingsDialog open={featuresOpen} onClose={() => setFeaturesOpen(false)} title="常用功能">
+      <p>把常用功能固定到左侧，随时一键打开。</p>
+      <div className="feature-choice"><div><strong>◇ 市场</strong><p>查询价格、查看买卖订单</p></div><button onClick={() => setMarketPinned(!marketPinned)} aria-pressed={marketPinned}>{marketPinned ? '取消固定市场' : '固定市场'}</button><button onClick={() => { openMarket(); setFeaturesOpen(false); }}>打开市场</button></div>
+      <p className="overview-note">遗物、周常等功能完成后，会加入这里。掉落查询目前可通过助手使用。</p>
+    </SettingsDialog>
     <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}>
     <section className="model-console">
       <label><span>主 Agent 模型</span><select value={profileId} onChange={(event) => setProfileId(event.target.value)} disabled={running}>{models.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
@@ -378,6 +398,7 @@ function AgentView() {
       <details className="health-settings" onToggle={(event) => setHealthOpen(event.currentTarget.open)}><summary>连接与诊断</summary>{healthOpen ? <HealthView /> : null}</details>
     </SettingsDialog>
 
+    </div>
     </div>
   </main>;
 }
