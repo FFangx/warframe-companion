@@ -117,7 +117,7 @@ OpenClaw / DSH backend    ┘
 - 桌面市场页通过独立的 `market.query()` preload IPC 调用主进程内 `market-query-service`；用户必须显式输入物品、平台、跨平台范围和等级。
 - `packages/warframe-data-service` 已实现第一条本地公共数据切片：按需验证并编译 WFCD 掉落快照，以原子 JSON 缓存和内存键索引支持 `drops.search`。契约分别报告 24 小时缓存新鲜度与 WFCD 源数据年龄；源数据 30 天后告警、90 天后门禁拒绝。刷新会对照同一 MIT 仓库的 jsDelivr/GitHub Raw 元数据并记录版本差异与选源。刷新失败只能在源年龄仍通过门禁时显式使用 stale 快照；无有效掉率的源行会计数、排除并告警，不会静默当作 0。
 - 公共掉落别名采用仓库自维护的中英文小表，随项目 MIT 发布并在解析结果中携带来源/许可证；未摄取无明确许可证的中文公共导出。
-- React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障；不复用 QQ PNG，也不暴露 Node 或原始上游响应。
+- React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障。D1a 抽取共享 `MarketResultCard`，市场页和 Agent 共用；主进程在同一次工具查询返回时发送桌面专用展示事件，模型与 `AgentTrace` 保持原有脱敏摘要。已访问页面保留在内存中，切页不会丢会话或重复订阅；完成/卸载清理监听，关闭窗口取消任务。
 - `packages/agent-eval` 已建立 41 条合成/脱敏评估（原 30 条、8 条 `drops.search` 和 3 条 `account.snapshot`）、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；掉落用例覆盖中英文路由、缓存/源年龄分离、替代源对照、过龄拒绝与无源降级，账号用例覆盖可信权限、脱敏投影与数据源不可用。参考基线只验证评估器上界，不代表真实模型表现。
 - `packages/agent-runtime` 已实现 Companion 自有 Harness 的模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场/掉落工具编排、取消/超时、流式事件和 `AgentTrace`。受控 OpenAI-compatible adapter 通过只含引用的凭据契约支持 `/models` 健康检查、Chat Completions JSON Schema 工具、SSE、取消和稳定错误；桌面本机 profile 使用原子 JSON 配置，不引入 SQLite。默认仍只运行零费用离线 profile，真实 provider 仅在用户主动配置与发送后调用。
 - 工具结果回送已实现：声明 `supportsToolRoundTrip` 的 adapter 在每次工具执行后收到脱敏结果摘要并生成最终回答，或通过内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态；模型不得提交事实、身份、拒绝、延迟或调用次数，工具轮上限 3、第二轮故障回落 Harness 确定性回答并在轨迹记录 `modelFailure`，终态与来源写入 `AgentTrace.conclusion`/`conclusionSource`。离线本地规则后端保持确定性组织回答。工具结果的事实投影已无条件化：生产与评估共用同一组规范 facts，评估不再改变 Agent 行为（显式默认市场参数走请求级 `AgentRunRequest.defaults`）。

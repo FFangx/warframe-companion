@@ -9,11 +9,11 @@ import {
   listModelProfiles,
   localRulesModelAdapter,
   runDesktopAgent,
-  type AgentStreamEvent,
   type ModelAdapter,
   type ModelProfile,
 } from '@warframe-companion/agent-runtime';
 import { getSystemHealth } from './system-health.js';
+import { withMarketPresentation, type DesktopAgentEvent } from './agent-presentation.js';
 import {
   MODEL_PROFILE_STORE_FILE,
   ModelProfileStoreError,
@@ -128,10 +128,12 @@ app.whenReady().then(() => {
   });
   ipcMain.on('agent:run', (event, input: unknown) => {
     if (!validAgentInput(input)) return;
-    const send = (streamEvent: AgentStreamEvent) => {
+    const send = (streamEvent: DesktopAgentEvent) => {
       if (!event.sender.isDestroyed()) event.sender.send('agent:event', input.requestId, streamEvent);
     };
     const controller = new AbortController();
+    const onDestroyed = () => controller.abort(new Error('window-closed'));
+    event.sender.once('destroyed', onDestroyed);
     activeAgentRuns.get(input.requestId)?.abort(new Error('replaced'));
     activeAgentRuns.set(input.requestId, controller);
     void modelSnapshot().then((snapshot) => runDesktopAgent({
@@ -141,7 +143,7 @@ app.whenReady().then(() => {
       ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
       context: { channel: 'desktop', trustedOwner: true, now: new Date().toISOString() },
     }, {
-      marketQuery: (request) => marketQueryService.query(request),
+      marketQuery: withMarketPresentation((request) => marketQueryService.query(request), send, controller.signal),
       searchDrops: (request) => warframeDataService.searchDrops(request),
       onEvent: send,
       signal: controller.signal,
@@ -153,6 +155,8 @@ app.whenReady().then(() => {
         trace: { caseId: input.requestId, decision: 'answer', toolCalls: [], facts: [], latencyMs: 0, terminalReason: 'error', ...(input.modelProfileId ? { modelProfileId: input.modelProfileId } : {}) },
       });
     }).finally(() => {
+      controller.abort();
+      event.sender.removeListener('destroyed', onDestroyed);
       if (activeAgentRuns.get(input.requestId) === controller) activeAgentRuns.delete(input.requestId);
     });
   });

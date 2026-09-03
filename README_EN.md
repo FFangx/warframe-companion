@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-> **Status: desktop prototype in development.** The roadmap brings existing assistant capabilities to the desktop one by one: Agent market cards first, followed by relics, world information, personal data, and reminders. Interaction improvements accompany each feature. Existing features can be tried through the development launcher; no Windows installer has been released.
+> **Status: desktop prototype in development.** D1a adds shared market cards to Agent conversations and preserves sessions across page navigation. Order interactions come next, followed by relics, world information, personal data, and reminders. Existing features can be tried through the development launcher; no Windows installer has been released.
 
 Warframe Companion is a Windows, local-first, read-only, evidence-driven personal Agent host for the international version of Warframe. Its goal is to deliver deterministic queries, personal snapshots, subscription diagnostics, and Agent capabilities as an installable desktop application. Controlled Channel Adapters preserve QQ/OpenClaw support and may extend to Lark, WeChat, or other remote channels when there is a demonstrated need.
 

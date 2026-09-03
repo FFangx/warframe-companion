@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-> **当前状态：桌面原型开发中。** 当前主线为逐项对齐现有助手功能：先打通 Agent 行情卡，再接遗物、世界情报、个人数据与提醒，交互随功能改善。可通过开发启动试用已有功能；Windows 安装包尚未发布。
+> **当前状态：桌面原型开发中。** D1a 已打通 Agent 共享行情卡与切页保留，下一步补订单操作，再接遗物、世界情报、个人数据与提醒。可通过开发启动试用已有功能；Windows 安装包尚未发布。
 
 一个 Windows 本地优先、只读、证据驱动的 Warframe 国际服个人 Agent 主机。目标是把现有确定性查询、个人快照、订阅诊断和 Agent 能力交付为可安装桌面应用，同时以受控 Channel Adapter 保留 QQ/OpenClaw，并按真实需求扩展飞书、微信或其他远程频道。
 

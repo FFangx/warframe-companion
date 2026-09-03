@@ -263,7 +263,7 @@ function rankFrom(message: string): number | 'max' | undefined | null {
 function itemFrom(message: string): string | undefined {
   const patterns = [
     /查一下(.+?)(?:当前行情|行情|价格|多少钱)/u,
-    /(?:查|查询)(.+?)(?:，|。|价格|行情|多少钱|$)/u,
+    /查(?:询)?(.+?)(?:，|。|价格|行情|多少钱|$)/u,
     /这个[“"](.+?)[”"]/u,
     /^(.+?)(?:满级)?多少钱/u,
   ];

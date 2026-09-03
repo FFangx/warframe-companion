@@ -4,6 +4,17 @@ import { ModelAdapterError, checkModelProfile, listModelProfiles, runDesktopAgen
 import { MOCK_MARKET_QUERY_FAILURES, MOCK_MARKET_QUERY_SUCCESS } from '@warframe-companion/market-query-contract/mocks';
 
 const context = { channel: 'desktop', trustedOwner: true, now: '2030-01-02T03:04:05.000Z' };
+
+test('查询前缀不会把询字混入市场物品名', async () => {
+  let queriedItem;
+  await runDesktopAgent({ requestId: 'synthetic-query-prefix', message: '查询示例 Prime 蓝图，PC 跨平台，0级。', context }, {
+    marketQuery: async (request) => {
+      queriedItem = request.item;
+      return structuredClone(MOCK_MARKET_QUERY_SUCCESS);
+    },
+  });
+  assert.equal(queriedItem, '示例 Prime 蓝图');
+});
 const ROUND_TRIP_CAPABILITIES = { text: true, vision: false, nativeTools: true, structuredOutput: true, reasoning: false, streaming: false, cancellation: true, contextWindow: 1024 };
 function roundTripProfile(id, adapter) {
   return { id, label: `Synthetic ${id}`, adapterId: adapter.id, model: 'synthetic', description: 'synthetic', capabilities: { ...ROUND_TRIP_CAPABILITIES } };
