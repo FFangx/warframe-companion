@@ -2,6 +2,8 @@
 
 > 目标岗位：Agent Systems Engineer / Applied AI Engineer / AI Product Engineer
 
+> 2026-09-03：本文件是最终作品集方向，不是当前开发排期。当前从 D0 功能对照表出发，按 [开发计划](DEVELOPMENT_PLAN.md) 逐项对齐桌面能力，D2 体验工作随功能推进；安装包、文章、框架对比和发布材料不作为前置任务。
+
 ## 项目要证明的能力
 
 这个项目不以“支持多少 Warframe 命令”为主要卖点，而要提供以下可验证证据：

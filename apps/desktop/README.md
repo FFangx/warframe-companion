@@ -4,7 +4,9 @@ Electron/React 桌面应用当前提供系统健康页、原生市场查询卡�
 
 市场页要求显式输入物品、平台、跨平台开关与等级，通过安全 preload IPC 调用真实只读 `market-query-service`。结果分别展示当前买卖挂单、90 日已成交统计、证据时间、来源、警告、空订单和分类故障；不会下单、挂单或发送交易私聊。
 
-Agent 页使用 `@warframe-companion/agent-runtime`。用户可选择本地离线 profile，或在界面保存 OpenAI-compatible 本机 profile，查看能力与健康状态，再沿“可信策略 → 模型 adapter → 工具调用 → 工具结果 → 证据回答 → `AgentTrace`”运行；支持 `market.query` 与 `drops.search`、停止和 15 秒超时。模型配置位于 Electron `userData/config/model-profiles.v1.json`，只含凭据环境变量引用，不含 key；掉落数据位于 `userData/public-data`。当前没有接入视觉、fallback、OpenClaw、DeepSeek、个人快照或订阅写入，工具结果也尚未回送模型做第二轮生成。
+Agent 页使用 `@warframe-companion/agent-runtime`。用户可选择本地离线 profile，或在界面保存 OpenAI-compatible 本机 profile，查看能力与健康状态，再沿“可信策略 → 模型 adapter → 工具调用 → 工具结果 → 证据回答 → `AgentTrace`”运行；支持 `market.query` 与 `drops.search`、停止和 15 秒超时。模型配置位于 Electron `userData/config/model-profiles.v1.json`，只含凭据环境变量引用，不含 key；掉落数据位于 `userData/public-data`。支持工具结果回送的 adapter 已能接收脱敏摘要并生成后续回答。当前没有接入视觉、模型 fallback、OpenClaw/DeepSeek 桌面 backend、个人快照或订阅写入；真实远程模型桌面试用尚未完成。
+
+当前按现有助手的功能对照表搭建桌面原型。下一步是把共享行情卡接入 Agent，保留切页后的会话与结果并补订单操作；随后逐项接掉落/遗物、世界状态/周常/商店、个人数据与决策、愿望单/订阅。入口与模型体验随功能改善。以上仍为待开发内容；安装发布与跨仓库重构不作为功能接入前置，见 [开发计划](../../docs/DEVELOPMENT_PLAN.md)。
 
 ## 开发
 

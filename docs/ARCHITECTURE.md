@@ -1,6 +1,6 @@
 # Warframe Companion Agent 目标架构
 
-> 状态：方向性架构，2026-08-29。描述目标边界，不代表全部已经实现。执行顺序见 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)。
+> 状态：方向性架构，2026-09-03 更新执行顺序。描述长期目标边界，不代表全部已经实现，也不要求原型提前搭建。执行顺序见 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)。
 
 ## 总体结构
 
@@ -31,7 +31,7 @@ OpenClaw / QQ bridge ─────────────────┘
 
 图中的“共用”是目标代码边界，不表示 Companion 直接依赖已部署 OpenClaw 目录。迁移期先把经过生产验证的事实、证据和错误语义抽成有版本的宿主无关 package；桌面和 OpenClaw adapter 固定消费同一制品，各自保留 IPC/QQ、身份、呈现和部署职责。OpenClaw 当前实现是迁移验收基线，不是供桌面按路径导入的长期 SDK。
 
-远程频道由独立于 React 窗口生命周期的本地 Channel Gateway 承载。Gateway 统一处理入站信封、可信身份、本地绑定、能力协商、Outbox、回执、重连和健康；具体飞书、微信或其他社媒只实现 adapter。OpenClaw/QQ 可在迁移期作为 bridge 保留，不要求为了新合同立即重写。
+未来接入远程频道时，再按实际频道需求建设独立于 React 窗口生命周期的本地 Channel Gateway，处理入站、身份、连接和回执，并提取共用的 adapter 合同。桌面原型直接使用现有 IPC 和服务；OpenClaw/QQ 继续独立运行。
 
 ## 四个稳定边界
 
@@ -85,7 +85,7 @@ OpenAI-compatible adapter ┼─> Companion Harness ─> typed Warframe tools
 OpenClaw / DSH backend    ┘
 ```
 
-当前只有离线 `warframe-local-rules` backend，用来零费用验证第一条桌面链路。DeepSeek Harness 的 Developer Preview 集成继续是隔离历史实验，不成为第一版硬依赖，也不由单次模型分数决定架构选型。完整边界见 [`AGENT_HARNESS.md`](AGENT_HARNESS.md)。
+当前已有离线 `warframe-local-rules` 和可配置 OpenAI-compatible adapter，支持工具结果回送；真实远程模型的桌面试用尚未完成。DeepSeek Harness 的 Developer Preview 集成继续是隔离历史实验，不成为第一版硬依赖。完整边界见 [`AGENT_HARNESS.md`](AGENT_HARNESS.md)。
 
 ### 4. 渠道呈现
 
@@ -103,11 +103,11 @@ OpenClaw / DSH backend    ┘
 - 事件：先定义最小事件集合，暂不强制引入 AG-UI。
 - 数据：公共静态数据先用版本化 JSON 快照与内存索引；存储藏在类型化服务接口后。只有真实负载需要事务性用户状态、跨表查询、原子增量更新，或实测超过启动内存/延迟预算时才引入 SQLite，详见 [`LOCAL_DATA_LAYER.md`](LOCAL_DATA_LAYER.md)。
 - Agent：Companion 自有 Warframe Harness 承载桌面产品；OpenClaw 保持现有 QQ 生产入口和宿主策略，逐项改为消费同一共享确定性核心；DeepSeek Harness 只保留隔离适配实验。
-- 发布：延续受管构建身份、哈希校验、统一验证和可恢复升级原则。
+- 发布：原型先通过开发启动试用；需要分发时再加入构建身份、安装验收与校验值。
 
 ## 实施顺序
 
-最初的市场、桌面壳、原生卡、Agent 对话和 DeepSeek Harness 旁路评估切片均已有实现，不再作为未来任务重复执行。后续固定顺序为：先补 CI 并审查候选分支，再完成可安装/可追溯发布链，然后用 Market 证明共享核心去重，之后迁移世界状态/裂缝和其他功能。详细入口、退出条件与停切协议以 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) 为准。
+市场服务、桌面壳、市场页、Agent Harness 和 P0 主线整理均已完成。当前沿功能对照表推进桌面原型：D0 核对范围，D1 打通 Agent 行情卡与订单操作，D3 掉落/遗物/获取路线，D4 世界状态/周常/商店，D5 个人数据与决策，D6 愿望单/订阅。D2 的入口、模型使用与追问随功能改善。功能对齐进入当前主线；安装发布、跨仓库去重和多频道网关按实际需求后移，不阻塞功能接入。详细切片见 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)。
 
 ## 当前实现切片
 
