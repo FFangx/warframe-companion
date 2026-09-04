@@ -13,6 +13,7 @@ import {
   parseRankInput,
 } from './market-presentation.js';
 
+import { Icon, OrbitMark } from './Icon.js';
 import { MarketResultCard } from './MarketResultCard.js';
 import { useLayoutPreference } from './use-layout-preference.js';
 import { formatTime } from './format-time.js';
@@ -309,26 +310,26 @@ function AgentView() {
     <aside className="sidebar">
       <button className="sidebar-toggle" aria-label={sidebarExpanded ? '收起导航' : '展开导航'} title={sidebarExpanded ? '收起导航' : '展开导航'} aria-expanded={sidebarExpanded} onClick={() => setSidebarExpanded(!sidebarExpanded)}>{sidebarExpanded ? '‹' : '›'}</button>
       <nav aria-label="主导航">
-        <button title="总览" aria-label="总览" className={`nav-item ${!marketOpen && !detail ? 'nav-item--active' : ''}`} onClick={() => { setView('overview'); setDetail(null); setMarketOpen(false); }}><span aria-hidden="true">⌂</span><b className="nav-label">总览</b></button>
-        {marketPinned ? <button title="市场" aria-label="市场" className={`nav-item ${marketOpen ? 'nav-item--active' : ''}`} onClick={openMarket}><span aria-hidden="true">◇</span><b className="nav-label">市场</b></button> : null}
+        <button title="总览" aria-label="总览" className={`nav-item ${!marketOpen && !detail ? 'nav-item--active' : ''}`} onClick={() => { setView('overview'); setDetail(null); setMarketOpen(false); }}><Icon name="home" /><b className="nav-label">总览</b></button>
+        {marketPinned ? <button title="市场" aria-label="市场" className={`nav-item ${marketOpen ? 'nav-item--active' : ''}`} onClick={openMarket}><Icon name="market" /><b className="nav-label">市场</b></button> : null}
       </nav>
-      <button className="nav-item add-feature" title="添加功能" aria-label="添加功能" onClick={() => setFeaturesOpen(true)}><span aria-hidden="true">＋</span><b className="nav-label">添加功能</b></button>
-      <button className="settings-entry" title="设置" aria-label="设置" onClick={() => setSettingsOpen(true)}><span aria-hidden="true">⚙</span><b className="nav-label">设置</b></button>
+      <button className="nav-item add-feature" title="添加功能" aria-label="添加功能" onClick={() => setFeaturesOpen(true)}><Icon name="plus" /><b className="nav-label">添加功能</b></button>
+      <button className="settings-entry" title="设置" aria-label="设置" onClick={() => setSettingsOpen(true)}><Icon name="settings" /><b className="nav-label">设置</b></button>
     </aside>
     <div className="application-main">
-      <header className="app-toolbar"><span>WARFRAME <b>COMPANION</b></span><button aria-label="助手" aria-expanded={assistantVisible} onClick={toggleAssistant}>◌ 助手 {assistantVisible ? '收起' : '展开'}</button></header>
+      <header className="app-toolbar"><span className="app-wordmark"><Icon name="assistant" /><b>Warframe Companion</b><small>个人工作台</small></span><button aria-label="助手" aria-expanded={assistantVisible} onClick={toggleAssistant}><Icon name="assistant" />助手 {assistantVisible ? '收起' : '展开'}</button></header>
     <div className={`companion-body ${view === 'agent' ? 'companion-body--focused' : ''} ${!assistantOpen ? 'companion-body--closed' : ''}`}>
       <section className="workspace" aria-label="总览与结果" hidden={view === 'agent'}>
         <header className="workspace-bar"><span>{detail ? '行情详情' : marketOpen ? '市场' : '总览'}</span></header>
         <div className="workspace-scroll">
           <div hidden={!!detail || marketOpen}>
-            <header className="overview-heading"><p className="eyebrow">你的星际旅程</p><h1>今天想找些什么？</h1><p>查一件物品，或和助手聊聊。</p></header>
+            <header className="overview-heading"><div><p className="overview-kicker">准备下一次出击</p><h1>今天想找些什么？</h1><p>从一件装备开始，找到值得投入的方向。</p></div><OrbitMark /></header>
             <div className="quick-actions">
-              <button onClick={openMarket}><span>◇</span><strong>查市场价格</strong><small>选物品、平台与等级，直接看行情</small></button>
-              <button onClick={() => draft('Forma Blueprint 哪里掉落？')}><span>⌕</span><strong>找掉落地点</strong><small>在对话中查询任务与掉落概率</small></button>
+              <button onClick={openMarket}><span className="action-icon"><Icon name="market" /></span><div><strong>查市场价格</strong><small>公开挂单与成交行情</small></div><Icon name="arrow" /></button>
+              <button onClick={() => draft('Forma Blueprint 哪里掉落？')}><span className="action-icon"><Icon name="search" /></span><div><strong>找掉落地点</strong><small>任务、地点与掉落概率</small></div><Icon name="arrow" /></button>
             </div>
-            <section className="recent-results"><h2>本次查询</h2>{recent.length ? <div className="recent-list">{recent.map(({ market, prompt }, index) => <button key={index} onClick={() => showDetail(market, prompt)}><strong>{market.result.ok ? market.result.data.item.name.zhHans : market.request.item}</strong><small>{PLATFORM_LABELS[market.request.platform]} · {market.result.ok ? formatTime(market.result.evidence.asOf) : '查询未完成'} →</small></button>)}</div> : <p>查过的行情会留在这里，随时展开查看。</p>}</section>
-            <p className="overview-note">当前可用：市场行情与掉落查询。活动、周常和个人进度将随功能接入出现在总览。</p>
+            <section className="recent-results"><h2>最近查看 <span>本次会话</span></h2>{recent.length ? <div className="recent-list">{recent.map(({ market, prompt }, index) => <button key={index} onClick={() => showDetail(market, prompt)}><strong>{market.result.ok ? market.result.data.item.name.zhHans : market.request.item}</strong><small>{PLATFORM_LABELS[market.request.platform]} · {market.result.ok ? formatTime(market.result.evidence.asOf) : '查询未完成'} →</small></button>)}</div> : <div className="recent-empty"><Icon name="history" /><h3>还没有查询记录</h3><p>从上方选择一个查询，结果会留在这里。</p><button onClick={openMarket}>查询第一件物品 <Icon name="arrow" /></button></div>}</section>
+            <p className="overview-note">活动推荐与个人进度尚未接入。</p>
           </div>
           {marketVisited ? <div hidden={!marketOpen}><button className="back-link" onClick={() => setMarketOpen(false)}>← 返回总览</button><MarketView onResult={recordResult} /></div> : null}
           {detail ? <div><button className="back-link" onClick={() => setDetail(null)}>← 返回总览</button><MarketResultCard result={detail.market.result} request={detail.market.request} onCandidate={(value) => draft(`查询${value}，${PLATFORM_LABELS[detail.market.request.platform]}，${detail.market.request.crossplay ? '跨平台' : '不跨平台'}，${detail.market.request.rank === 'max' ? '满级' : `${detail.market.request.rank}级`}。`)} disabled={running || modelHealth?.status !== 'healthy'} onRetry={() => { runPrompt(detail.prompt); setView('agent'); setAssistantOpen(true); }} /></div> : null}
@@ -340,7 +341,7 @@ function AgentView() {
         {configMessage?.tone === 'bad' ? <button className="connection-notice" onClick={() => setSettingsOpen(true)}>{configMessage.text} · 打开设置</button> : null}
   <section className="agent-layout">
       <div className="conversation" ref={conversation} onScroll={(event) => { const element = event.currentTarget; followLatest.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80; }}>
-        {turns.length === 0 ? <div className="agent-welcome"><div className="radar"><i /><i /><span>◌</span></div><h2>有什么想查的？</h2><p>说出物品名称和你想了解的内容。</p><div className="prompt-chips"><button onClick={() => draft('查一下古纪V3当前行情，PC 跨平台，0级。')}>古纪 V3 多少钱？</button><button onClick={() => draft('Forma Blueprint 哪里掉落？')}>Forma 蓝图哪里刷？</button></div></div> : null}
+        {turns.length === 0 ? <div className="agent-welcome"><div className="assistant-emblem"><Icon name="assistant" /></div><h2>一起找到答案。</h2><p>查行情、找掉落，<br />或说说你正在准备什么。</p><div className="prompt-chips"><button onClick={() => draft('查一下古纪V3当前行情，PC 跨平台，0级。')}><Icon name="market" />古纪 V3 多少钱？<Icon name="arrow" /></button><button onClick={() => draft('Forma Blueprint 哪里掉落？')}><Icon name="search" />Forma 蓝图哪里刷？<Icon name="arrow" /></button></div></div> : null}
         {turns.map((turn) => <article className="chat-turn" key={turn.id}>
           <div className="bubble bubble--user"><span>你</span><p>{turn.user}</p></div>
           <div className="bubble bubble--agent"><span>Agent</span><p>{turn.assistant || '正在处理…'}</p></div>
