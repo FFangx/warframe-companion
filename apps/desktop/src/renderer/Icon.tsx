@@ -1,16 +1,25 @@
-const paths = {
-  home: 'M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z',
-  market: 'm3 17 6-6 4 3 8-10M15 4h6v6M4 21h16',
-  search: 'M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15ZM16 16l5 5',
-  assistant: 'm12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6Z',
-  settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2',
-  plus: 'M12 5v14M5 12h14',
-  arrow: 'M5 12h14m-6-6 6 6-6 6',
-  history: 'M3 11a9 9 0 1 1 2 7M3 4v7h7m2-4v6l4 2',
-} as const;
+import { SquaresFourIcon } from '@phosphor-icons/react/dist/csr/SquaresFour';
+import { TagIcon } from '@phosphor-icons/react/dist/csr/Tag';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { MapPinIcon } from '@phosphor-icons/react/dist/csr/MapPin';
+import { ChatCircleDotsIcon } from '@phosphor-icons/react/dist/csr/ChatCircleDots';
+import { GearSixIcon } from '@phosphor-icons/react/dist/csr/GearSix';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { ClockCounterClockwiseIcon } from '@phosphor-icons/react/dist/csr/ClockCounterClockwise';
+import { CaretLeftIcon } from '@phosphor-icons/react/dist/csr/CaretLeft';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
+import { ArrowClockwiseIcon } from '@phosphor-icons/react/dist/csr/ArrowClockwise';
 
-export function Icon({ name }: { name: keyof typeof paths }) {
-  return <svg className="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
+const icons = { home: SquaresFourIcon, market: TagIcon, search: MagnifyingGlassIcon, drops: MapPinIcon, assistant: ChatCircleDotsIcon, settings: GearSixIcon, plus: PlusIcon, arrow: ArrowRightIcon, history: ClockCounterClockwiseIcon, left: CaretLeftIcon, right: CaretRightIcon, refresh: ArrowClockwiseIcon } as const;
+
+export function Icon({ name, active = false }: { name: keyof typeof icons; active?: boolean }) {
+  const Symbol = icons[name];
+  return <Symbol className="ui-icon" size={20} weight={active ? 'fill' : 'regular'} color="currentColor" aria-hidden="true" focusable="false" />;
+}
+
+export function BrandMark() {
+  return <svg className="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m12 3 3 6 6 3-6 3-3 6-3-6-6-3 6-3Z" /></svg>;
 }
 
 export function OrbitMark() {
