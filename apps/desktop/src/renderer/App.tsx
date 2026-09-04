@@ -25,9 +25,14 @@ function SettingsDialog({ open, onClose, children, title = '设置' }: { open: b
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (open) dialog.current?.showModal();
-    else dialog.current?.close();
+    else if (dialog.current?.open) {
+      const element = dialog.current;
+      const animation = element.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100 });
+      void animation.finished.then(() => element.close()).catch(() => {});
+      return () => animation.cancel();
+    }
   }, [open]);
-  return <dialog ref={dialog} className="settings-dialog" aria-label={title} onCancel={onClose} onClose={onClose}>
+  return <dialog ref={dialog} className="settings-dialog" aria-label={title} onCancel={(event) => { event.preventDefault(); onClose(); }} onClose={onClose}>
     <header className="section-heading"><h2>{title}</h2><button type="button" onClick={onClose} autoFocus>关闭{title}</button></header>
     {children}
   </dialog>;
@@ -45,7 +50,7 @@ function HealthCard({ component }: { component: ComponentHealth }) {
   return (
     <article className="health-card">
       <div className="health-card__topline">
-        <div className="component-mark" aria-hidden="true">{component.label.slice(0, 1)}</div>
+        <Icon name="settings" />
         <span className={`status status--${status.tone}`}><i />{status.label}</span>
       </div>
       <h2>{component.label}</h2>
@@ -77,7 +82,7 @@ function HealthView() {
 
   return <>
     <header className="hero">
-      <div><p className="eyebrow">LOCAL SYSTEM / HEALTH</p><h1>系统健康</h1><p className="hero__copy">一眼确认桌面端、本机集成与公共数据源是否处于可用状态。</p></div>
+      <div><h1>系统健康</h1><p className="hero__copy">一眼确认桌面端、本机集成与公共数据源是否处于可用状态。</p></div>
       <button className="refresh" type="button" onClick={() => void refresh()} disabled={loading}><span className={loading ? 'spin' : ''}><Icon name="refresh" /></span>{loading ? '检查中' : '重新检查'}</button>
     </header>
     {error ? <div className="error-banner" role="alert">{error}</div> : null}
@@ -107,21 +112,21 @@ function MarketView({ onResult }: { onResult: (market: MarketPresentationEvent, 
     const parsedRank = parseRankInput(rank);
     if (!item.trim()) { setFormError('请输入物品名称。'); return; }
     if (parsedRank === null) { setFormError('等级必须是非负整数或 max。'); return; }
-    setLoading(true); setFormError(null); setResult(null);
+    if (loading) return;
+    setLoading(true); setFormError(null);
     const request: MarketQueryRequest = {
       contractVersion: MARKET_QUERY_CONTRACT_VERSION, item: item.trim(), platform, crossplay, rank: parsedRank,
     };
-    setResultRequest(request);
     try {
       const next = await window.warframeCompanion.market.query(request);
-      setResult(next);
+      setResultRequest(request); setResult(next);
       onResult({ type: 'market_result', request, result: next }, `查询${request.item}，${PLATFORM_LABELS[request.platform]}，${request.crossplay ? '跨平台' : '不跨平台'}，${request.rank === 'max' ? '满级' : `${request.rank}级`}。`);
     } catch { setFormError('桌面进程未能完成查询。请检查系统健康后重试。'); }
     finally { setLoading(false); }
   };
 
   return <>
-    <header className="hero market-hero"><div><p className="eyebrow">WARFRAME.MARKET / LIVE SNAPSHOT</p><h1>市场查询</h1><p className="hero__copy">查询公开挂单与 90 日已成交统计。结果只读，不会下单或发送私聊。</p></div><span className="readonly-chip">只读公开数据</span></header>
+    <header className="hero market-hero"><div><h1>市场查询</h1><p className="hero__copy">查询公开挂单与 90 日已成交统计。结果只读，不会下单或发送私聊。</p></div><span className="readonly-chip">只读公开数据</span></header>
     <form className="market-form" onSubmit={(event) => { event.preventDefault(); void query(); }}>
       <label className="field field--item"><span>物品名称</span><input value={item} onChange={(event) => setItem(event.target.value)} placeholder="例如：古纪V3、悟空P、赋能充沛" autoFocus /></label>
       <label className="field"><span>平台</span><select value={platform} onChange={(event) => setPlatform(event.target.value as MarketPlatform)}>{MARKET_PLATFORMS.map((value) => <option value={value} key={value}>{PLATFORM_LABELS[value]}</option>)}</select></label>
@@ -130,8 +135,8 @@ function MarketView({ onResult }: { onResult: (market: MarketPresentationEvent, 
       <button className="query-button" type="submit" disabled={loading}><span className={loading ? 'spin' : ''}><Icon name={loading ? "refresh" : "search"} /></span>{loading ? '正在查询' : '查询行情'}</button>
     </form>
     {formError ? <div className="error-banner" role="alert">{formError}</div> : null}
-    {!result && !loading && !formError ? <section className="market-welcome"><div className="radar"><i /><i /><span><Icon name="search" /></span></div><h2>输入物品，获取可验证行情</h2><p>平台、跨平台范围和等级均由你显式选择；空订单与数据源故障会分别显示。</p></section> : null}
-    {loading ? <section className="market-loading"><div className="scan-line" /><p>正在解析物品并读取当前订单……</p><small>Warframe.Market 公共只读接口</small></section> : null}
+    {!result && !loading && !formError ? <section className="market-welcome"><div className="empty-symbol"><Icon name="market" /></div><h2>先看看它值多少</h2><p>输入中文名、英文名或常用简称，选择平台和等级后查询。</p></section> : null}
+    {loading ? <section className="market-loading" role="status"><span className="spin"><Icon name="refresh" /></span><div><p>正在读取当前订单…</p><small>{result ? '下方暂时保留上次结果，完成后更新。' : '正在匹配物品并连接 Warframe.Market'}</small></div></section> : null}
     {result && resultRequest ? <MarketResultCard result={result} request={resultRequest} onCandidate={(value) => { setItem(value); setResult(null); }} onRetry={() => void query()} disabled={loading} /> : null}
   </>;
 }
@@ -202,6 +207,7 @@ function AgentView() {
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const activeRun = useRef<{ id: string; dispose: () => void } | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
+  const [configBusy, setConfigBusy] = useState(false);
   const [configForm, setConfigForm] = useState<ModelConfigForm>(DEFAULT_MODEL_CONFIG_FORM);
   const [configMessage, setConfigMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
 
@@ -239,7 +245,8 @@ function AgentView() {
   const selectedProfile = models.find((profile) => profile.id === profileId);
 
   const saveModel = async (event: FormEvent) => {
-    event.preventDefault(); setConfigMessage(null);
+    event.preventDefault(); if (configBusy) return; setConfigMessage(null); setConfigBusy(true);
+    try {
     const contextWindow = Number(configForm.contextWindow); const maxOutputTokens = Number(configForm.maxOutputTokens);
     const capabilities: ModelCapabilities = {
       text: true, vision: configForm.vision, nativeTools: configForm.nativeTools, structuredOutput: configForm.structuredOutput,
@@ -256,15 +263,21 @@ function AgentView() {
     };
     const result = await window.warframeCompanion.agent.saveModel(input);
     if (!result.ok) { setConfigMessage({ tone: 'bad', text: `${result.error.code}：${result.error.message}` }); return; }
-    setConfigMessage({ tone: 'good', text: '配置已保存到本机；未保存或显示任何密钥值。' });
+    setConfigMessage({ tone: 'good', text: '模型配置已保存，正在检查连接。' });
     await refreshModels(result.profile.id);
+    } catch { setConfigMessage({ tone: 'bad', text: '保存失败，请检查本机连接后重试。输入的配置已保留。' }); }
+    finally { setConfigBusy(false); }
   };
   const deleteModel = async () => {
-    if (!selectedProfile || selectedProfile.source !== 'local_config' || running) return;
+    if (!selectedProfile || selectedProfile.source !== 'local_config' || running || configBusy) return;
+    setConfigBusy(true);
+    try {
     const result = await window.warframeCompanion.agent.deleteModel(selectedProfile.id);
     if (!result.ok) { setConfigMessage({ tone: 'bad', text: `${result.error.code}：${result.error.message}` }); return; }
-    setConfigMessage({ tone: 'good', text: '本机 profile 已删除；环境变量与模型服务未被修改。' });
+    setConfigMessage({ tone: 'good', text: '已删除本机模型配置。' });
     await refreshModels();
+    } catch { setConfigMessage({ tone: 'bad', text: '未能删除配置，请重试。' }); }
+    finally { setConfigBusy(false); }
   };
 
   const runPrompt = (prompt: string) => {
@@ -323,7 +336,7 @@ function AgentView() {
         <header className="workspace-bar"><span>{detail ? '行情详情' : marketOpen ? '市场' : '总览'}</span></header>
         <div className="workspace-scroll">
           <div hidden={!!detail || marketOpen}>
-            <header className="overview-heading"><div><p className="overview-kicker">准备下一次出击</p><h1>今天想找些什么？</h1><p>从一件装备开始，找到值得投入的方向。</p></div><OrbitMark /></header>
+            <header className="overview-heading"><div><h1>今天想找些什么？</h1><p>从一件装备开始，找到值得投入的方向。</p></div><OrbitMark /></header>
             <div className="quick-actions">
               <button onClick={openMarket}><span className="action-icon"><Icon name="market" /></span><div><strong>查市场价格</strong><small>公开挂单与成交行情</small></div><Icon name="arrow" /></button>
               <button onClick={() => draft('Forma Blueprint 哪里掉落？')}><span className="action-icon"><Icon name="drops" /></span><div><strong>找掉落地点</strong><small>任务、地点与掉落概率</small></div><Icon name="arrow" /></button>
@@ -331,8 +344,8 @@ function AgentView() {
             <section className="recent-results"><h2>最近查看 <span>本次会话</span></h2>{recent.length ? <div className="recent-list">{recent.map(({ market, prompt }, index) => <button key={index} onClick={() => showDetail(market, prompt)}><strong>{market.result.ok ? market.result.data.item.name.zhHans : market.request.item}</strong><small>{PLATFORM_LABELS[market.request.platform]} · {market.result.ok ? formatTime(market.result.evidence.asOf) : '查询未完成'} →</small></button>)}</div> : <div className="recent-empty"><Icon name="history" /><h3>还没有查询记录</h3><p>从上方选择一个查询，结果会留在这里。</p><button onClick={openMarket}>查询第一件物品 <Icon name="arrow" /></button></div>}</section>
             <p className="overview-note">活动推荐与个人进度尚未接入。</p>
           </div>
-          {marketVisited ? <div hidden={!marketOpen}><button className="back-link" onClick={() => setMarketOpen(false)}>← 返回总览</button><MarketView onResult={recordResult} /></div> : null}
-          {detail ? <div><button className="back-link" onClick={() => setDetail(null)}>← 返回总览</button><MarketResultCard result={detail.market.result} request={detail.market.request} onCandidate={(value) => draft(`查询${value}，${PLATFORM_LABELS[detail.market.request.platform]}，${detail.market.request.crossplay ? '跨平台' : '不跨平台'}，${detail.market.request.rank === 'max' ? '满级' : `${detail.market.request.rank}级`}。`)} disabled={running || modelHealth?.status !== 'healthy'} onRetry={() => { runPrompt(detail.prompt); setView('agent'); setAssistantOpen(true); }} /></div> : null}
+          {marketVisited ? <div hidden={!marketOpen}><button className="back-link" onClick={() => setMarketOpen(false)}><Icon name="left" /> 返回总览</button><MarketView onResult={recordResult} /></div> : null}
+          {detail ? <div><button className="back-link" onClick={() => setDetail(null)}><Icon name="left" /> 返回总览</button><MarketResultCard result={detail.market.result} request={detail.market.request} onCandidate={(value) => draft(`查询${value}，${PLATFORM_LABELS[detail.market.request.platform]}，${detail.market.request.crossplay ? '跨平台' : '不跨平台'}，${detail.market.request.rank === 'max' ? '满级' : `${detail.market.request.rank}级`}。`)} disabled={running || modelHealth?.status !== 'healthy'} onRetry={() => { runPrompt(detail.prompt); setView('agent'); setAssistantOpen(true); }} /></div> : null}
         </div>
       </section>
       <div className="agent-view" hidden={view !== 'agent' && !assistantOpen}>
@@ -366,7 +379,7 @@ function AgentView() {
     </SettingsDialog>
     <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}>
     <section className="model-console">
-      <label><span>主 Agent 模型</span><select value={profileId} onChange={(event) => setProfileId(event.target.value)} disabled={running}>{models.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
+      <label><span>助手使用的模型</span><select value={profileId} onChange={(event) => setProfileId(event.target.value)} disabled={running || configBusy}>{models.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
       <div className="model-summary"><strong>{selectedProfile?.model ?? '正在读取 profile'}</strong><small>{selectedProfile?.description}</small></div>
       <div className={`model-health model-health--${modelHealth?.status ?? 'checking'}`}><i />{modelHealth?.status === 'healthy' ? '可运行' : modelHealth?.status === 'incompatible' ? '能力不兼容' : modelHealth?.status === 'unavailable' ? '不可用' : '检查中'}</div>
       {selectedProfile ? <div className="capability-row">
@@ -376,12 +389,12 @@ function AgentView() {
         <span className={selectedProfile.capabilities.vision ? 'capability--on' : ''}>视觉</span>
         <span>{Math.round(selectedProfile.capabilities.contextWindow / 1024)}K 上下文</span>
       </div> : null}
-      <div className="model-actions"><button type="button" onClick={() => setConfigOpen((value) => !value)} disabled={running}>{configOpen ? '收起配置' : '配置本机模型'}</button>{selectedProfile?.source === 'local_config' ? <button className="danger-link" type="button" onClick={() => void deleteModel()} disabled={running}>删除此配置</button> : null}</div>
+      <div className="model-actions"><button type="button" onClick={() => setConfigOpen((value) => !value)} disabled={running || configBusy}>{configOpen ? '收起配置' : '配置本机模型'}</button>{selectedProfile?.source === 'local_config' ? <button className="danger-link" type="button" onClick={() => void deleteModel()} disabled={running || configBusy}>删除此配置</button> : null}</div>
       {modelHealth ? <p className={`compatibility-hint compatibility-hint--${modelHealth.status}`}>{modelHealth.error ? `${modelHealth.error.code} · ` : ''}{modelHealth.summary}{modelHealth.missingCapabilities.length ? ` 缺少：${modelHealth.missingCapabilities.join('、')}` : ''}</p> : null}
     </section>
     {configOpen ? <form className="model-config" onSubmit={(event) => void saveModel(event)}>
-      <div className="model-config__heading"><div><p className="eyebrow">LOCAL PROFILE / KEYLESS CONTRACT</p><h2>OpenAI-compatible 配置</h2></div><p>只保存 Base URL、模型名、能力声明与环境变量名；不会把 key 写入配置。健康检查仅调用 <code>/models</code>，发送消息时才调用 <code>/chat/completions</code>。</p></div>
-      <div className="model-config__grid">
+      <div className="model-config__heading"><div><h2>OpenAI-compatible 配置</h2></div><p>连接兼容 OpenAI 的模型服务。填写服务地址与模型名称，再按服务实际支持情况选择能力。</p></div>
+      <fieldset className="model-config__grid" disabled={configBusy}>
         <label><span>Profile ID</span><input value={configForm.id} onChange={(event) => setConfigForm({ ...configForm, id: event.target.value })} pattern="[a-z0-9][a-z0-9-]{0,79}" required /></label>
         <label><span>显示名称</span><input value={configForm.label} onChange={(event) => setConfigForm({ ...configForm, label: event.target.value })} required /></label>
         <label><span>模型 ID</span><input value={configForm.model} onChange={(event) => setConfigForm({ ...configForm, model: event.target.value })} placeholder="服务端模型名" required /></label>
@@ -389,13 +402,13 @@ function AgentView() {
         <label><span>凭据环境变量名</span><input value={configForm.credentialVariable} onChange={(event) => setConfigForm({ ...configForm, credentialVariable: event.target.value.toUpperCase() })} placeholder="留空 = keyless" pattern="[A-Z_][A-Z0-9_]{0,127}" /><small>这里只填变量名，不填 key 值。</small></label>
         <label><span>上下文窗口</span><input type="number" min="1024" max="2000000" value={configForm.contextWindow} onChange={(event) => setConfigForm({ ...configForm, contextWindow: event.target.value })} required /></label>
         <label><span>最大输出 tokens</span><input type="number" min="64" max="32768" value={configForm.maxOutputTokens} onChange={(event) => setConfigForm({ ...configForm, maxOutputTokens: event.target.value })} required /></label>
-      </div>
-      <fieldset><legend>实际能力声明</legend>{([
+      </fieldset>
+      <fieldset disabled={configBusy}><legend>实际能力声明</legend>{([
         ['nativeTools', '结构化工具调用'], ['structuredOutput', '结构化输出'], ['streaming', 'SSE 流式输出'], ['cancellation', '请求取消'], ['vision', '视觉输入'], ['reasoning', '推理能力'],
       ] as const).map(([key, label]) => <label key={key}><input type="checkbox" checked={configForm[key]} onChange={(event) => setConfigForm({ ...configForm, [key]: event.target.checked })} /><span>{label}</span></label>)}</fieldset>
-      <div className="model-config__footer"><p>桌面 Agent 当前必须具备：文本、结构化工具、结构化输出、取消。未声明的能力会明确标为不兼容；视觉能力不会被推断。</p><button type="submit">保存本机配置</button></div>
-      {configMessage ? <div className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
-    </form> : configMessage ? <div className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
+      <div className="model-config__footer"><p>桌面 Agent 当前必须具备：文本、结构化工具、结构化输出、取消。未声明的能力会明确标为不兼容；视觉能力不会被推断。</p><button type="submit" disabled={configBusy}>{configBusy ? '正在保存…' : '保存本机配置'}</button></div>
+      {configMessage ? <div role={configMessage.tone === 'bad' ? 'alert' : 'status'} className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
+    </form> : configMessage ? <div role={configMessage.tone === 'bad' ? 'alert' : 'status'} className={`config-message config-message--${configMessage.tone}`}>{configMessage.text}</div> : null}
       <details className="health-settings" onToggle={(event) => setHealthOpen(event.currentTarget.open)}><summary>连接与诊断</summary>{healthOpen ? <HealthView /> : null}</details>
     </SettingsDialog>
 
