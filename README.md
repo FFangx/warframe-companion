@@ -12,9 +12,9 @@
 
 当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 41 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
 
-![Warframe Companion：从桌面体验、Agent Harness、类型化工具到只读数据源与评估闭环的一图流](docs/assets/warframe-companion-overview.svg)
+![Warframe Companion：从玩家提问到带证据回答的产品流程](docs/assets/warframe-companion-product-overview.svg)
 
-> **核心设计：** 桌面先进入本地应用边界，直接查询与 Agent 请求复用确定性服务；Harness 控制可信策略与工具执行。实线表示已实现调用，虚线表示计划接入，外部所有权另行标注。个人快照仅完成权限与脱敏合同，真实数据源尚未接入；Channel Gateway 与跨宿主共享核心仍是目标。
+> **核心体验：** 玩家用自然语言提问，Agent 选择类型化工具，确定性服务读取只读数据，并返回带来源、时间和新鲜度的答案。[查看技术架构与实现边界](docs/ARCHITECTURE.md)。
 
 桌面 Agent 的稳定核心现由 Companion 自有的 Warframe Harness 承载：`ModelProfile`、`ModelAdapter`、能力/健康门禁、可信策略、工具执行、取消/超时和轨迹。除两个零费用本地规则 profile 外，桌面现可保存本机 OpenAI-compatible profile：只持久化 Base URL、模型名、能力声明和凭据环境变量引用，不保存 key；适配器支持 `/models` 健康检查、Chat Completions 结构化工具、SSE、取消与稳定错误分类。支持工具结果回送的 adapter 在每次工具执行后收到脱敏结果摘要，用文本回答或内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态——事实、证据、身份、拒绝与延迟永远由 Harness 决定，第二轮故障回落确定性回答。未经用户主动配置和发送，不调用远程模型。详见 [`docs/AGENT_HARNESS.md`](docs/AGENT_HARNESS.md)。
 
