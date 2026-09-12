@@ -52,7 +52,7 @@
   <path class="line" d="M230 372 V438"/>
   <text class="small" x="245" y="409">Agent request</text>
   <path class="line" d="M555 372 V401 H745 V438"/>
-  <text class="small" x="590" y="423">Direct market query</text>
+  <text class="small" x="645" y="423" text-anchor="middle">Direct market query</text>
   <rect class="box" x="40" y="438" width="385" height="240"/>
   <text class="label" x="58" y="463">IMPLEMENTED · AGENT-RUNTIME</text>
   <text class="name" x="58" y="491">Companion Agent Harness</text>
