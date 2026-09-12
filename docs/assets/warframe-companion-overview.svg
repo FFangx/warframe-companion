@@ -1,226 +1,104 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
-  <title id="title">Warframe Companion system overview</title>
-  <desc id="desc">A left-to-right overview of the desktop experience, Companion-owned agent harness, typed tools, read-only data sources, and the evidence and evaluation loop.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1030" viewBox="0 0 1000 1030" role="img" aria-labelledby="title desc">
+  <title id="title">Warframe Companion — architecture and implementation boundaries</title>
+  <desc id="desc">Desktop requests enter the local application boundary through typed preload IPC. Direct queries call deterministic services; Agent requests enter the Companion Harness, which uses model adapters and calls the same services. Services return facts, evidence and classified errors from read-only public sources. The account.snapshot permission and redaction contract is implemented in agent-runtime, but its live local data adapter is not connected. Remote channels would enter through a planned Channel Gateway and shared application interface. OpenClaw and QQ currently run separately. Cross-host shared-core migration, subscriptions and personal-data integration remain targets. Evaluation consumes Harness traces outside the user request path. Solid connectors indicate implemented calls; dashed connectors indicate planned integration. External ownership is labelled separately.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07111F"/>
-      <stop offset="0.55" stop-color="#0B1727"/>
-      <stop offset="1" stop-color="#111C2D"/>
-    </linearGradient>
-    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#172A46"/>
-      <stop offset="1" stop-color="#102237"/>
-    </linearGradient>
-    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0E7490"/>
-      <stop offset="1" stop-color="#155E75"/>
-    </linearGradient>
-    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6D4BD1"/>
-      <stop offset="1" stop-color="#4935A5"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000814" flood-opacity="0.36"/>
-    </filter>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#38BDF8"/>
-    </marker>
-    <marker id="arrowMuted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#71829A"/>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 8 4 0 8Z" fill="#455665"/>
     </marker>
     <style>
-      text { font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif; }
-      .eyebrow { fill: #67E8F9; font-size: 14px; font-weight: 700; letter-spacing: 2.4px; }
-      .title { fill: #F8FAFC; font-size: 38px; font-weight: 760; letter-spacing: -0.8px; }
-      .subtitle { fill: #9FB0C5; font-size: 17px; }
-      .lane { fill: #7DD3FC; font-size: 13px; font-weight: 760; letter-spacing: 1.7px; }
-      .card-title { fill: #F8FAFC; font-size: 21px; font-weight: 720; }
-      .card-subtitle { fill: #BAE6FD; font-size: 14px; font-weight: 650; }
-      .body { fill: #AEBED0; font-size: 15px; }
-      .small { fill: #91A4BA; font-size: 13px; }
-      .mono { fill: #DDF6FF; font-family: "Cascadia Code", Consolas, monospace; font-size: 14px; }
-      .metric { fill: #F8FAFC; font-size: 20px; font-weight: 760; }
-      .metric-label { fill: #96A8BC; font-size: 12px; }
-      .flow-label { fill: #7DD3FC; font-size: 12px; font-weight: 650; }
+      text { font-family: "Segoe UI", Arial, sans-serif; fill: #23313d; font-size: 17px; }
+      .heading { font-size: 26px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .small { font-size: 15px; fill: #52616c; }
+      .label { font-size: 14px; fill: #52616c; font-weight: 600; letter-spacing: .5px; }
+      .box { fill: #fff; stroke: #71808b; stroke-width: 1.5; }
+      .planned { fill: #fafbfc; stroke: #71808b; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .line { fill: none; stroke: #455665; stroke-width: 1.6; marker-end: url(#arrow); }
+      .future { stroke-dasharray: 6 5; }
+      .rule { stroke: #d6dde2; stroke-width: 1; }
     </style>
   </defs>
+  <rect width="1000" height="1030" fill="#fff"/>
+  <text class="heading" x="40" y="46">Warframe Companion</text>
+  <text x="40" y="75">Local-first architecture · current slices and target boundaries</text>
 
-  <rect width="1440" height="900" fill="url(#bg)"/>
-  <circle cx="1280" cy="-40" r="310" fill="#0E7490" opacity="0.08"/>
-  <circle cx="50" cy="900" r="330" fill="#6D4BD1" opacity="0.07"/>
-  <path d="M0 174 H1440" stroke="#23364C" stroke-width="1"/>
+  <!-- External ownership and implementation status are independent. -->
+  <rect class="box" x="40" y="110" width="560" height="100"/>
+  <text class="label" x="58" y="134">IMPLEMENTED · WINDOWS DESKTOP</text>
+  <text class="name" x="58" y="162">Electron / React</text>
+  <text x="58" y="190">Market page · Agent conversation · health · model profiles</text>
+  <rect class="box" x="670" y="110" width="290" height="100"/>
+  <text class="label" x="688" y="134">EXTERNAL · SEPARATE RUNTIME</text>
+  <text class="name" x="688" y="162">OpenClaw / QQ</text>
+  <text class="small" x="688" y="190">Current remote production entry</text>
+  <path class="line" d="M230 210 V260"/>
+  <text class="small" x="245" y="239">Typed preload IPC / events</text>
+  <path class="line future" d="M815 210 V260"/>
+  <text class="small" x="830" y="239">Bridge</text>
 
-  <g transform="translate(70 58)">
-    <text class="eyebrow" x="0" y="0">SYSTEM OVERVIEW · 当前公开实现</text>
-    <text class="title" x="0" y="51">Warframe Companion</text>
-    <text class="subtitle" x="0" y="84">Windows 本地优先 · 只读数据访问 · Agent 负责选择工具，确定性服务负责提供事实</text>
-  </g>
-  <g transform="translate(1118 62)">
-    <rect width="252" height="58" rx="18" fill="#102C32" stroke="#1E6B70"/>
-    <circle cx="30" cy="29" r="7" fill="#34D399"/>
-    <text x="50" y="25" fill="#D1FAE5" font-size="13" font-weight="700">SAFE BY DEFAULT</text>
-    <text x="50" y="43" fill="#8FB7B0" font-size="12">No game / trade automation</text>
-  </g>
+  <rect class="box" x="40" y="260" width="560" height="112"/>
+  <text class="label" x="58" y="284">IMPLEMENTED SLICE · ELECTRON MAIN PROCESS</text>
+  <text class="name" x="58" y="312">Local application boundary</text>
+  <text x="58" y="338">Request validation · trusted context · service composition</text>
+  <text class="small" x="58" y="359">Health probes check availability; they do not import account data.</text>
+  <rect class="planned" x="670" y="260" width="290" height="112"/>
+  <text class="label" x="688" y="284">TARGET · CHANNEL ADAPTERS</text>
+  <text class="name" x="688" y="312">Local Channel Gateway</text>
+  <text class="small" x="688" y="338">Binding · trusted identity · Outbox</text>
+  <text class="small" x="688" y="359">Window-independent lifecycle</text>
+  <path class="line future" d="M670 317 H600"/>
 
-  <!-- column labels -->
-  <text class="lane" x="70" y="213">01 · EXPERIENCE</text>
-  <text class="lane" x="373" y="213">02 · COMPANION CONTROL PLANE</text>
-  <text class="lane" x="748" y="213">03 · TYPED TOOLS</text>
-  <text class="lane" x="1093" y="213">04 · READ-ONLY SOURCES</text>
+  <!-- Application composition branches into direct and Agent requests. -->
+  <path class="line" d="M230 372 V438"/>
+  <text class="small" x="245" y="409">Agent request</text>
+  <path class="line" d="M555 372 V401 H745 V438"/>
+  <text class="small" x="615" y="423">Direct market query</text>
+  <rect class="box" x="40" y="438" width="385" height="240"/>
+  <text class="label" x="58" y="463">IMPLEMENTED · AGENT-RUNTIME</text>
+  <text class="name" x="58" y="491">Companion Agent Harness</text>
+  <text x="58" y="521">Policy / capability gates · Agent loop</text>
+  <text x="58" y="548">Tool execution · cancellation · timeout</text>
+  <path class="rule" d="M58 565 H407"/>
+  <text x="58" y="590">ModelProfile → ModelAdapter</text>
+  <text class="small" x="58" y="615">Local rules / OpenAI-compatible provider</text>
+  <text class="small" x="58" y="640">Redacted tool-result round trips</text>
+  <text class="small" x="58" y="661">Remote use requires user configuration.</text>
+  <path class="line" d="M425 511 H535"/>
+  <text class="small" x="480" y="484" text-anchor="middle">Typed tools</text>
+  <path class="line" d="M535 566 H425"/>
+  <text class="small" x="480" y="590" text-anchor="middle">Results</text>
 
-  <!-- experience -->
-  <g transform="translate(70 238)" filter="url(#shadow)">
-    <rect width="250" height="252" rx="22" fill="#111F31" stroke="#2B4058"/>
-    <rect x="20" y="20" width="52" height="52" rx="15" fill="url(#cyan)"/>
-    <rect x="32" y="32" width="28" height="20" rx="3" fill="none" stroke="#CFFAFE" stroke-width="2"/>
-    <path d="M39 59 H53" stroke="#CFFAFE" stroke-width="2" stroke-linecap="round"/>
-    <text class="card-title" x="20" y="99">Windows Desktop</text>
-    <text class="card-subtitle" x="20" y="124">Electron · React · TypeScript</text>
-    <path d="M20 145 H230" stroke="#294057"/>
-    <text class="body" x="20" y="172">Agent 对话与流式事件</text>
-    <text class="body" x="20" y="200">原生查询卡与证据展开</text>
-    <text class="body" x="20" y="228">系统健康与模型配置</text>
-  </g>
-  <g transform="translate(70 512)">
-    <rect width="250" height="94" rx="18" fill="#0D1928" stroke="#516174" stroke-dasharray="6 5"/>
-    <text x="20" y="30" fill="#D7E1EC" font-size="15" font-weight="700">Remote Channels</text>
-    <text class="small" x="20" y="54">QQ / OpenClaw + future adapters</text>
-    <text class="small" x="20" y="75">Channel Adapter → Local Gateway</text>
-  </g>
+  <rect class="box" x="535" y="438" width="425" height="240"/>
+  <text class="label" x="553" y="463">IMPLEMENTED · DETERMINISTIC SERVICES</text>
+  <text class="name" x="553" y="491">Warframe facts and evidence</text>
+  <text x="553" y="521">market.query · drops.search</text>
+  <text x="553" y="548">Validation · resolution · source / cache policy</text>
+  <text x="553" y="575">Typed data · evidence · classified errors</text>
+  <path class="rule" d="M553 591 H942"/>
+  <text class="label" x="553" y="615">PARTIAL · ACCOUNT.SNAPSHOT</text>
+  <text class="small" x="553" y="639">Permission / redaction contract in agent-runtime;</text>
+  <text class="small" x="553" y="662">live personal-snapshot adapter not connected.</text>
+  <path class="line" d="M230 678 V732"/>
+  <text class="small" x="245" y="711">AgentTrace</text>
+  <path class="line" d="M745 678 V732"/>
+  <text class="small" x="760" y="711">Read-only fetch</text>
+  <rect class="box" x="40" y="732" width="385" height="96"/>
+  <text class="label" x="58" y="757">IMPLEMENTED · OFFLINE VERIFICATION</text>
+  <text x="58" y="784">41 synthetic / redacted evaluation cases</text>
+  <text class="small" x="58" y="809">Harness traces → deterministic scoring</text>
+  <rect class="box" x="535" y="732" width="425" height="96"/>
+  <text class="label" x="553" y="757">EXTERNAL · PUBLIC DATA SOURCES</text>
+  <text x="553" y="784">Warframe.Market · WFCD drop snapshots</text>
+  <text class="small" x="553" y="809">WFCD: validated JSON cache + in-memory index</text>
 
-  <!-- control plane -->
-  <g transform="translate(373 238)" filter="url(#shadow)">
-    <rect width="322" height="368" rx="22" fill="url(#hero)" stroke="#2E5C85" stroke-width="1.4"/>
-    <text class="card-title" x="24" y="42">Warframe Agent Harness</text>
-    <text class="card-subtitle" x="24" y="67">Companion-owned orchestration</text>
-
-    <g transform="translate(24 91)">
-      <rect width="274" height="56" rx="13" fill="#0D1A2A" stroke="#2F516E"/>
-      <circle cx="23" cy="28" r="6" fill="#38BDF8"/>
-      <text x="42" y="25" fill="#E5F6FF" font-size="15" font-weight="700">Capability + policy gate</text>
-      <text class="small" x="42" y="43">身份、健康、权限与只读边界</text>
-    </g>
-    <g transform="translate(24 158)">
-      <rect width="274" height="56" rx="13" fill="#0D1A2A" stroke="#2F516E"/>
-      <circle cx="23" cy="28" r="6" fill="#A78BFA"/>
-      <text x="42" y="25" fill="#F1ECFF" font-size="15" font-weight="700">Model adapter + agent loop</text>
-      <text class="small" x="42" y="43">local rules / OpenAI-compatible</text>
-    </g>
-    <g transform="translate(24 225)">
-      <rect width="274" height="56" rx="13" fill="#0D1A2A" stroke="#2F516E"/>
-      <circle cx="23" cy="28" r="6" fill="#34D399"/>
-      <text x="42" y="25" fill="#E5FFF5" font-size="15" font-weight="700">Execution controls</text>
-      <text class="small" x="42" y="43">tool limit · timeout · cancellation</text>
-    </g>
-    <g transform="translate(24 292)">
-      <rect width="274" height="52" rx="13" fill="#102C32" stroke="#1F6A70"/>
-      <text x="18" y="23" fill="#CFFAFE" font-size="14" font-weight="700">Harness decides the final boundary</text>
-      <text x="18" y="41" fill="#8FB7B0" font-size="12">facts · refusal · evidence · conclusion</text>
-    </g>
-  </g>
-
-  <!-- typed tools -->
-  <g transform="translate(748 238)" filter="url(#shadow)">
-    <rect width="292" height="368" rx="22" fill="#101E2F" stroke="#2B4058"/>
-    <text class="card-title" x="22" y="42">Local Application Service</text>
-    <text class="card-subtitle" x="22" y="67">Stable contracts, not CLI text</text>
-    <g transform="translate(22 91)">
-      <rect width="248" height="40" rx="11" fill="url(#cyan)"/>
-      <text class="mono" x="18" y="26">market.query(...)</text>
-    </g>
-    <g transform="translate(22 142)">
-      <rect width="248" height="40" rx="11" fill="url(#cyan)"/>
-      <text class="mono" x="18" y="26">drops.search(...)</text>
-    </g>
-    <g transform="translate(22 193)">
-      <rect width="248" height="40" rx="11" fill="#163C48" stroke="#25677A"/>
-      <text class="mono" x="18" y="26">account.getSnapshot()</text>
-    </g>
-    <g transform="translate(22 244)">
-      <rect width="248" height="40" rx="11" fill="#163C48" stroke="#25677A"/>
-      <text class="mono" x="18" y="26">system.getHealth()</text>
-    </g>
-    <g transform="translate(22 296)">
-      <rect width="248" height="48" rx="12" fill="#101A29" stroke="#3A5068"/>
-      <text x="17" y="21" fill="#E0F2FE" font-size="14" font-weight="700">ToolResult&lt;T&gt;</text>
-      <text class="small" x="17" y="39">data · evidence · presentation · warnings</text>
-    </g>
-  </g>
-
-  <!-- sources -->
-  <g transform="translate(1093 238)" filter="url(#shadow)">
-    <rect width="277" height="368" rx="22" fill="#101E2F" stroke="#2B4058"/>
-    <text class="card-title" x="22" y="42">Deterministic data layer</text>
-    <text class="card-subtitle" x="22" y="67">Freshness and failure stay explicit</text>
-    <g transform="translate(22 91)">
-      <rect width="233" height="68" rx="13" fill="#0D1A2A" stroke="#2F516E"/>
-      <text x="17" y="27" fill="#F8FAFC" font-size="15" font-weight="700">Warframe.Market v2</text>
-      <text class="small" x="17" y="49">实时只读市场适配器</text>
-    </g>
-    <g transform="translate(22 171)">
-      <rect width="233" height="84" rx="13" fill="#0D1A2A" stroke="#2F516E"/>
-      <text x="17" y="27" fill="#F8FAFC" font-size="15" font-weight="700">WFCD public drops</text>
-      <text class="small" x="17" y="49">版本化快照 + 原子缓存</text>
-      <text class="small" x="17" y="68">jsDelivr ↔ GitHub Raw 对照</text>
-    </g>
-    <g transform="translate(22 267)">
-      <rect width="233" height="77" rx="13" fill="#0D1A2A" stroke="#2F516E"/>
-      <text x="17" y="27" fill="#F8FAFC" font-size="15" font-weight="700">AlecaFrame + health</text>
-      <text class="small" x="17" y="49">脱敏快照 · 构建与依赖状态</text>
-    </g>
-  </g>
-
-  <!-- arrows -->
-  <path d="M320 364 H357" stroke="#38BDF8" stroke-width="2.2" marker-end="url(#arrow)"/>
-  <text class="flow-label" x="323" y="351">IPC</text>
-  <path d="M695 364 H732" stroke="#38BDF8" stroke-width="2.2" marker-end="url(#arrow)"/>
-  <text class="flow-label" x="696" y="351">CALL</text>
-  <path d="M1040 364 H1077" stroke="#38BDF8" stroke-width="2.2" marker-end="url(#arrow)"/>
-  <text class="flow-label" x="1042" y="351">READ</text>
-  <path d="M1093 461 H1056" stroke="#71829A" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrowMuted)"/>
-  <text x="1052" y="449" text-anchor="end" fill="#8296AD" font-size="11">EVIDENCE</text>
-  <path d="M320 559 H357" fill="none" stroke="#71829A" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#arrowMuted)"/>
-
-  <!-- assurance loop -->
-  <g transform="translate(70 657)">
-    <rect width="1300" height="166" rx="24" fill="#0B1726" stroke="#2B4058"/>
-    <text class="lane" x="22" y="31">05 · EVIDENCE &amp; REGRESSION LOOP</text>
-    <text x="22" y="61" fill="#DDEAF5" font-size="16" font-weight="680">每一次执行都留下可判分轨迹；模型输出不能覆盖工具事实</text>
-
-    <g transform="translate(22 83)">
-      <rect width="214" height="58" rx="14" fill="#132338" stroke="#304B68"/>
-      <text class="metric" x="18" y="26">41</text>
-      <text class="metric-label" x="18" y="45">SYNTHETIC / REDACTED CASES</text>
-    </g>
-    <path d="M248 112 H293" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrow)"/>
-    <g transform="translate(307 83)">
-      <rect width="246" height="58" rx="14" fill="#132338" stroke="#304B68"/>
-      <text x="18" y="25" fill="#F8FAFC" font-size="16" font-weight="700">AgentTrace</text>
-      <text class="small" x="18" y="44">calls · result · latency · conclusion</text>
-    </g>
-    <path d="M565 112 H610" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrow)"/>
-    <g transform="translate(624 83)">
-      <rect width="308" height="58" rx="14" fill="#132338" stroke="#304B68"/>
-      <text x="18" y="25" fill="#F8FAFC" font-size="16" font-weight="700">Deterministic scorer</text>
-      <text class="small" x="18" y="44">tool choice · facts · evidence · safety</text>
-    </g>
-    <path d="M944 112 H989" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrow)"/>
-    <g transform="translate(1003 83)">
-      <rect width="275" height="58" rx="14" fill="url(#violet)"/>
-      <text x="18" y="25" fill="#FFFFFF" font-size="16" font-weight="700">Regression baseline</text>
-      <text x="18" y="44" fill="#DDD6FE" font-size="13">shared contract across adapters</text>
-    </g>
-  </g>
-
-  <!-- trace downlink -->
-  <path d="M534 606 V638 Q534 646 526 646 H434 Q426 646 426 654" fill="none" stroke="#A78BFA" stroke-width="2" marker-end="url(#arrow)"/>
-  <text x="547" y="632" fill="#B9A7F8" font-size="12" font-weight="650">TRACE</text>
-
-  <g transform="translate(70 858)">
-    <circle cx="6" cy="0" r="5" fill="#38BDF8"/>
-    <text class="small" x="18" y="5">实线：当前仓库已实现</text>
-    <line x1="184" y1="0" x2="218" y2="0" stroke="#71829A" stroke-width="2" stroke-dasharray="5 4"/>
-    <text class="small" x="230" y="5">虚线：独立仓库 / 外部边界</text>
-    <text x="1300" y="5" text-anchor="end" fill="#62768D" font-size="12">Architecture scope · 2026-09</text>
-  </g>
+  <path class="rule" d="M40 858 H960"/>
+  <text class="label" x="40" y="885">TARGET SHARED CORE · MIGRATION STILL REQUIRED</text>
+  <text x="40" y="912">Desktop + Gateway → shared application interface → versioned deterministic core</text>
+  <text class="small" x="40" y="937">OpenClaw will consume the same package artifact. No deployed-runtime path imports.</text>
+  <text class="small" x="40" y="959">World state, subscriptions and live account data remain targets; DSH is an isolated experiment.</text>
+  <path class="line" d="M40 995 H76"/>
+  <text class="small" x="88" y="1000">Implemented call</text>
+  <path class="line future" d="M275 995 H311"/>
+  <text class="small" x="323" y="1000">Planned integration</text>
+  <text class="small" x="960" y="1000" text-anchor="end">Source / CI stage · no accepted Windows installer</text>
 </svg>
