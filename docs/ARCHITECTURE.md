@@ -4,7 +4,7 @@
 
 ## 总体结构
 
-![Warframe Companion 技术架构与实现边界](assets/warframe-companion-overview.svg)
+![Warframe Companion 技术架构与实现边界](assets/warframe-companion-architecture-black-gold.svg)
 
 ```text
 ┌─────────────────────────────────────────────────────┐
