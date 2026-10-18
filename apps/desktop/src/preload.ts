@@ -3,6 +3,12 @@ import type { MarketQueryRequest, MarketQueryResult } from '@warframe-companion/
 import type { SystemHealthSnapshot } from './system-health.js';
 import type { ModelHealth, ModelProfile, OpenAICompatibleProfileInput } from '@warframe-companion/agent-runtime';
 import type { DesktopAgentEvent, DesktopAgentRequest } from './agent-presentation.js';
+import type {
+  MarketQueryResultEnvelope,
+  OrderActionRequest,
+  OrderCopyResult,
+  OrderPreviewResult,
+} from './market-order-actions.js';
 import { subscribeAgentRun } from './agent-subscription.js';
 
 contextBridge.exposeInMainWorld('warframeCompanion', {
@@ -10,7 +16,9 @@ contextBridge.exposeInMainWorld('warframeCompanion', {
     getHealth: (): Promise<SystemHealthSnapshot> => ipcRenderer.invoke('system:get-health'),
   },
   market: {
-    query: (request: MarketQueryRequest): Promise<MarketQueryResult> => ipcRenderer.invoke('market:query', request),
+    query: (request: MarketQueryRequest): Promise<MarketQueryResultEnvelope> => ipcRenderer.invoke('market:query', request),
+    previewOrder: (input: OrderActionRequest): Promise<OrderPreviewResult> => ipcRenderer.invoke('market:order-preview', input),
+    copyOrder: (input: OrderActionRequest): Promise<OrderCopyResult> => ipcRenderer.invoke('market:order-copy', input),
   },
   agent: {
     listModels: (): Promise<{ profiles: ModelProfile[]; configError?: { code: string; message: string } }> => ipcRenderer.invoke('agent:list-models'),

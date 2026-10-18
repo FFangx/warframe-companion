@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, clipboard, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
 import { createWarframeMarketQueryService } from '@warframe-companion/market-query-service';
 import { createWarframeDataService } from '@warframe-companion/warframe-data-service';
@@ -14,6 +14,8 @@ import {
 } from '@warframe-companion/agent-runtime';
 import { getSystemHealth } from './system-health.js';
 import { withMarketPresentation, type DesktopAgentEvent } from './agent-presentation.js';
+import { createMarketSnapshotRegistry, performOrderCopy, presetOrderPreview } from './market-order-actions.js';
+import type { MarketQueryRequest } from '@warframe-companion/market-query-contract';
 import {
   MODEL_PROFILE_STORE_FILE,
   ModelProfileStoreError,
@@ -31,6 +33,7 @@ const openAICompatibleAdapter = createOpenAICompatibleAdapter();
 const modelAdapters: readonly ModelAdapter[] = [localRulesModelAdapter, openAICompatibleAdapter];
 
 const activeAgentRuns = new Map<string, AbortController>();
+const marketSnapshots = createMarketSnapshotRegistry();
 
 function modelStorePath(): string { return path.join(app.getPath('userData'), 'config', MODEL_PROFILE_STORE_FILE); }
 async function modelSnapshot(): Promise<{ profiles: ModelProfile[]; configError?: { code: string; message: string } }> {
@@ -98,7 +101,19 @@ app.whenReady().then(() => {
   });
   Menu.setApplicationMenu(null);
   ipcMain.handle('system:get-health', systemHealth);
-  ipcMain.handle('market:query', (_event, request: unknown) => marketQueryService.query(request));
+  ipcMain.handle('market:query', async (_event, request: unknown) => {
+    const result = await marketQueryService.query(request);
+    // The service only returns ok:true for requests that passed contract validation.
+    const snapshotId = result.ok ? marketSnapshots.register(request as MarketQueryRequest, result) : null;
+    return { snapshotId, result };
+  });
+  ipcMain.handle('market:order-preview', (_event, input: unknown) => presetOrderPreview(marketSnapshots, input));
+  ipcMain.handle('market:order-copy', (_event, input: unknown) => performOrderCopy(
+    marketSnapshots,
+    input,
+    Date.now(),
+    (text) => clipboard.writeText(text),
+  ));
   ipcMain.handle('agent:list-models', modelSnapshot);
   ipcMain.handle('agent:save-model', async (_event, input: unknown) => {
     try {
@@ -143,7 +158,12 @@ app.whenReady().then(() => {
       ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
       context: { channel: 'desktop', trustedOwner: true, now: new Date().toISOString() },
     }, {
-      marketQuery: withMarketPresentation((request) => marketQueryService.query(request), send, controller.signal),
+      marketQuery: withMarketPresentation(
+        (request) => marketQueryService.query(request),
+        send,
+        controller.signal,
+        (request, result) => marketSnapshots.register(request, result),
+      ),
       searchDrops: (request) => warframeDataService.searchDrops(request),
       onEvent: send,
       signal: controller.signal,

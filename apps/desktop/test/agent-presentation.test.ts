@@ -25,15 +25,25 @@ describe('desktop-only market presentation', () => {
     expect(present).toHaveBeenCalledTimes(1);
     expect(present.mock.calls[0]?.[0].result).toEqual(MOCK_MARKET_QUERY_SUCCESS);
     expect(present.mock.calls[0]?.[0].request).toEqual(query.mock.calls[0]?.[0]);
+    expect(present.mock.calls[0]?.[0].snapshotId).toBeNull();
     expect(JSON.stringify({ output, events })).not.toContain('SyntheticTenno');
     expect(output.trace.terminalReason).not.toBe('error');
+  });
+
+  it('attaches the main-process snapshot id to the desktop presentation event', async () => {
+    const present = vi.fn();
+    const register = vi.fn(() => 'snap-synthetic-1');
+    const query = withMarketPresentation(async () => MOCK_MARKET_QUERY_SUCCESS, present, new AbortController().signal, register);
+    await query(MOCK_MARKET_QUERY_REQUEST);
+    expect(register).toHaveBeenCalledWith(MOCK_MARKET_QUERY_REQUEST, MOCK_MARKET_QUERY_SUCCESS);
+    expect(present.mock.calls[0]?.[0]).toMatchObject({ type: 'market_result', snapshotId: 'snap-synthetic-1' });
   });
 
   it.each([MOCK_MARKET_QUERY_NO_ORDERS, MOCK_MARKET_QUERY_FAILURES.unavailable])('preserves empty vs failed results', async (result) => {
     const present = vi.fn();
     const query = withMarketPresentation(async () => result, present, new AbortController().signal);
     expect(await query(MOCK_MARKET_QUERY_REQUEST)).toBe(result);
-    expect(present).toHaveBeenCalledWith({ type: 'market_result', request: MOCK_MARKET_QUERY_REQUEST, result });
+    expect(present).toHaveBeenCalledWith({ type: 'market_result', snapshotId: null, request: MOCK_MARKET_QUERY_REQUEST, result });
   });
 
   it('drops a late presentation when its run has ended or been cancelled', async () => {

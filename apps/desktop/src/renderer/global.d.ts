@@ -1,7 +1,13 @@
 import type { SystemHealthSnapshot } from '../system-health.js';
-import type { MarketQueryRequest, MarketQueryResult } from '@warframe-companion/market-query-contract';
+import type { MarketQueryRequest } from '@warframe-companion/market-query-contract';
 import type { ModelHealth, ModelProfile, OpenAICompatibleProfileInput } from '@warframe-companion/agent-runtime';
 import type { DesktopAgentEvent, DesktopAgentRequest } from '../agent-presentation.js';
+import type {
+  MarketQueryResultEnvelope,
+  OrderActionRequest,
+  OrderCopyResult,
+  OrderPreviewResult,
+} from '../market-order-actions.js';
 
 declare global {
   interface Window {
@@ -10,7 +16,9 @@ declare global {
         getHealth(): Promise<SystemHealthSnapshot>;
       };
       market: {
-        query(request: MarketQueryRequest): Promise<MarketQueryResult>;
+        query(request: MarketQueryRequest): Promise<MarketQueryResultEnvelope>;
+        previewOrder(input: OrderActionRequest): Promise<OrderPreviewResult>;
+        copyOrder(input: OrderActionRequest): Promise<OrderCopyResult>;
       };
       agent: {
         listModels(): Promise<{ profiles: ModelProfile[]; configError?: { code: string; message: string } }>;

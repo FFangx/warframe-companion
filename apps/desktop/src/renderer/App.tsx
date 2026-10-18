@@ -105,29 +105,39 @@ function MarketView({ onResult }: { onResult: (market: MarketPresentationEvent, 
   const [rank, setRank] = useState('0');
   const [result, setResult] = useState<MarketQueryResult | null>(null);
   const [resultRequest, setResultRequest] = useState<MarketQueryRequest | null>(null);
+  const [snapshotId, setSnapshotId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const query = async () => {
-    const parsedRank = parseRankInput(rank);
-    if (!item.trim()) { setFormError('请输入物品名称。'); return; }
-    if (parsedRank === null) { setFormError('等级必须是非负整数或 max。'); return; }
+  const performQuery = async (request: MarketQueryRequest, record: boolean) => {
     if (loading) return;
     setLoading(true); setFormError(null);
-    const request: MarketQueryRequest = {
-      contractVersion: MARKET_QUERY_CONTRACT_VERSION, item: item.trim(), platform, crossplay, rank: parsedRank,
-    };
     try {
-      const next = await window.warframeCompanion.market.query(request);
-      setResultRequest(request); setResult(next);
-      onResult({ type: 'market_result', request, result: next }, `查询${request.item}，${PLATFORM_LABELS[request.platform]}，${request.crossplay ? '跨平台' : '不跨平台'}，${request.rank === 'max' ? '满级' : `${request.rank}级`}。`);
+      const envelope = await window.warframeCompanion.market.query(request);
+      setResultRequest(request); setResult(envelope.result); setSnapshotId(envelope.snapshotId);
+      if (record) onResult({ type: 'market_result', snapshotId: envelope.snapshotId, request, result: envelope.result }, `查询${request.item}，${PLATFORM_LABELS[request.platform]}，${request.crossplay ? '跨平台' : '不跨平台'}，${request.rank === 'max' ? '满级' : `${request.rank}级`}。`);
     } catch { setFormError('桌面进程未能完成查询。请检查系统健康后重试。'); }
     finally { setLoading(false); }
   };
 
+  const query = () => {
+    const parsedRank = parseRankInput(rank);
+    if (!item.trim()) { setFormError('请输入物品名称。'); return; }
+    if (parsedRank === null) { setFormError('等级必须是非负整数或 max。'); return; }
+    const request: MarketQueryRequest = {
+      contractVersion: MARKET_QUERY_CONTRACT_VERSION, item: item.trim(), platform, crossplay, rank: parsedRank,
+    };
+    void performQuery(request, true);
+  };
+
+  // Refresh keeps the original query scope (including edits made after the query).
+  const refreshResult = () => {
+    if (resultRequest) void performQuery(resultRequest, false);
+  };
+
   return <>
     <header className="hero market-hero"><div><h1>市场查询</h1><p className="hero__copy">查询公开挂单与 90 日已成交统计。结果只读，不会下单或发送私聊。</p></div><span className="readonly-chip">只读公开数据</span></header>
-    <form className="market-form" onSubmit={(event) => { event.preventDefault(); void query(); }}>
+    <form className="market-form" onSubmit={(event) => { event.preventDefault(); query(); }}>
       <label className="field field--item"><span>物品名称</span><input value={item} onChange={(event) => setItem(event.target.value)} placeholder="例如：古纪V3、悟空P、赋能充沛" autoFocus /></label>
       <label className="field"><span>平台</span><select value={platform} onChange={(event) => setPlatform(event.target.value as MarketPlatform)}>{MARKET_PLATFORMS.map((value) => <option value={value} key={value}>{PLATFORM_LABELS[value]}</option>)}</select></label>
       <label className="field"><span>等级</span><input value={rank} onChange={(event) => setRank(event.target.value)} inputMode="numeric" aria-describedby="rank-help" /><small id="rank-help">输入 0、具体等级或 max</small></label>
@@ -137,7 +147,7 @@ function MarketView({ onResult }: { onResult: (market: MarketPresentationEvent, 
     {formError ? <div className="error-banner" role="alert">{formError}</div> : null}
     {!result && !loading && !formError ? <section className="market-welcome"><div className="empty-symbol"><Icon name="market" /></div><h2>先看看它值多少</h2><p>输入中文名、英文名或常用简称，选择平台和等级后查询。</p></section> : null}
     {loading ? <section className="market-loading" role="status"><span className="spin"><Icon name="refresh" /></span><div><p>正在读取当前订单…</p><small>{result ? '下方暂时保留上次结果，完成后更新。' : '正在匹配物品并连接 Warframe.Market'}</small></div></section> : null}
-    {result && resultRequest ? <MarketResultCard result={result} request={resultRequest} onCandidate={(value) => { setItem(value); setResult(null); }} onRetry={() => void query()} disabled={loading} /> : null}
+    {result && resultRequest ? <MarketResultCard result={result} request={resultRequest} snapshotId={snapshotId} onRefresh={refreshResult} onCandidate={(value) => { setItem(value); setResult(null); }} onRetry={() => query()} disabled={loading} actionsDisabled={loading} /> : null}
   </>;
 }
 
@@ -190,6 +200,19 @@ function AgentView() {
   const followLatest = useRef(true);
   const showDetail = (market: MarketPresentationEvent, prompt: string) => {
     setDetail({ market, prompt }); setMarketOpen(false); setView('overview');
+  };
+  // Refresh keeps the original query scope and replaces the snapshot; the detail
+  // card clears the old order selection when the snapshot id changes.
+  const refreshDetail = async (market: MarketPresentationEvent) => {
+    try {
+      const envelope = await window.warframeCompanion.market.query(market.request);
+      const next: MarketPresentationEvent = { type: 'market_result', snapshotId: envelope.snapshotId, request: market.request, result: envelope.result };
+      setDetail((current) => (current && current.market === market ? { market: next, prompt: current.prompt } : current));
+      setRecent((current) => current.map((entry) => (entry.market === market ? { market: next, prompt: entry.prompt } : entry)));
+    } catch {
+      // Keep the previous snapshot; the card shows the refresh failure.
+      throw new Error('refresh-detail-failed');
+    }
   };
   const draft = (value: string) => {
     setMessage(value); setView('agent'); setAssistantOpen(true);
@@ -345,7 +368,7 @@ function AgentView() {
             <p className="overview-note">活动推荐与个人进度尚未接入。</p>
           </div>
           {marketVisited ? <div hidden={!marketOpen}><button className="back-link" onClick={() => setMarketOpen(false)}><Icon name="left" /> 返回总览</button><MarketView onResult={recordResult} /></div> : null}
-          {detail ? <div><button className="back-link" onClick={() => setDetail(null)}><Icon name="left" /> 返回总览</button><MarketResultCard result={detail.market.result} request={detail.market.request} onCandidate={(value) => draft(`查询${value}，${PLATFORM_LABELS[detail.market.request.platform]}，${detail.market.request.crossplay ? '跨平台' : '不跨平台'}，${detail.market.request.rank === 'max' ? '满级' : `${detail.market.request.rank}级`}。`)} disabled={running || modelHealth?.status !== 'healthy'} onRetry={() => { runPrompt(detail.prompt); setView('agent'); setAssistantOpen(true); }} /></div> : null}
+          {detail ? <div><button className="back-link" onClick={() => setDetail(null)}><Icon name="left" /> 返回总览</button><MarketResultCard result={detail.market.result} request={detail.market.request} snapshotId={detail.market.snapshotId} onRefresh={() => refreshDetail(detail.market)} onCandidate={(value) => draft(`查询${value}，${PLATFORM_LABELS[detail.market.request.platform]}，${detail.market.request.crossplay ? '跨平台' : '不跨平台'}，${detail.market.request.rank === 'max' ? '满级' : `${detail.market.request.rank}级`}。`)} disabled={running || modelHealth?.status !== 'healthy'} onRetry={() => { runPrompt(detail.prompt); setView('agent'); setAssistantOpen(true); }} /></div> : null}
         </div>
       </section>
       <div className="agent-view" hidden={view !== 'agent' && !assistantOpen}>
