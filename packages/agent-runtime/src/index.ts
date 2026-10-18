@@ -1,9 +1,17 @@
 import {
+  assertMarketQueryRequest,
   MARKET_QUERY_CONTRACT_VERSION,
-  type MarketPlatform,
   type MarketQueryRequest,
   type MarketQueryResult,
 } from '@warframe-companion/market-query-contract';
+import {
+  MARKET_SCOPE_OPTIONS,
+  SCOPE_CHOICE_PROMPT,
+  marketScopeFromMessage,
+  normalizeMarketQueryRequest,
+  scopeChoiceRequired,
+  type MarketScopeOption,
+} from './market-scope.js';
 import {
   DROP_SEARCH_CONTRACT_VERSION,
   type DropSearchRequest,
@@ -174,7 +182,7 @@ export interface ModelAdapter {
   checkHealth(profile: ModelProfile, signal?: AbortSignal): Promise<{ available: boolean; summary: string; error?: ModelFailure }>;
   generateTurn(input: {
     message: string;
-    defaults?: MarketQueryRequest;
+    defaults?: Partial<MarketQueryRequest>;
     history?: readonly ToolRoundStep[];
     signal: AbortSignal;
     onTextDelta?: (delta: string) => void | Promise<void>;
@@ -205,11 +213,21 @@ export interface AgentRunRequest {
   modelProfileId?: string;
   timeoutMs?: number;
   /**
-   * 显式默认市场参数（可选）。生产桌面路径不传：缺失平台/跨平台/等级时由
-   * adapter 澄清；评估驱动器可在请求层注入，保持生产与评估同构（不再藏在
-   * evaluation 内部改变 Agent 行为）。
+   * 调用方补全的市场参数默认值（可选，生产桌面由主进程按已保存偏好注入）。
+   * 建议只携带平台/跨平台范围：等级是物品条件，不进入全局偏好；未指定等级
+   * 时由 Harness 在工具执行前按“消息明确条件 → defaults → 0”程序归一化，
+   * 不依赖模型遵守提示。任何 adapter 返回的 market_query 都会先经该归一化
+   * 再执行，模型给错范围不能覆盖本条消息的明确条件或已保存偏好。
+   * 用户可以只传局部字段（Partial），评估驱动器仍可传完整请求。
    */
-  defaults?: MarketQueryRequest;
+  defaults?: Partial<MarketQueryRequest>;
+  /**
+   * 未保存默认范围且自然市场问价缺平台/跨平台时，用一次选择卡代替纯文本追问。
+   * 由 Harness 在调用模型之前模型无关地判定并稳定发出（仅桌面主进程在偏好
+   * 未配置时设置；未设置时保持原有文本澄清行为）。选择后主进程保存偏好并
+   * 重跑原消息；本卡与消息临时范围都不自动写偏好。
+   */
+  askScopeIfMissing?: boolean;
   context: { channel: 'desktop' | 'qq_private' | 'qq_group' | 'untrusted_test'; trustedOwner: boolean; now: string };
 }
 export type AgentStreamEvent =
@@ -222,6 +240,7 @@ export type AgentStreamEvent =
   | { type: 'model_error'; error: ModelFailure }
   | { type: 'message_delta'; delta: string }
   | { type: 'model_conclusion'; conclusion: 'answered' | 'insufficient_data'; source: 'model' | 'harness' }
+  | { type: 'scope_choice_required'; questionId: string; prompt: string; options: readonly MarketScopeOption[] }
   | { type: 'completed'; message: string; trace: AgentTrace };
 export interface AgentRunDependencies {
   marketQuery(request: MarketQueryRequest): Promise<MarketQueryResult>;
@@ -239,26 +258,24 @@ function personalScopeRefusal(request: AgentRunRequest): { reason: RefusalReason
   if (!request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能读取个人数据。' };
   return null;
 }
+/**
+ * 该澄清是否由“缺少平台/跨平台范围”引起；只有这种情况才允许用一次选择卡
+ * 代替文本追问（由主进程按偏好是否已保存决定启用）。
+ */
+function isMissingMarketScope(turn: ModelTurn): boolean {
+  if (turn.kind !== 'clarify') return false;
+  return turn.facts.some((fact) => {
+    if (fact.key !== 'missing_field') return false;
+    const fields = String(fact.value).split(',').map((field) => field.trim());
+    return fields.includes('platform') || fields.includes('crossplay');
+  });
+}
 function policyRefusal(message: string, request: AgentRunRequest): { reason: RefusalReason; text: string } | null {
   if (/替.*(?:挂|改|删).*单|(?:创建|修改|删除|自动).*订单|发送游戏私聊|给买家发送|自动交易/u.test(message)) return { reason: 'write_forbidden', text: '我不能操作市场、交易或游戏聊天；可以帮你查公开行情并由你手动处理。' };
   if (/原始账号快照|完整快照|导出.*快照/u.test(message)) return { reason: 'private_scope', text: '原始个人快照不能导出或展示。' };
   if (/个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) return personalScopeRefusal(request);
   if (/创建提醒订阅|替.*订阅/u.test(message) && !request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能创建订阅。' };
   return null;
-}
-function platformFrom(message: string): MarketPlatform | undefined {
-  if (/\bPC\b/iu.test(message)) return 'pc';
-  if (/\bPS\b|PlayStation/iu.test(message)) return 'ps4';
-  if (/Xbox/iu.test(message)) return 'xbox';
-  if (/Switch/iu.test(message)) return 'switch';
-  if (/移动端|mobile/iu.test(message)) return 'mobile';
-  return undefined;
-}
-function rankFrom(message: string): number | 'max' | undefined | null {
-  if (/满级|满阶|\bmax\b/iu.test(message)) return 'max';
-  if (/(?:等级\s*)?负\s*[一二三四五六七八九十\d]+|-\d+/u.test(message)) return null;
-  const match = message.match(/(?:等级\s*)?(\d+)\s*级|(?:，|\s)(\d+)\s*(?:。|$)/u);
-  return match ? Number(match[1] ?? match[2]) : undefined;
 }
 function itemFrom(message: string): string | undefined {
   const patterns = [
@@ -293,10 +310,11 @@ export const localRulesModelAdapter: ModelAdapter = {
   },
   async generateTurn({ message, defaults, signal }) {
     if (signal.aborted) throw signal.reason;
-    if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) {
+    if (/个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) {
       // Harness 的策略门禁已保证走到这里的请求来自可信主人（群聊/非主人/原始导出
       // 会在 policyRefusal 被拒）；adapter 只做结构化路由，数据可用性由 getSnapshot
-      // 服务决定，模型永远拿不到原始快照。
+      // 服务决定，模型永远拿不到原始快照。注意该路由不受 defaults 门控：
+      // 生产桌面配置了市场范围偏好后（defaults 由主进程注入）个人查询同样必须路由。
       const item = message.match(/我的库存\s*(.+?)(?:[，。；;]|$)/u)?.[1]?.trim();
       return {
         turn: {
@@ -306,18 +324,24 @@ export const localRulesModelAdapter: ModelAdapter = {
       };
     }
     const dropItem = dropItemFrom(message);
-    if (!defaults && dropItem) {
+    if (dropItem) {
+      // 同样不受 defaults 门控：掉落查询与市场范围偏好无关。
       return { turn: { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } } };
     }
-    if (!defaults && !/查|查询|价格|行情|多少钱/u.test(message)) {
+    if (!/查|查询|价格|行情|多少钱/u.test(message)) {
+      // 非市场意图（寒暄等）不因存在范围偏好就当成问价：没有明确市场意图时
+      // 直接说明当前能力，而不是追问市场参数或弹出一次选择卡。
       return { turn: { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' } };
     }
-    const rank = rankFrom(message);
-    if (rank === null) return { turn: { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] } };
+    const scope = marketScopeFromMessage(message);
+    if (scope.rank === null) return { turn: { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] } };
     const item = itemFrom(message) ?? defaults?.item;
-    const platform = platformFrom(message) ?? defaults?.platform;
-    const crossplay = /不跨平台|单平台/u.test(message) ? false : /跨平台/u.test(message) ? true : defaults?.crossplay;
-    const resolvedRank = rank ?? defaults?.rank ?? (platform && crossplay !== undefined ? 0 : undefined);
+    const platform = scope.platform ?? defaults?.platform;
+    const crossplay = scope.crossplay ?? defaults?.crossplay;
+    // 等级缺省规则：未明确给出时按“可升级物品默认 0 级”补全；'max' 与等级上界由
+    // 领域服务按物品元数据求值；套装/部件等不适用等级的物品按 maxRank=0 处理，
+    // 不会要求玩家提供等级。
+    const resolvedRank = scope.rank ?? defaults?.rank ?? (platform && crossplay !== undefined ? 0 : undefined);
     if (!item || !platform || crossplay === undefined || resolvedRank === undefined) {
       return { turn: { kind: 'clarify', text: '请明确平台、是否跨平台交易，以及等级（非负整数或 max）。', facts: [{ key: 'missing_field', value: 'platform,crossplay,rank' }] } };
     }
@@ -417,10 +441,18 @@ function addUsage(current: ModelUsage | undefined, next: ModelUsage): ModelUsage
   };
 }
 function responseFor(result: MarketQueryResult): string {
-  if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
+  if (!result.ok) {
+    if (result.error.code === 'ITEM_AMBIGUOUS') {
+      const candidates = result.error.details?.candidates?.map((candidate) => candidate.name.zhHans).join('、');
+      return candidates ? `${result.error.message} 请在候选中选择：${candidates}。` : `${result.error.message} 请补充更完整的名称。`;
+    }
+    return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
+  }
   const { item, sellOrders, buyOrders, statistics } = result.data;
+  // 等级只在物品实际可升级时展示：套装/部件等 maxRank=0 的条目不要求等级。
+  const rankText = item.rank.maxRank > 0 ? `（等级 ${item.rank.resolved}/${item.rank.maxRank}）` : '（无需等级）';
   const orders = sellOrders.length || buyOrders.length ? `当前快照有 ${sellOrders.length} 条卖单、${buyOrders.length} 条买单。` : '当前查询范围内没有可见买卖单。';
-  return `${item.name.zhHans}（等级 ${item.rank.resolved}/${item.rank.maxRank}）：${orders}${statistics ? ` 90 日成交中位数 ${statistics.median} 白金。` : ''} 数据时间 ${result.evidence.asOf}，来源 Warframe.Market。`;
+  return `${item.name.zhHans}${rankText}：${orders}${statistics ? ` 90 日成交中位数 ${statistics.median} 白金。` : ''} 数据时间 ${result.evidence.asOf}，来源 Warframe.Market。`;
 }
 function dropResponseFor(result: DropSearchResult): string {
   if (!result.ok) {
@@ -509,6 +541,27 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       return await finish(denied.text, 'refuse', 'completed', denied.reason);
     }
     const defaults = request.defaults;
+    // 模型无关的一次选择卡预检：未保存默认范围且自然市场问价缺平台/跨平台时，
+    // 在调用任何 adapter 生成（即调用模型）之前由 Harness 稳定发出。这样返回
+    // 普通文本而不是结构化 clarify 的 OpenAI-compatible adapter 也无法绕过；
+    // 掉落、个人查询、寒暄、写操作拒绝与明确完整范围已在判定中排除。
+    // 选择后由桌面主进程保存偏好并重跑原消息；本卡不自动写任何设置。
+    if (scopeChoiceRequired(request.message, defaults, request.askScopeIfMissing)) {
+      const explicit = marketScopeFromMessage(request.message);
+      const missingFields = [
+        ...(explicit.platform !== undefined || defaults?.platform !== undefined ? [] : ['platform']),
+        ...(explicit.crossplay !== undefined || defaults?.crossplay !== undefined ? [] : ['crossplay']),
+      ];
+      facts = [{ key: 'missing_field', value: missingFields.join(',') }];
+      await emit(deps, {
+        type: 'scope_choice_required',
+        questionId: `scope-${request.requestId}`,
+        prompt: SCOPE_CHOICE_PROMPT,
+        options: MARKET_SCOPE_OPTIONS.map((option) => ({ ...option })),
+      });
+      await emit(deps, { type: 'message_delta', delta: SCOPE_CHOICE_PROMPT });
+      return await finish(SCOPE_CHOICE_PROMPT, 'clarify');
+    }
     let streamedText = '';
     const onTextDelta = async (delta: string) => {
       streamedText += delta;
@@ -527,6 +580,20 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
     if (turn.kind === 'answer') {
       if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
       return await finish(turn.text, 'answer');
+    }
+    if (turn.kind === 'clarify' && request.askScopeIfMissing && isMissingMarketScope(turn)) {
+      // 兜底路径：预检未命中（例如意图口径外的消息）但 adapter 仍以结构化
+      // clarify 报告缺范围时，仍给同一次可点击选择卡，行为与预检一致。
+      const prompt = SCOPE_CHOICE_PROMPT;
+      await emit(deps, {
+        type: 'scope_choice_required',
+        questionId: `scope-${request.requestId}`,
+        prompt,
+        options: MARKET_SCOPE_OPTIONS.map((option) => ({ ...option })),
+      });
+      facts = turn.facts;
+      await emit(deps, { type: 'message_delta', delta: prompt });
+      return await finish(prompt, 'clarify');
     }
     if (turn.kind === 'clarify') { facts = turn.facts; await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'clarify'); }
     if (turn.kind === 'conclude') {
@@ -553,10 +620,29 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
 
     for (;;) {
       if (turn.kind === 'market_query') {
-        toolCalls.push({ name: 'market.query', arguments: { ...turn.request } });
+        // 程序归一化（模型无关）：任何 adapter 给出的范围都不能覆盖本条消息的
+        // 明确条件或已保存偏好；缺省等级由程序补 0，不依赖模型遵守提示词。
+        const explicitScope = marketScopeFromMessage(request.message);
+        if (explicitScope.rank === null) {
+          // 用户明确给出非法等级（如“负3级”）：模型若未按契约澄清而仍提交
+          // market_query（例如默认成 0 级），Harness 也必须程序化文本澄清，
+          // 不得把非法条件静默归一化后执行。
+          const text = '等级必须是非负整数或 max。';
+          facts = [{ key: 'invalid_field', value: 'rank' }];
+          await emit(deps, { type: 'message_delta', delta: text });
+          return await finish(text, 'clarify');
+        }
+        const normalized = normalizeMarketQueryRequest(turn.request, request.message, request.defaults);
+        // 保留并执行严格契约校验：归一化结果仍必须通过 MarketQueryRequest 校验。
+        try {
+          assertMarketQueryRequest(normalized);
+        } catch {
+          return await finish('市场查询参数不合法，已停止本轮，未执行任何查询。', 'answer', 'error');
+        }
+        toolCalls.push({ name: 'market.query', arguments: { ...normalized } });
         await emit(deps, { type: 'status', phase: 'tool', text: '正在查询公开市场快照' });
-        await emit(deps, { type: 'tool_call', name: 'market.query', arguments: turn.request });
-        const result = await abortable(deps.marketQuery(turn.request), controller.signal);
+        await emit(deps, { type: 'tool_call', name: 'market.query', arguments: normalized });
+        const result = await abortable(deps.marketQuery(normalized), controller.signal);
         if (controller.signal.aborted) throw abortError(controller.signal);
         await emit(deps, { type: 'tool_result', name: 'market.query', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
         facts = marketFacts(result);
@@ -564,7 +650,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         lastOk = result.ok;
         toolRounds.push({
           toolName: 'market.query',
-          toolCall: { ...turn.request },
+          toolCall: { ...normalized },
           toolResultSummary: marketToolSummary(result),
           ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
         });
@@ -697,3 +783,14 @@ export {
   type OpenAICompatibleAdapterOptions,
   type OpenAICompatibleProfileInput,
 } from './openai-compatible.js';
+export {
+  MARKET_SCOPE_OPTIONS,
+  SCOPE_CHOICE_PROMPT,
+  isNaturalMarketPriceQuery,
+  marketScopeFromMessage,
+  marketScopeMissing,
+  normalizeMarketQueryRequest,
+  scopeChoiceRequired,
+  type ExplicitMarketScope,
+  type MarketScopeOption,
+} from './market-scope.js';

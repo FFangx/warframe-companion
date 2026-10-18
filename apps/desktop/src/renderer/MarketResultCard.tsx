@@ -12,6 +12,7 @@ import {
   PLATFORM_LABELS,
   STATUS_LABELS,
   formatPlatinum,
+  marketRankLabel,
 } from './market-presentation.js';
 import {
   collectOrders,
@@ -236,7 +237,7 @@ function MarketSuccessCard({ result, snapshotId, onRefresh, disabled }: {
 
   return <section className="market-result" aria-live="polite">
     <div className="result-heading">
-      <div><h2>{item.name.zhHans}</h2><p>{item.name.en} · 等级 {item.rank.resolved}/{item.rank.maxRank}</p></div>
+      <div><h2>{item.name.zhHans}</h2><p>{item.name.en}{item.rank.maxRank > 0 ? ` · 等级 ${item.rank.resolved}/${item.rank.maxRank}` : ' · 无需等级'}</p></div>
       <span className={`finding finding--${result.evidence.finding === 'confirmed_present' ? 'good' : 'empty'}`}>{result.evidence.finding === 'confirmed_present' ? '行情已确认' : '范围内无订单'}</span>
     </div>
     <div className="current-prices" aria-label="当前最优挂单"><div><span>最低卖价</span><strong>{sellOrders[0] ? formatPlatinum(sellOrders[0].platinum) : '暂无卖单'}</strong></div><div><span>最高买价</span><strong>{buyOrders[0] ? formatPlatinum(buyOrders[0].platinum) : '暂无买单'}</strong></div></div>
@@ -283,14 +284,14 @@ export function MarketResultCard({ result, request, onCandidate, onRetry, disabl
 }) {
   if (compact && result.ok) return <section className="market-preview">
     <div className="section-heading"><h3>{result.data.item.name.zhHans}</h3><span>行情</span></div>
-    <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {request.rank === 'max' ? '满级' : `等级 ${request.rank}`}</p>
+    <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {marketRankLabel(request.rank, result.data.item.rank.maxRank)}</p>
     <div className="preview-prices"><div><small>最低卖价</small><strong>{result.data.sellOrders[0] ? formatPlatinum(result.data.sellOrders[0].platinum) : '无卖单'}</strong></div><div><small>最高买价</small><strong>{result.data.buyOrders[0] ? formatPlatinum(result.data.buyOrders[0].platinum) : '无买单'}</strong></div></div>
     {result.warnings.map((warning) => <p className="preview-warning" key={warning.code}>{warning.message}</p>)}
     <small className="preview-source">Warframe.Market · {formatTime(result.evidence.asOf)}<br />有效至 {formatTime(result.evidence.expiresAt)}</small>
     <button className="detail-button" onClick={onOpen}>查看完整行情与订单 <Icon name="arrow" /></button>
   </section>;
   return <div className="market-result-card">
-    <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {request.rank === 'max' ? '满级' : `等级 ${request.rank}`}</p>
+    <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {result.ok ? marketRankLabel(request.rank, result.data.item.rank.maxRank) : request.rank === 'max' ? '满级' : `等级 ${request.rank}`}</p>
     {result.ok ? <MarketSuccessCard result={result} snapshotId={snapshotId} onRefresh={onRefresh} disabled={disabled || actionsDisabled} /> : <>
       <MarketFailureCard result={result} onCandidate={onCandidate} onRetry={onRetry} disabled={disabled} />
     </>}

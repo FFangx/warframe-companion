@@ -15,6 +15,13 @@ import {
 import { getSystemHealth } from './system-health.js';
 import { withMarketPresentation, type DesktopAgentEvent } from './agent-presentation.js';
 import { createMarketSnapshotRegistry, performOrderCopy, presetOrderPreview } from './market-order-actions.js';
+import {
+  MARKET_SCOPE_PREFERENCE_FILE,
+  MarketScopePreferenceError,
+  agentScopeInputFor,
+  loadMarketScopePreference,
+  saveMarketScopePreference,
+} from './market-scope-preference.js';
 import type { MarketQueryRequest } from '@warframe-companion/market-query-contract';
 import {
   MODEL_PROFILE_STORE_FILE,
@@ -36,6 +43,7 @@ const activeAgentRuns = new Map<string, AbortController>();
 const marketSnapshots = createMarketSnapshotRegistry();
 
 function modelStorePath(): string { return path.join(app.getPath('userData'), 'config', MODEL_PROFILE_STORE_FILE); }
+function scopePreferencePath(): string { return path.join(app.getPath('userData'), 'config', MARKET_SCOPE_PREFERENCE_FILE); }
 async function modelSnapshot(): Promise<{ profiles: ModelProfile[]; configError?: { code: string; message: string } }> {
   try {
     const local = await loadLocalModelProfiles(modelStorePath());
@@ -114,6 +122,22 @@ app.whenReady().then(() => {
     Date.now(),
     (text) => clipboard.writeText(text),
   ));
+  // 交易范围偏好只存在于主进程固定路径；renderer 只能读取，或提交
+  // {platform, crossplay} 显式保存（设置页 / 一次选择卡）。
+  ipcMain.handle('market:scope-preference:get', () => loadMarketScopePreference(scopePreferencePath()));
+  ipcMain.handle('market:scope-preference:set', async (_event, input: unknown) => {
+    try {
+      return { ok: true as const, preference: await saveMarketScopePreference(scopePreferencePath(), input) };
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: {
+          code: error instanceof MarketScopePreferenceError ? error.code : 'SCOPE_PREFERENCE_INVALID',
+          message: error instanceof Error ? error.message : '无法保存本机市场范围偏好。',
+        },
+      };
+    }
+  });
   ipcMain.handle('agent:list-models', modelSnapshot);
   ipcMain.handle('agent:save-model', async (_event, input: unknown) => {
     try {
@@ -151,11 +175,14 @@ app.whenReady().then(() => {
     event.sender.once('destroyed', onDestroyed);
     activeAgentRuns.get(input.requestId)?.abort(new Error('replaced'));
     activeAgentRuns.set(input.requestId, controller);
-    void modelSnapshot().then((snapshot) => runDesktopAgent({
+    // 每轮按当前已保存偏好补全范围：已配置则注入默认平台/跨平台（等级仍是
+    // 物品条件，不在这里给默认）；未配置则让自然问价走一次可点击选择卡。
+    void Promise.all([modelSnapshot(), loadMarketScopePreference(scopePreferencePath())]).then(([snapshot, scope]) => runDesktopAgent({
       requestId: input.requestId,
       message: input.message.trim(),
       ...(input.modelProfileId ? { modelProfileId: input.modelProfileId } : {}),
       ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
+      ...agentScopeInputFor(scope.preference),
       context: { channel: 'desktop', trustedOwner: true, now: new Date().toISOString() },
     }, {
       marketQuery: withMarketPresentation(

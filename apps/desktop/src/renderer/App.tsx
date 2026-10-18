@@ -7,7 +7,7 @@ import {
   type MarketQueryResult,
 } from '@warframe-companion/market-query-contract';
 import type { ComponentHealth, HealthStatus, SystemHealthSnapshot } from '../system-health.js';
-import type { AgentStreamEvent, AgentTrace, ModelCapabilities, ModelHealth, ModelProfile, OpenAICompatibleProfileInput } from '@warframe-companion/agent-runtime';
+import type { AgentStreamEvent, AgentTrace, MarketScopeOption, ModelCapabilities, ModelHealth, ModelProfile, OpenAICompatibleProfileInput } from '@warframe-companion/agent-runtime';
 import {
   PLATFORM_LABELS,
   parseRankInput,
@@ -15,9 +15,11 @@ import {
 
 import { Icon, OrbitMark, BrandMark } from './Icon.js';
 import { MarketResultCard } from './MarketResultCard.js';
+import { ScopeChoiceCard, createScopeChoiceState, type ScopeChoiceState } from './ScopeChoiceCard.js';
 import { useLayoutPreference } from './use-layout-preference.js';
 import { formatTime } from './format-time.js';
 import type { MarketPresentationEvent } from '../agent-presentation.js';
+import type { MarketScopePreferenceSnapshot } from '../market-scope-preference.js';
 
 type View = 'overview' | 'agent';
 
@@ -151,7 +153,7 @@ function MarketView({ onResult }: { onResult: (market: MarketPresentationEvent, 
   </>;
 }
 
-interface ChatTurn { id: string; user: string; assistant: string; events: AgentStreamEvent[]; markets: MarketPresentationEvent[]; trace?: AgentTrace }
+interface ChatTurn { id: string; user: string; assistant: string; events: AgentStreamEvent[]; markets: MarketPresentationEvent[]; trace?: AgentTrace; scopeChoice?: ScopeChoiceState }
 
 interface ModelConfigForm {
   id: string; label: string; model: string; baseUrl: string; credentialVariable: string;
@@ -171,6 +173,7 @@ function traceEventText(entry: AgentStreamEvent): string {
   if (entry.type === 'tool_result') return `${entry.name} · ${entry.summary}`;
   if (entry.type === 'model_error') return `${entry.error.code} · ${entry.error.message}`;
   if (entry.type === 'model_conclusion') return `终态 ${entry.conclusion} · ${entry.source === 'model' ? '模型' : 'Harness'}`;
+  if (entry.type === 'scope_choice_required') return `请求一次默认范围选择（${entry.options.length} 个选项）`;
   return entry.type === 'message_delta' ? entry.delta : entry.message;
 }
 
@@ -233,6 +236,10 @@ function AgentView() {
   const [configBusy, setConfigBusy] = useState(false);
   const [configForm, setConfigForm] = useState<ModelConfigForm>(DEFAULT_MODEL_CONFIG_FORM);
   const [configMessage, setConfigMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const [scopeSnapshot, setScopeSnapshot] = useState<MarketScopePreferenceSnapshot | null>(null);
+  const [scopeForm, setScopeForm] = useState<{ platform: MarketPlatform; crossplay: boolean } | null>(null);
+  const [scopeMessage, setScopeMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const scopeChoosing = useRef(false);
 
   useEffect(() => () => {
     const run = activeRun.current;
@@ -266,6 +273,31 @@ function AgentView() {
     return () => { current = false; };
   }, [profileId]);
   const selectedProfile = models.find((profile) => profile.id === profileId);
+
+  // 默认交易范围由主进程持有；这里只读取展示，或在设置/选择卡里显式保存。
+  const refreshScope = useCallback(async () => {
+    const snapshot = await window.warframeCompanion.market.scope.get();
+    setScopeSnapshot(snapshot);
+    setScopeForm(snapshot.preference
+      ? { platform: snapshot.preference.platform, crossplay: snapshot.preference.crossplay }
+      : { platform: 'pc', crossplay: true });
+  }, []);
+  useEffect(() => {
+    if (settingsOpen) void refreshScope().catch(() => setScopeMessage({ tone: 'bad', text: '无法读取本机默认交易范围。' }));
+  }, [settingsOpen, refreshScope]);
+  const saveScope = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!scopeForm || running || configBusy) return;
+    setScopeMessage(null);
+    try {
+      const saved = await window.warframeCompanion.market.scope.set(scopeForm);
+      if (!saved.ok) { setScopeMessage({ tone: 'bad', text: `${saved.error.code}：${saved.error.message}` }); return; }
+      setScopeMessage({ tone: 'good', text: `已保存：${PLATFORM_LABELS[saved.preference.platform]} · ${saved.preference.crossplay ? '跨平台' : '仅本平台'}。之后的自然问价会沿用该范围。` });
+      await refreshScope();
+    } catch {
+      setScopeMessage({ tone: 'bad', text: '保存失败，请检查本机存储后重试。' });
+    }
+  };
 
   const saveModel = async (event: FormEvent) => {
     event.preventDefault(); if (configBusy) return; setConfigMessage(null); setConfigBusy(true);
@@ -315,7 +347,14 @@ function AgentView() {
         if (activeRun.current?.id !== id) return;
         if (streamEvent.type === 'market_result') recordResult(streamEvent, prompt);
         setTurns((current) => current.map((turn) => {
-          if (turn.id !== id) return turn;
+          if (turn.id !== id) {
+            // 新选择卡出现时，旧卡标记为不可再执行（避免用旧问题重跑）。
+            if (streamEvent.type === 'scope_choice_required' && turn.scopeChoice && !turn.scopeChoice.superseded) {
+              return { ...turn, scopeChoice: { ...turn.scopeChoice, superseded: true } };
+            }
+            return turn;
+          }
+          if (streamEvent.type === 'scope_choice_required') return { ...turn, scopeChoice: createScopeChoiceState(streamEvent.questionId, streamEvent.prompt, streamEvent.options) };
           if (streamEvent.type === 'market_result') return { ...turn, markets: [...turn.markets, streamEvent] };
           if (streamEvent.type === 'message_delta') return { ...turn, assistant: turn.assistant + streamEvent.delta, events: [...turn.events, streamEvent] };
           if (streamEvent.type === 'completed') return { ...turn, assistant: streamEvent.message, trace: streamEvent.trace, events: [...turn.events, streamEvent] };
@@ -333,6 +372,32 @@ function AgentView() {
       setRunning(false); setActiveRequestId(null); setMessage(prompt);
       setTurns((current) => current.map((turn) => turn.id === id
         ? { ...turn, assistant: '无法启动查询，请重新发送。' } : turn));
+    }
+  };
+
+  // 一次选择卡点击：保存为永久偏好（主进程固定路径），再重跑原消息继续查询。
+  // 单次查询中用户明确给过的平台/跨平台只覆盖当时请求，这里从不改动。
+  const chooseScope = async (turn: ChatTurn, option: MarketScopeOption) => {
+    if (scopeChoosing.current || !turn.scopeChoice || turn.scopeChoice.chosenId !== null || turn.scopeChoice.superseded) return;
+    scopeChoosing.current = true;
+    const mark = (patch: Partial<ScopeChoiceState>) => setTurns((current) => current.map((entry) => entry.id === turn.id && entry.scopeChoice
+      ? { ...entry, scopeChoice: { ...entry.scopeChoice, ...patch } } : entry));
+    mark({ pending: true, error: null });
+    try {
+      const saved = await window.warframeCompanion.market.scope.set({ platform: option.platform, crossplay: option.crossplay });
+      if (!saved.ok) throw new Error(`${saved.error.code}：${saved.error.message}`);
+      mark({ chosenId: option.id, pending: false });
+      await refreshScope().catch(() => { setScopeMessage({ tone: 'bad', text: '偏好已保存，但设置页读取失败，请重新打开设置。' }); });
+      if (modelHealth?.status !== 'healthy') {
+        // 范围已保存；模型不可用时把原问题放回输入区，恢复后再发送。
+        setMessage(turn.user);
+      } else {
+        runPrompt(turn.user);
+      }
+    } catch (error) {
+      mark({ pending: false, chosenId: null, error: error instanceof Error ? `保存失败：${error.message}` : '保存失败，请重试。' });
+    } finally {
+      scopeChoosing.current = false;
     }
   };
 
@@ -381,6 +446,7 @@ function AgentView() {
         {turns.map((turn) => <article className="chat-turn" key={turn.id}>
           <div className="bubble bubble--user"><span>你</span><p>{turn.user}</p></div>
           <div className="bubble bubble--agent"><span>Agent</span><p>{turn.assistant || '正在处理…'}</p></div>
+          {turn.scopeChoice ? <ScopeChoiceCard choice={turn.scopeChoice} disabled={running} onChoose={(option) => void chooseScope(turn, option)} /> : null}
           {turn.markets.map((market, index) => <MarketResultCard key={index} result={market.result} request={market.request} compact onOpen={() => showDetail(market, turn.user)}
             onRetry={() => runPrompt(turn.user)} disabled={running || modelHealth?.status !== 'healthy'}
             onCandidate={(value) => setMessage(`查询${value}，${PLATFORM_LABELS[market.request.platform]}，${market.request.crossplay ? '跨平台' : '不跨平台'}，${market.request.rank === 'max' ? '满级' : `${market.request.rank}级`}。`)} />)}
@@ -401,6 +467,17 @@ function AgentView() {
       <p className="overview-note">遗物、周常等功能完成后，会加入这里。掉落查询目前可通过助手使用。</p>
     </SettingsDialog>
     <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+    <section className="scope-settings">
+      <div className="scope-settings__heading"><div><h2>默认交易范围</h2></div><p>保存的平台与跨平台范围会自动用于自然问价；单次查询里明确给出的范围只覆盖本次，不会改动保存值。未配置时，第一次自然问价会请你在选择卡里选一次（推荐 PC 跨平台）。</p></div>
+      {scopeSnapshot?.error ? <div className="config-message config-message--bad" role="alert">{scopeSnapshot.error.code}：{scopeSnapshot.error.message}（在你显式重新选择前不会覆盖原文件。）</div> : null}
+      {scopeForm ? <form className="scope-settings__form" onSubmit={(event) => void saveScope(event)}>
+        <label><span>平台</span><select value={scopeForm.platform} onChange={(event) => setScopeForm({ ...scopeForm, platform: event.target.value as MarketPlatform })} disabled={running || configBusy}>{MARKET_PLATFORMS.map((value) => <option key={value} value={value}>{PLATFORM_LABELS[value]}</option>)}</select></label>
+        <label className="scope-crossplay"><input type="checkbox" checked={scopeForm.crossplay} onChange={(event) => setScopeForm({ ...scopeForm, crossplay: event.target.checked })} disabled={running || configBusy} /><span><b>{scopeForm.crossplay ? '跨平台交易' : '仅本平台交易'}</b><small>OpenClaw 快捷范围基线为 PC 跨平台；仅明确切换时保存。</small></span></label>
+        <button type="submit" disabled={running || configBusy}>保存范围</button>
+      </form> : <p className="scope-settings__note">正在读取本机默认交易范围…</p>}
+      {scopeSnapshot?.configured && scopeSnapshot.preference ? <p className="scope-settings__current">当前保存：{PLATFORM_LABELS[scopeSnapshot.preference.platform]} · {scopeSnapshot.preference.crossplay ? '跨平台' : '仅本平台'}（表单修改需点击保存后生效）</p> : null}
+      {scopeMessage ? <div role={scopeMessage.tone === 'bad' ? 'alert' : 'status'} className={`config-message config-message--${scopeMessage.tone}`}>{scopeMessage.text}</div> : null}
+    </section>
     <section className="model-console">
       <label><span>助手使用的模型</span><select value={profileId} onChange={(event) => setProfileId(event.target.value)} disabled={running || configBusy}>{models.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
       <div className="model-summary"><strong>{selectedProfile?.model ?? '正在读取 profile'}</strong><small>{selectedProfile?.description}</small></div>

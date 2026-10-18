@@ -440,9 +440,9 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
         throw new ModelAdapterError(failure('MODEL_CAPABILITY_MISMATCH', '所选模型未声明结构化工具调用能力。', false));
       }
       const headers = { 'content-type': 'application/json', ...(await credentialHeaders(configuration, resolver)) };
-      const defaults = input.defaults ? `\n调用方提供的显式默认参数：${JSON.stringify(input.defaults)}` : '';
+      const defaults = input.defaults ? `\n调用方提供的显式默认参数：${JSON.stringify(input.defaults)}（用户消息中明确给出的平台、跨平台范围与等级优先于默认参数）。` : '';
       const messages: Array<Record<string, unknown>> = [
-        { role: 'system', content: `你是只读 Warframe 工具路由器。需要实时行情或掉落事实时必须调用注册工具；禁止交易、聊天和账号写操作。缺少市场平台、跨平台范围或等级时直接用文本澄清，不得猜测。工具执行后必须基于脱敏的工具结果作答，并用 agent.conclude 提交终态；事实、证据、身份、延迟和拒绝永远由调用方决定，不得自行提交。${defaults}` },
+        { role: 'system', content: `你是只读 Warframe 工具路由器。需要实时行情或掉落事实时必须调用注册工具；禁止交易、聊天和账号写操作。缺少市场平台、跨平台范围或等级时直接用文本澄清，不得猜测。等级缺省规则：未指定等级时可升级物品默认 0 级，"满级"按物品元数据解析，套装及不适用等级的物品不要求等级。工具执行后必须基于脱敏的工具结果作答，并用 agent.conclude 提交终态；事实、证据、身份、延迟和拒绝永远由调用方决定，不得自行提交。${defaults}` },
         { role: 'user', content: input.message },
       ];
       (input.history ?? []).forEach((step: ToolRoundStep, index: number) => {

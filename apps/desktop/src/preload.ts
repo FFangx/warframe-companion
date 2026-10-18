@@ -9,6 +9,11 @@ import type {
   OrderCopyResult,
   OrderPreviewResult,
 } from './market-order-actions.js';
+import type {
+  MarketScopePreference,
+  MarketScopePreferenceInput,
+  MarketScopePreferenceSnapshot,
+} from './market-scope-preference.js';
 import { subscribeAgentRun } from './agent-subscription.js';
 
 contextBridge.exposeInMainWorld('warframeCompanion', {
@@ -19,6 +24,10 @@ contextBridge.exposeInMainWorld('warframeCompanion', {
     query: (request: MarketQueryRequest): Promise<MarketQueryResultEnvelope> => ipcRenderer.invoke('market:query', request),
     previewOrder: (input: OrderActionRequest): Promise<OrderPreviewResult> => ipcRenderer.invoke('market:order-preview', input),
     copyOrder: (input: OrderActionRequest): Promise<OrderCopyResult> => ipcRenderer.invoke('market:order-copy', input),
+    scope: {
+      get: (): Promise<MarketScopePreferenceSnapshot> => ipcRenderer.invoke('market:scope-preference:get'),
+      set: (input: MarketScopePreferenceInput): Promise<{ ok: true; preference: MarketScopePreference } | { ok: false; error: { code: string; message: string } }> => ipcRenderer.invoke('market:scope-preference:set', input),
+    },
   },
   agent: {
     listModels: (): Promise<{ profiles: ModelProfile[]; configError?: { code: string; message: string } }> => ipcRenderer.invoke('agent:list-models'),
