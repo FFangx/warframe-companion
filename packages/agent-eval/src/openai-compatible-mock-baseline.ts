@@ -53,7 +53,8 @@ const adapter = createOpenAICompatibleAdapter({
     }
     const system = body.messages.find((message) => message.role === 'system')?.content ?? '';
     const user = body.messages.find((message) => message.role === 'user')?.content ?? '';
-    const rawDefaults = system.match(/调用方提供的显式默认参数：(.*)$/u)?.[1];
+    // 只截取 JSON 对象本身：提示词在 JSON 后还附有“消息条件优先于默认参数”的说明。
+    const rawDefaults = system.match(/调用方提供的显式默认参数：(\{.*\})/u)?.[1];
     const defaults = rawDefaults ? JSON.parse(rawDefaults) : undefined;
     const turnResult = await localRulesModelAdapter.generateTurn({ message: user, signal: init?.signal ?? new AbortController().signal, ...(defaults ? { defaults } : {}) }, DEFAULT_MODEL_PROFILES[0]!);
     return turnResponse(turnResult.turn);

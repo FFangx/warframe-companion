@@ -171,6 +171,17 @@ test('非市场意图（寒暄）不会触发一次选择卡，无论是否已�
   }
 });
 
+test('显式 defaults 带物品时视为明确市场查询，即使提示语不含查价词', async () => {
+  const defaults = { contractVersion: '1.0', item: '示例 Prime 蓝图', platform: 'pc', crossplay: true, rank: 0 };
+  let queried;
+  const result = await runDesktopAgent({ requestId: 'synthetic-explicit-defaults-item', message: '根据新鲜快照说明是否有挂单。', context, defaults }, {
+    marketQuery: async (request) => { queried = request; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+  });
+  assert.deepEqual(queried, defaults);
+  assert.equal(result.trace.decision, 'call_tool');
+  assert.equal(result.trace.toolCalls[0]?.name, 'market.query');
+});
+
 test('确定性范围解析：平台/跨平台/等级从消息提取且否定跨平台优先', () => {
   assert.deepEqual(marketScopeFromMessage('查询 母牛p 价格，PS4 不跨平台，3级。'), { platform: 'ps4', crossplay: false, rank: 3 });
   assert.deepEqual(marketScopeFromMessage('查询 母牛p 行情，Xbox 跨平台。'), { platform: 'xbox', crossplay: true });

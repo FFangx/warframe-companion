@@ -355,7 +355,10 @@ export const localRulesModelAdapter: ModelAdapter = {
       // 同样不受 defaults 门控：掉落查询与市场范围偏好无关。
       return { turn: { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } } };
     }
-    if (!/查|查询|价格|行情|多少钱/u.test(message)) {
+    // 调用方在 defaults 中给出具体物品（显式市场请求，例如评估驱动）即视为明确的
+    // 市场查询；生产桌面只注入平台/跨平台偏好、从不带物品，寒暄仍按非市场意图处理。
+    const explicitMarketItem = typeof defaults?.item === 'string' && defaults.item.trim().length > 0;
+    if (!explicitMarketItem && !/查|查询|价格|行情|多少钱/u.test(message)) {
       // 非市场意图（寒暄等）不因存在范围偏好就当成问价：没有明确市场意图时
       // 直接说明当前能力，而不是追问市场参数或弹出一次选择卡。
       return { turn: { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' } };
