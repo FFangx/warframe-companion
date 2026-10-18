@@ -11,8 +11,13 @@ import {
   ERROR_CATEGORY_LABELS,
   PLATFORM_LABELS,
   STATUS_LABELS,
+  formatCredits,
   formatPlatinum,
+  marketDeviationLabel,
+  marketEffectLines,
+  marketItemImageUrl,
   marketRankLabel,
+  marketSetSummaryText,
 } from './market-presentation.js';
 import {
   collectOrders,
@@ -52,11 +57,12 @@ function OrderPreviewBlock({ preview, onCopy, onClose, disabled }: {
   const { preview: data } = preview;
   return <div className="order-preview" data-testid="order-preview">
     <div className="preview-meta">
-      <span><b>物品</b>{data.itemName}</span>
-      <span><b>等级</b>{data.itemRank} 级</span>
+      <span><b>物品</b>{data.itemName}{data.itemEnName !== data.itemName ? `（${data.itemEnName}）` : ''}</span>
+      <span><b>等级</b>{data.itemRank == null ? '不适用' : `${data.itemRank} 级`}</span>
       <span><b>卖家</b>{data.seller} · {STATUS_LABELS[data.sellerStatus]}</span>
       <span><b>单价</b>{formatPlatinum(data.platinum)}</span>
       <span><b>购买数量</b>{data.purchaseQuantity}（库存 {data.inventory}）</span>
+      <span><b>模板语言</b>{data.templateLanguage === 'zh' ? '中文' : 'English'}{data.orderLocale ? ` · 卖家语言 ${data.orderLocale}` : ''}</span>
     </div>
     <p className="preview-text" data-testid="purchase-text">{data.text}</p>
     <div className="preview-actions">
@@ -83,6 +89,10 @@ function OrdersPanel({ result, snapshotId, disabled, expired, onExpired }: {
   const [selection, setSelection] = useState<{ key: string; orderIndex: number } | null>(null);
   const [preview, setPreview] = useState<PreviewState>({ phase: 'none' });
   const requestSeq = useRef(0);
+  // 等级只在实际可升级的物品上展示：套装/部件等 maxRank=0 不渲染等级列。
+  const ranked = result.data.item.rank.maxRank > 0;
+  const resolvedRank = result.data.item.rank.resolved;
+  const maxRank = result.data.item.rank.maxRank;
 
   const filtered = useMemo(() => filterOrders(rows, side, status), [rows, side, status]);
   const paged = useMemo(() => pageFor(filtered, page), [filtered, page]);
@@ -169,15 +179,20 @@ function OrdersPanel({ result, snapshotId, disabled, expired, onExpired }: {
           <button type="button" onClick={clearFilters}>清除筛选</button>
         </div>
       : <>
+          <div className={`order-list__head ${ranked ? 'order-list__head--ranked' : ''}`} aria-hidden="true">
+            <span>玩家</span><span>信誉</span><span>数量</span>{ranked ? <span>等级</span> : null}<span>价格</span><span />
+          </div>
           <div className="order-list">
             {paged.rows.map((row, index) => {
               const key = `${row.side}-${row.sourceIndex}`;
               const selected = selection?.key === key && preview.phase !== 'none';
               return <div className="order-entry" key={key}>
-                <div className="order-row">
+                <div className={`order-row ${ranked ? 'order-row--ranked' : 'order-row--plain'}`}>
                   <div className="order-rank">{paged.from + index + 1}</div>
                   <div className="order-user"><strong title={row.order.ingameName}>{row.order.ingameName}</strong><small><i className={`presence presence--${row.order.status}`} />{STATUS_LABELS[row.order.status]} · {PLATFORM_LABELS[row.order.platform]}</small></div>
+                  <div className="order-rep" title="卖家信誉">{row.order.reputation ?? '—'}</div>
                   <div className="order-quantity">库存 {row.order.quantity}</div>
+                  {ranked ? <div className="order-level">{row.order.rank ?? resolvedRank}/{maxRank}</div> : null}
                   <div className="order-price">{formatPlatinum(row.order.platinum)}</div>
                   <div className="order-action">{row.side === 'sell'
                     ? <button type="button" className="order-action__button" aria-label={`预览 ${row.order.ingameName} 的购买私聊文本`} disabled={!snapshotId || disabled || expired} onClick={() => (selected ? resetSelection() : requestPreview(row))}>{selected ? '收起' : '预览'}</button>
@@ -199,19 +214,35 @@ function OrdersPanel({ result, snapshotId, disabled, expired, onExpired }: {
   </section>;
 }
 
+function MarketSetBlock({ set }: { set: MarketQuerySuccess['data']['set'] }) {
+  if (!set || set.components.length === 0) return null;
+  return <section className="market-set" aria-label="整套与散件比较">
+    <div className="market-set__head">
+      <span>散件单价（对应数量）</span>
+      <strong>{marketSetSummaryText(set)}</strong>
+    </div>
+    {set.components.map((component) => <div className="market-set__row" key={component.slug}>
+      <span>{component.name.zhHans}{component.quantity > 1 ? ` ×${component.quantity}` : ''}</span>
+      <strong className={component.lowestSell == null ? 'market-set__price--missing' : ''}>{component.lowestSell == null ? '无卖单' : formatPlatinum(component.lowestSell)}</strong>
+    </div>)}
+  </section>;
+}
+
 function MarketSuccessCard({ result, snapshotId, onRefresh, disabled }: {
   result: MarketQuerySuccess;
   snapshotId: string | null;
   onRefresh: (() => void | Promise<void>) | undefined;
   disabled: boolean;
 }) {
-  const { item, sellOrders, buyOrders, statistics } = result.data;
+  const { item, sellOrders, buyOrders, statistics, set } = result.data;
   const [now, setNow] = useState(() => Date.now());
   const [forcedExpired, setForcedExpired] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const expiresAt = Date.parse(result.evidence.expiresAt);
   const expiresLabel = Number.isFinite(expiresAt) ? formatTime(result.evidence.expiresAt) : '未知时间';
+  const imageUrl = marketItemImageUrl(item.image);
+  const effects = marketEffectLines(item.tags, item.description.zhHans ?? item.description.en);
 
   useEffect(() => {
     setForcedExpired(false);
@@ -237,15 +268,24 @@ function MarketSuccessCard({ result, snapshotId, onRefresh, disabled }: {
 
   return <section className="market-result" aria-live="polite">
     <div className="result-heading">
-      <div><h2>{item.name.zhHans}</h2><p>{item.name.en}{item.rank.maxRank > 0 ? ` · 等级 ${item.rank.resolved}/${item.rank.maxRank}` : ' · 无需等级'}</p></div>
+      <div className="result-heading__identity">
+        {imageUrl ? <img className="market-item-image" src={imageUrl} alt={item.name.zhHans} loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : null}
+        <div className="result-heading__text">
+          <h2>{item.name.zhHans}</h2>
+          <p>{item.name.en}{item.rank.maxRank > 0 ? ` · 等级 ${item.rank.resolved}/${item.rank.maxRank}` : ' · 无需等级'}</p>
+          {effects.length ? <div className="market-effects" aria-label="词条效果">{effects.map((line) => <span key={line}>{line}</span>)}</div> : null}
+        </div>
+      </div>
       <span className={`finding finding--${result.evidence.finding === 'confirmed_present' ? 'good' : 'empty'}`}>{result.evidence.finding === 'confirmed_present' ? '行情已确认' : '范围内无订单'}</span>
     </div>
-    <div className="current-prices" aria-label="当前最优挂单"><div><span>最低卖价</span><strong>{sellOrders[0] ? formatPlatinum(sellOrders[0].platinum) : '暂无卖单'}</strong></div><div><span>最高买价</span><strong>{buyOrders[0] ? formatPlatinum(buyOrders[0].platinum) : '暂无买单'}</strong></div></div>
+    <div className="current-prices" aria-label="当前最优挂单（本轮快照）"><div><span>最低卖价 · 当前快照</span><strong>{sellOrders[0] ? formatPlatinum(sellOrders[0].platinum) : '暂无卖单'}</strong></div><div><span>最高买价 · 当前快照</span><strong>{buyOrders[0] ? formatPlatinum(buyOrders[0].platinum) : '暂无买单'}</strong></div></div>
     <div className="market-metrics">
-      <div><span>90 日成交中位数</span><strong>{statistics ? formatPlatinum(statistics.median) : '不可用'}</strong><small>{statistics ? `${statistics.sampleSize} 笔样本` : '不影响当前挂单快照'}</small></div>
-      <div><span>日均成交量</span><strong>{statistics ? statistics.dailyVolume.toLocaleString('zh-CN') : '—'}</strong><small>仅统计已成交订单</small></div>
-      <div><span>交易税</span><strong>{item.tradingTax == null ? '未知' : item.tradingTax.toLocaleString('zh-CN')}</strong><small>{item.ducats == null ? '无杜卡德信息' : `${item.ducats} 杜卡德`}</small></div>
+      <div><span>90 日成交中位数</span><strong>{statistics ? formatPlatinum(statistics.median) : '不可用'}</strong><small>{statistics ? `历史口径 · ${statistics.sampleSize} 笔已成交样本` : '统计接口不可用；不影响当前挂单'}</small></div>
+      <div><span>日均成交量（90 日）</span><strong>{statistics ? statistics.dailyVolume.toLocaleString('zh-CN') : '—'}</strong><small>仅统计已成交订单</small></div>
+      <div><span>当前最低卖价 vs 中位</span><strong>{statistics ? marketDeviationLabel(statistics.deviationPct) : '不可用'}</strong><small>当前快照 vs 历史成交；无卖单或中位为 0 时不可计算</small></div>
+      <div><span>交易税</span><strong>{item.tradingTax == null ? '未知' : formatCredits(item.tradingTax)}</strong><small>{item.ducats == null ? '无杜卡德信息' : `${item.ducats} 杜卡德`}</small></div>
     </div>
+    <MarketSetBlock set={set} />
     {result.warnings.length ? <div className="warning-strip">{result.warnings.map((warning) => <span key={warning.code}>{warning.message}</span>)}</div> : null}
     {expired ? <div className="expired-banner" role="alert">
       <span>行情快照已过期或不再新鲜（有效至 {expiresLabel}）。刷新后需要重新选择订单，复制不会被自动执行。</span>
@@ -285,7 +325,7 @@ export function MarketResultCard({ result, request, onCandidate, onRetry, disabl
   if (compact && result.ok) return <section className="market-preview">
     <div className="section-heading"><h3>{result.data.item.name.zhHans}</h3><span>行情</span></div>
     <p className="market-scope">{PLATFORM_LABELS[request.platform]} · {request.crossplay ? '跨平台' : '不跨平台'} · {marketRankLabel(request.rank, result.data.item.rank.maxRank)}</p>
-    <div className="preview-prices"><div><small>最低卖价</small><strong>{result.data.sellOrders[0] ? formatPlatinum(result.data.sellOrders[0].platinum) : '无卖单'}</strong></div><div><small>最高买价</small><strong>{result.data.buyOrders[0] ? formatPlatinum(result.data.buyOrders[0].platinum) : '无买单'}</strong></div></div>
+    <div className="preview-prices"><div><small>最低卖价（当前）</small><strong>{result.data.sellOrders[0] ? formatPlatinum(result.data.sellOrders[0].platinum) : '无卖单'}</strong></div><div><small>最高买价（当前）</small><strong>{result.data.buyOrders[0] ? formatPlatinum(result.data.buyOrders[0].platinum) : '无买单'}</strong></div><div><small>90 日中位（历史）</small><strong>{result.data.statistics ? formatPlatinum(result.data.statistics.median) : '不可用'}</strong></div></div>
     {result.warnings.map((warning) => <p className="preview-warning" key={warning.code}>{warning.message}</p>)}
     <small className="preview-source">Warframe.Market · {formatTime(result.evidence.asOf)}<br />有效至 {formatTime(result.evidence.expiresAt)}</small>
     <button className="detail-button" onClick={onOpen}>查看完整行情与订单 <Icon name="arrow" /></button>

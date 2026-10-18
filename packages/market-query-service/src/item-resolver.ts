@@ -1,6 +1,8 @@
 import type { ResolvedMarketItem } from '@warframe-companion/market-query-contract';
 
 export interface MarketCatalogItem {
+  /** Warframe.Market item id; null when the upstream entry has none (used for set part mapping). */
+  id: string | null;
   slug: string;
   name: ResolvedMarketItem['name'];
   tags: string[];

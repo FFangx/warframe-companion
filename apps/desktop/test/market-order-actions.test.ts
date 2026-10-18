@@ -6,6 +6,7 @@ import {
   createMarketSnapshotRegistry,
   performOrderCopy,
   presetOrderPreview,
+  templateLanguageForLocale,
   validOrderActionRequest,
 } from '../src/market-order-actions.js';
 
@@ -13,12 +14,12 @@ export function successResult(overrides: Partial<{
   expiresAt: string;
   freshness: 'fresh' | 'stale';
   maxRank: number;
-  sellers: Array<{ name: string; platinum: number; status: 'ingame' | 'online' | 'offline' | 'unknown'; rank: number | null }>;
-  buyOrders: Array<{ name: string; platinum: number; status: 'ingame' | 'online' | 'offline' | 'unknown' }>;
+  sellers: Array<{ name: string; platinum: number; status: 'ingame' | 'online' | 'offline' | 'unknown'; rank: number | null; reputation?: number | null; locale?: string | null }>;
+  buyOrders: Array<{ name: string; platinum: number; status: 'ingame' | 'online' | 'offline' | 'unknown'; reputation?: number | null; locale?: string | null }>;
 }> = {}): MarketQuerySuccess {
   const sellers = overrides.sellers ?? [
-    { name: 'SyntheticTennoC1', platinum: 10, status: 'ingame' as const, rank: 0 },
-    { name: 'SyntheticTennoC2', platinum: 12, status: 'online' as const, rank: 1 },
+    { name: 'SyntheticTennoC1', platinum: 10, status: 'ingame' as const, rank: 0, reputation: 42, locale: 'zh-hans' },
+    { name: 'SyntheticTennoC2', platinum: 12, status: 'online' as const, rank: 1, reputation: null, locale: 'en' },
   ];
   return {
     contractVersion: '1.0',
@@ -33,16 +34,24 @@ export function successResult(overrides: Partial<{
         ducats: 45,
         tradingTax: 4000,
         masteryRank: null,
+        image: {
+          thumb: 'https://warframe.market/static/assets/synthetic_prime_blueprint.png',
+          icon: null,
+          subIcon: null,
+        },
+        description: { en: null, zhHans: null },
       },
       sellOrders: sellers.map((seller, index) => ({
         side: 'sell', platinum: seller.platinum, quantity: index + 1, ingameName: seller.name, status: seller.status,
-        platform: 'pc', crossplay: null, rank: seller.rank, updatedAt: '2030-01-02T03:03:00.000Z',
+        platform: 'pc', crossplay: null, rank: seller.rank, reputation: seller.reputation ?? null,
+        locale: seller.locale ?? null, updatedAt: '2030-01-02T03:03:00.000Z',
       })),
       buyOrders: (overrides.buyOrders ?? [{ name: 'SyntheticTennoBuyer', platinum: 8, status: 'online' as const }]).map((buyer, index) => ({
         side: 'buy', platinum: buyer.platinum, quantity: 1, ingameName: buyer.name, status: buyer.status,
-        platform: 'pc', crossplay: null, rank: 0, updatedAt: '2030-01-02T03:02:00.000Z',
+        platform: 'pc', crossplay: null, rank: 0, reputation: buyer.reputation ?? null, locale: buyer.locale ?? null,
+        updatedAt: '2030-01-02T03:02:00.000Z',
       })),
-      statistics: { basis: 'closed_trades_90_days', median: 10, dailyVolume: 3.2, sampleSize: 288, rank: 0, asOf: '2030-01-02T03:04:05.000Z' },
+      statistics: { basis: 'closed_trades_90_days', median: 10, dailyVolume: 3.2, sampleSize: 288, rank: 0, asOf: '2030-01-02T03:04:05.000Z', deviationPct: 0 },
     },
     evidence: {
       scope: 'current_market', evidenceType: 'direct_snapshot', asOf: '2030-01-02T03:04:05.000Z',
@@ -55,31 +64,104 @@ export function successResult(overrides: Partial<{
 const FRESH_NOW = Date.parse('2030-01-02T03:05:00.000Z');
 
 describe('desktop market order actions', () => {
-  it('builds the exact legacy English /w template with the canonical item name and rank', () => {
-    expect(buildWhisperText({ seller: 'SyntheticTennoA', itemName: 'Synthetic Prime Blueprint', rank: 3, platinum: 12 }))
-      .toBe('/w SyntheticTennoA Hi! I want to buy: "Synthetic Prime Blueprint (rank 3)" for 12 platinum. (warframe.market)');
-    expect(buildWhisperText({ seller: 'SyntheticTennoA', itemName: 'Synthetic Prime Blueprint', rank: 0, platinum: 7.5 }))
-      .toBe('/w SyntheticTennoA Hi! I want to buy: "Synthetic Prime Blueprint (rank 0)" for 7.5 platinum. (warframe.market)');
+  it('decides the whisper language by seller locale: zh prefix = Chinese, anything else = English', () => {
+    expect(templateLanguageForLocale('zh-hans')).toBe('zh');
+    expect(templateLanguageForLocale('zh-Hans')).toBe('zh');
+    expect(templateLanguageForLocale('zh-tw')).toBe('zh');
+    expect(templateLanguageForLocale('en')).toBe('en');
+    expect(templateLanguageForLocale('de')).toBe('en');
+    expect(templateLanguageForLocale(null)).toBe('en');
   });
 
-  it('previews an order with the English name and the resolved rank from the trusted snapshot only', () => {
+  it('builds the exact legacy zh /w template with the canonical zh-Hans name and rank', () => {
+    expect(buildWhisperText({
+      seller: 'SyntheticTennoA', itemNameZhHans: '合成 Prime 蓝图', itemNameEn: 'Synthetic Prime Blueprint',
+      rank: 0, platinum: 12, locale: 'zh-hans',
+    })).toBe('/w SyntheticTennoA 你好！我想买："合成 Prime 蓝图 (等级 0)"，价格：12 白金。(warframe.market)');
+    expect(buildWhisperText({
+      seller: 'SyntheticTennoA', itemNameZhHans: '合成 Prime 蓝图', itemNameEn: 'Synthetic Prime Blueprint',
+      rank: 5, platinum: 12, locale: 'zh-hans',
+    })).toBe('/w SyntheticTennoA 你好！我想买："合成 Prime 蓝图 (等级 5)"，价格：12 白金。(warframe.market)');
+  });
+
+  it('builds the exact legacy English /w template for non-zh and unknown locales', () => {
+    const english = {
+      seller: 'SyntheticTennoA', itemNameZhHans: '合成 Prime 蓝图', itemNameEn: 'Synthetic Prime Blueprint',
+      rank: 3, platinum: 12, locale: 'en' as string | null,
+    };
+    expect(buildWhisperText({ ...english, locale: 'en' }))
+      .toBe('/w SyntheticTennoA Hi! I want to buy: "Synthetic Prime Blueprint (rank 3)" for 12 platinum. (warframe.market)');
+    expect(buildWhisperText({ ...english, locale: null }))
+      .toBe('/w SyntheticTennoA Hi! I want to buy: "Synthetic Prime Blueprint (rank 3)" for 12 platinum. (warframe.market)');
+    expect(buildWhisperText({ ...english, locale: 'de' }))
+      .toBe('/w SyntheticTennoA Hi! I want to buy: "Synthetic Prime Blueprint (rank 3)" for 12 platinum. (warframe.market)');
+  });
+
+  it('includes the rank only when the item is rankable and resolved', () => {
+    expect(buildWhisperText({
+      seller: 'SyntheticTennoA', itemNameZhHans: '合成 Prime 套装', itemNameEn: 'Synthetic Prime Set',
+      rank: null, platinum: 45, locale: 'zh-hans',
+    })).toBe('/w SyntheticTennoA 你好！我想买："合成 Prime 套装"，价格：45 白金。(warframe.market)');
+    expect(buildWhisperText({
+      seller: 'SyntheticTennoA', itemNameZhHans: '合成 Prime 套装', itemNameEn: 'Synthetic Prime Set',
+      rank: null, platinum: 45, locale: null,
+    })).toBe('/w SyntheticTennoA Hi! I want to buy: "Synthetic Prime Set" for 45 platinum. (warframe.market)');
+  });
+
+  it('previews a zh-locale order with the zh-Hans name and Chinese template from the trusted snapshot only', () => {
     const registry = createMarketSnapshotRegistry();
     const id = registry.register(MOCK_MARKET_QUERY_REQUEST, successResult({
-      sellers: [{ name: 'SyntheticTennoC2', platinum: 12, status: 'online', rank: 1 }],
+      sellers: [{ name: 'SyntheticTennoC1', platinum: 10, status: 'ingame', rank: 0, reputation: 42, locale: 'zh-hans' }],
     }))!;
     const result = presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 0 }, FRESH_NOW);
     expect(result).toEqual({
       ok: true,
       preview: {
-        text: '/w SyntheticTennoC2 Hi! I want to buy: "Synthetic Prime Blueprint (rank 0)" for 12 platinum. (warframe.market)',
-        itemName: 'Synthetic Prime Blueprint',
+        text: '/w SyntheticTennoC1 你好！我想买："合成 Prime 蓝图 (等级 0)"，价格：10 白金。(warframe.market)',
+        itemName: '合成 Prime 蓝图',
+        itemEnName: 'Synthetic Prime Blueprint',
         itemRank: 0,
-        seller: 'SyntheticTennoC2',
-        sellerStatus: 'online',
+        seller: 'SyntheticTennoC1',
+        sellerStatus: 'ingame',
         sellerPlatform: 'pc',
-        platinum: 12,
+        orderLocale: 'zh-hans',
+        templateLanguage: 'zh',
+        platinum: 10,
         purchaseQuantity: 1,
         inventory: 1,
+      },
+    });
+  });
+
+  it('previews a non-zh/unknown-locale order with the English name and the resolved rank', () => {
+    const registry = createMarketSnapshotRegistry();
+    const id = registry.register(MOCK_MARKET_QUERY_REQUEST, successResult({
+      sellers: [{ name: 'SyntheticTennoC2', platinum: 12, status: 'online', rank: 1, reputation: null, locale: null }],
+    }))!;
+    const result = presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 0 }, FRESH_NOW);
+    expect(result).toMatchObject({
+      ok: true,
+      preview: {
+        text: '/w SyntheticTennoC2 Hi! I want to buy: "Synthetic Prime Blueprint (rank 0)" for 12 platinum. (warframe.market)',
+        itemName: 'Synthetic Prime Blueprint',
+        templateLanguage: 'en',
+        orderLocale: null,
+      },
+    });
+  });
+
+  it('omits rank from preview and text for non-ranked set items', () => {
+    const registry = createMarketSnapshotRegistry();
+    const id = registry.register(MOCK_MARKET_QUERY_REQUEST, successResult({
+      maxRank: 0,
+      sellers: [{ name: 'SyntheticTennoC1', platinum: 45, status: 'ingame', rank: null, locale: 'zh-hans' }],
+    }))!;
+    const result = presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 0 }, FRESH_NOW);
+    expect(result).toMatchObject({
+      ok: true,
+      preview: {
+        itemRank: null,
+        text: '/w SyntheticTennoC1 你好！我想买："合成 Prime 蓝图"，价格：45 白金。(warframe.market)',
       },
     });
   });
@@ -104,6 +186,8 @@ describe('desktop market order actions', () => {
     expect(presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 99 }, FRESH_NOW))
       .toMatchObject({ ok: false, error: { code: 'ORDER_UNAVAILABLE' } });
     expect(validOrderActionRequest({ snapshotId: id, side: 'sell', orderIndex: 0, seller: 'InjectedTenno', platinum: 1 })).toBe(false);
+    expect(presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 0, locale: 'zh-hans' }, FRESH_NOW))
+      .toMatchObject({ ok: false, error: { code: 'INVALID_REQUEST' } });
     expect(presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: -1 }, FRESH_NOW))
       .toMatchObject({ ok: false, error: { code: 'INVALID_REQUEST' } });
     expect(presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 1000 }, FRESH_NOW))
@@ -145,7 +229,7 @@ describe('desktop market order actions', () => {
   it('shows the seller stock as inventory, never as the purchase quantity', () => {
     const registry = createMarketSnapshotRegistry();
     const id = registry.register(MOCK_MARKET_QUERY_REQUEST, successResult({
-      sellers: [{ name: 'SyntheticTennoC1', platinum: 10, status: 'ingame', rank: 0 }, { name: 'SyntheticTennoC2', platinum: 12, status: 'online', rank: 0 }],
+      sellers: [{ name: 'SyntheticTennoC1', platinum: 10, status: 'ingame', rank: 0, locale: 'zh-hans' }, { name: 'SyntheticTennoC2', platinum: 12, status: 'online', rank: 0, locale: 'en' }],
     }))!;
     const preview = presetOrderPreview(registry, { snapshotId: id, side: 'sell', orderIndex: 1 }, FRESH_NOW);
     expect(preview).toMatchObject({ ok: true });
@@ -162,7 +246,7 @@ describe('desktop market order actions', () => {
     const written: string[] = [];
     const fresh = performOrderCopy(registry, { snapshotId: id, side: 'sell', orderIndex: 0 }, FRESH_NOW, (text) => written.push(text));
     expect(fresh).toEqual({ ok: true });
-    expect(written).toEqual(['/w SyntheticTennoC1 Hi! I want to buy: "Synthetic Prime Blueprint (rank 0)" for 10 platinum. (warframe.market)']);
+    expect(written).toEqual(['/w SyntheticTennoC1 你好！我想买："合成 Prime 蓝图 (等级 0)"，价格：10 白金。(warframe.market)']);
     // Preview succeeded at 03:05, copy happens after expiry at 03:10: must be rejected.
     const input = { snapshotId: id, side: 'sell', orderIndex: 0 };
     expect(presetOrderPreview(registry, input, FRESH_NOW)).toMatchObject({ ok: true });

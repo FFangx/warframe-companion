@@ -27,6 +27,9 @@ describe('desktop-only market presentation', () => {
     expect(present.mock.calls[0]?.[0].request).toEqual(query.mock.calls[0]?.[0]);
     expect(present.mock.calls[0]?.[0].snapshotId).toBeNull();
     expect(JSON.stringify({ output, events })).not.toContain('SyntheticTenno');
+    // Seller reputation/locale are presentation-only metadata: the runtime
+    // events, facts and trace must never carry them.
+    expect(JSON.stringify(output)).not.toMatch(/(?:reputation|locale|zh-hans)/u);
     expect(output.trace.terminalReason).not.toBe('error');
   });
 

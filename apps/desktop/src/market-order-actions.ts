@@ -12,13 +12,16 @@ import type {
  *
  * The main process keeps the trusted snapshots it produced itself. The
  * renderer only references a snapshot by id and an order by index inside
- * that snapshot; it never supplies seller identity, price or time, so it
- * cannot fabricate a "trusted" order. Expiry is checked
+ * that snapshot; it never supplies seller identity, price, locale, image
+ * URL or time, so it cannot fabricate a "trusted" order. Expiry is checked
  * again with the main process clock at every execution point (preview AND
  * copy).
  *
- * The `/w` text uses the legacy warframe.market English template with the
- * canonical English item name and the resolved rank from the snapshot.
+ * The `/w` target and language come from the snapshot: a seller locale that
+ * starts with `zh` gets the canonical zh-Hans item name and the Chinese
+ * template; every other / unknown locale gets the canonical English name and
+ * the English template (legacy warframe.market behavior). The rank is only
+ * included when the item is rankable and the rank was resolved.
  *
  * Seller identity and the private-message text never leave this module
  * through the agent channel: they are only delivered to the renderer for
@@ -99,14 +102,19 @@ export interface OrderActionError {
 
 export interface OrderPreview {
   text: string;
-  /** Canonical English item name used inside the whisper. */
+  /** Canonical item name used inside the whisper (zh-Hans for zh locales, English otherwise). */
   itemName: string;
-  itemRank: number;
+  itemEnName: string;
+  /** Item rank when the item is rankable; null for sets/parts/other non-ranked items. */
+  itemRank: number | null;
   seller: string;
   sellerStatus: MarketUserStatus;
   sellerPlatform: MarketPlatform;
+  /** Seller account locale as reported by the market; drives the whisper language. */
+  orderLocale: string | null;
+  templateLanguage: 'zh' | 'en';
   platinum: number;
-  /** D1b always buys exactly one unit; there is no quantity selector yet. */
+  /** D1b/D1c always buys exactly one unit; there is no quantity selector yet. */
   purchaseQuantity: 1;
   /** The seller's listed stock, shown separately from the purchase quantity. */
   inventory: number;
@@ -120,16 +128,32 @@ export interface MarketQueryResultEnvelope {
   result: MarketQueryResult;
 }
 
+/**
+ * Legacy warframe.market rule: seller locales that start with `zh` receive the
+ * Chinese template; every other or unknown locale receives the English one.
+ */
+export function templateLanguageForLocale(locale: string | null): 'zh' | 'en' {
+  return locale !== null && /^zh/iu.test(locale) ? 'zh' : 'en';
+}
+
 export interface WhisperTextInput {
   seller: string;
-  itemName: string;
-  rank: number;
+  itemNameZhHans: string;
+  itemNameEn: string;
+  /** Applicable resolved rank; null when the item is not rankable. */
+  rank: number | null;
   platinum: number;
+  locale: string | null;
 }
 
 /** The exact text offered to the user for preview and written on copy (including the /w target). */
 export function buildWhisperText(input: WhisperTextInput): string {
-  return `/w ${input.seller} Hi! I want to buy: "${input.itemName} (rank ${input.rank})" for ${input.platinum} platinum. (warframe.market)`;
+  if (templateLanguageForLocale(input.locale) === 'zh') {
+    const rank = input.rank == null ? '' : ` (等级 ${input.rank})`;
+    return `/w ${input.seller} 你好！我想买："${input.itemNameZhHans}${rank}"，价格：${input.platinum} 白金。(warframe.market)`;
+  }
+  const rank = input.rank == null ? '' : ` (rank ${input.rank})`;
+  return `/w ${input.seller} Hi! I want to buy: "${input.itemNameEn}${rank}" for ${input.platinum} platinum. (warframe.market)`;
 }
 
 function expiredError(): OrderActionError {
@@ -170,21 +194,28 @@ function resolveSellOrder(entry: MarketSnapshotEntry | undefined, input: OrderAc
 
 /** Preview/copy payload derived from the trusted snapshot only. */
 function buildPreview(result: MarketQuerySuccess, order: MarketOrder): OrderPreview {
-  const itemName = result.data.item.name.en;
-  const itemRank = result.data.item.rank.resolved;
+  const language = templateLanguageForLocale(order.locale);
+  const rankable = result.data.item.rank.maxRank > 0;
+  const itemRank = rankable ? result.data.item.rank.resolved : null;
+  const itemName = language === 'zh' ? result.data.item.name.zhHans : result.data.item.name.en;
   const text = buildWhisperText({
     seller: order.ingameName,
-    itemName,
+    itemNameZhHans: result.data.item.name.zhHans,
+    itemNameEn: result.data.item.name.en,
     rank: itemRank,
     platinum: order.platinum,
+    locale: order.locale,
   });
   return {
     text,
     itemName,
+    itemEnName: result.data.item.name.en,
     itemRank,
     seller: order.ingameName,
     sellerStatus: order.status,
     sellerPlatform: order.platform,
+    orderLocale: order.locale,
+    templateLanguage: language,
     platinum: order.platinum,
     purchaseQuantity: 1,
     inventory: order.quantity,

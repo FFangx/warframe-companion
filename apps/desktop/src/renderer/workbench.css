@@ -137,6 +137,11 @@ small { line-height: 1.6; }
 .market-scope { font-size: 12px; line-height: 1.7; margin: 12px 0; color: var(--muted); }
 .market-result { border-top: 1px solid var(--line); }
 .result-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.result-heading__identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.result-heading__text { min-width: 0; }
+.market-item-image { width: 84px; height: 84px; flex-shrink: 0; object-fit: contain; border-radius: 8px; background: #202226; }
+.market-effects { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 8px; }
+.market-effects span { color: #9fd6b8; font-size: 12px; font-weight: 500; }
 .workspace .result-heading { padding: 20px 0 12px; }
 .result-heading h2 { font-size: 22px; font-weight: 600; margin: 0; }
 .result-heading p { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
@@ -146,11 +151,17 @@ small { line-height: 1.6; }
 .current-prices span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 .current-prices strong { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .current-prices > div:first-child strong { color: var(--accent); }
-.market-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border-block: 1px solid var(--line); }
+.market-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-block: 1px solid var(--line); }
 .workspace .market-metrics > div { padding: 14px 12px 14px 0; }
 .market-metrics span, .market-metrics small { display: block; color: var(--muted); font-size: 11px; line-height: 1.7; }
 .market-metrics strong { display: block; margin: 6px 0; font-weight: 500; font-variant-numeric: tabular-nums; }
 .warning-strip { display: grid; gap: 4px; padding: 12px 0; color: var(--warn); font-size: 12px; line-height: 1.7; }
+.market-set { margin-top: 16px; border: 1px solid #3d4148; border-radius: 8px; background: #202226; overflow: hidden; }
+.market-set__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; padding: 10px 14px; background: #2a2d33; color: #cfe4f0; font-size: 12px; }
+.market-set__head strong { color: #e8d58c; font-weight: 600; }
+.market-set__row { display: flex; justify-content: space-between; gap: 8px 16px; padding: 8px 14px; border-top: 1px solid #2c3036; color: #e8e6e3; font-size: 13px; }
+.market-set__row strong { color: #e8d58c; font-weight: 600; font-variant-numeric: tabular-nums; }
+.market-set__price--missing { color: #9aa3ad !important; font-weight: 400 !important; }
 .orders-grid { display: grid; gap: 24px; margin: 20px 0; }
 .orders-panel { min-width: 0; }
 .orders-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px 20px; padding-bottom: 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
@@ -161,8 +172,13 @@ small { line-height: 1.6; }
 .orders-count b { color: #c9cdd2; font-weight: 400; }
 .order-entry { border-bottom: 1px solid #303338; }
 .order-entry:last-child { border-bottom: 0; }
-.order-row { display: grid; grid-template-columns: 22px minmax(0,1fr) auto auto auto; gap: 12px; align-items: center; padding: 14px 0; font-variant-numeric: tabular-nums; }
-.order-rank, .order-quantity { color: var(--muted); font-size: 12px; }
+.order-row { display: grid; grid-template-columns: 22px minmax(0,1fr) auto auto auto auto; gap: 12px; align-items: center; padding: 14px 0; font-variant-numeric: tabular-nums; }
+.order-row--ranked { grid-template-columns: 22px minmax(0,1fr) auto auto auto auto auto; }
+.order-list__head { display: grid; grid-template-columns: 22px minmax(0,1fr) auto auto auto auto; gap: 12px; padding: 8px 0 6px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.order-list__head--ranked { grid-template-columns: 22px minmax(0,1fr) auto auto auto auto auto; }
+.order-rank, .order-quantity, .order-rep, .order-level { color: var(--muted); font-size: 12px; }
+.order-rep, .order-level { text-align: center; min-width: 44px; }
+.order-level { min-width: 52px; }
 .order-user { min-width: 0; }.order-user strong { display: block; overflow-wrap: anywhere; font-size: 13px; font-weight: 500; }.order-user small { display: flex; align-items: center; color: var(--muted); font-size: 11px; margin-top: 5px; }
 .presence { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); margin-right: 6px; }.presence--ingame { background: var(--good); }.presence--online { background: var(--accent); }
 .order-price { font-size: 15px; font-weight: 600; text-align: right; min-width: 65px; }

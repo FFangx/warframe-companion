@@ -5,7 +5,7 @@ import { clampPage, collectOrders, filterOrders, ORDER_PAGE_SIZE, pageFor, type 
 function order(index: number, side: 'sell' | 'buy', status: MarketUserStatus, platinum: number): MarketOrder {
   return {
     side, platinum, quantity: 1, ingameName: `SyntheticTennoP${index}`, status,
-    platform: 'pc', crossplay: null, rank: 0, updatedAt: '2030-01-02T03:03:00.000Z',
+    platform: 'pc', crossplay: null, rank: 0, reputation: 5, locale: 'zh-hans', updatedAt: '2030-01-02T03:03:00.000Z',
   };
 }
 
@@ -18,6 +18,8 @@ function result(rows: OrderRow[]): MarketQuerySuccess {
       item: {
         slug: 'synthetic_prime', name: { en: 'Synthetic Prime', zhHans: '合成 Prime' }, tags: ['prime'],
         rank: { requested: 0, resolved: 0, maxRank: 0 }, ducats: null, tradingTax: null, masteryRank: null,
+        image: null,
+        description: { en: null, zhHans: null },
       },
       sellOrders: rows.filter((row) => row.side === 'sell').map((row) => row.order),
       buyOrders: rows.filter((row) => row.side === 'buy').map((row) => row.order),
