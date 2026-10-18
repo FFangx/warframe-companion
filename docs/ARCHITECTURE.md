@@ -2,6 +2,8 @@
 
 > 状态：方向性架构，2026-09-03 更新执行顺序。描述长期目标边界，不代表全部已经实现，也不要求原型提前搭建。执行顺序见 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)。
 
+2026-09-04：Planning、Memory、Tool Use、Action 与 Agent Loop 的目标契约、状态机、预算和迁移步骤已写入 [Agent 运行架构设计](AGENT_RUNTIME_DESIGN.md)。该设计继续沿用单 Agent 与现有服务；除工具调用上限 15 次外，新行为均待对应切片实现。
+
 ## 总体结构
 
 ```text
@@ -117,10 +119,15 @@ OpenClaw / DSH backend    ┘
 - 总览中的市场快捷查询通过独立的 `market.query()` preload IPC 调用主进程内 `market-query-service`；用户必须显式输入物品、平台、跨平台范围和等级。
 - `packages/warframe-data-service` 已实现第一条本地公共数据切片：按需验证并编译 WFCD 掉落快照，以原子 JSON 缓存和内存键索引支持 `drops.search`。契约分别报告 24 小时缓存新鲜度与 WFCD 源数据年龄；源数据 30 天后告警、90 天后门禁拒绝。刷新会对照同一 MIT 仓库的 jsDelivr/GitHub Raw 元数据并记录版本差异与选源。刷新失败只能在源年龄仍通过门禁时显式使用 stale 快照；无有效掉率的源行会计数、排除并告警，不会静默当作 0。
 - 公共掉落别名采用仓库自维护的中英文小表，随项目 MIT 发布并在解析结果中携带来源/许可证；未摄取无明确许可证的中文公共导出。
-- React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障。D1a 抽取共享 `MarketResultCard`，现由对话摘要、完整详情和快捷查询共用；主进程在同一次工具查询返回时发送桌面专用展示事件，模型与 `AgentTrace` 保持原有脱敏摘要。总览与助手共享一个窗口：可折叠左侧导航只承载总览和用户固定功能，右上角控制全局助手，工作区按需展示完整结果，设置使用原生模态弹窗；导航展开、市场固定和助手开关使用 renderer localStorage 保存布尔偏好，不保存对话或业务数据；助手和已打开的快捷查询保留在内存中，切换不会丢会话或重复订阅；完成/卸载清理监听，关闭窗口取消任务。
+- React 原生行情卡已经展示买卖挂单、90 日已成交统计、查询证据、警告、空订单语义和分类故障。D1a 抽取共享 `MarketResultCard`，现由对话摘要、完整详情和快捷查询共用；主进程在同一次工具查询返回时发送桌面专用展示事件，模型与 `AgentTrace` 保持原有脱敏摘要。D1c 模板对齐已完成主管验收：同一卡片补卖家信誉/语言、统计偏离（当前 vs 历史分列）、物品图（仅 warframe.market 静态资源）与 MOD/赋能词条效果、套装散件合计比较，以及按卖家语言生成的 `/w` 目标，并保持 D1b 的分页筛选与过期门禁。总览与助手共享一个窗口：可折叠左侧导航只承载总览和用户固定功能，右上角控制全局助手，工作区按需展示完整结果，设置使用原生模态弹窗；导航展开、市场固定和助手开关使用 renderer localStorage 保存布尔偏好，不保存对话或业务数据；助手和已打开的快捷查询保留在内存中，切换不会丢会话或重复订阅；完成/卸载清理监听，关闭窗口取消任务。
 - `packages/agent-eval` 已建立 41 条合成/脱敏评估（原 30 条、8 条 `drops.search` 和 3 条 `account.snapshot`）、模型无关结构化轨迹协议、确定性评分 runner 和参考契约基线；掉落用例覆盖中英文路由、缓存/源年龄分离、替代源对照、过龄拒绝与无源降级，账号用例覆盖可信权限、脱敏投影与数据源不可用。参考基线只验证评估器上界，不代表真实模型表现。
 - `packages/agent-runtime` 已实现 Companion 自有 Harness 的模型可配置切片：`ModelProfile`、`ModelAdapter`、能力/健康门禁、本地离线 backend、可信策略、公开市场/掉落工具编排、取消/超时、流式事件和 `AgentTrace`。受控 OpenAI-compatible adapter 通过只含引用的凭据契约支持 `/models` 健康检查、Chat Completions JSON Schema 工具、SSE、取消和稳定错误；桌面本机 profile 使用原子 JSON 配置，不引入 SQLite。默认仍只运行零费用离线 profile，真实 provider 仅在用户主动配置与发送后调用。
-- 工具结果回送已实现：声明 `supportsToolRoundTrip` 的 adapter 在每次工具执行后收到脱敏结果摘要并生成最终回答，或通过内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态；模型不得提交事实、身份、拒绝、延迟或调用次数，工具轮上限 3、第二轮故障回落 Harness 确定性回答并在轨迹记录 `modelFailure`，终态与来源写入 `AgentTrace.conclusion`/`conclusionSource`。离线本地规则后端保持确定性组织回答。工具结果的事实投影已无条件化：生产与评估共用同一组规范 facts，评估不再改变 Agent 行为（显式默认市场参数走请求级 `AgentRunRequest.defaults`）。
+- 工具结果回送已实现：声明 `supportsToolRoundTrip` 的 adapter 在每次工具执行后收到脱敏结果摘要并生成最终回答，或通过内部 `agent.conclude` 提交 `answered`/`insufficient_data` 终态；模型不得提交事实、身份、拒绝、延迟或调用次数，普通任务提前 `answer`/`conclude` 后直接提交（不附加固定反思），故障回落 Harness 确定性回答并在轨迹记录 `modelFailure`，终态与来源写入 `AgentTrace.conclusion`/`conclusionSource`。离线本地规则后端保持确定性组织回答。工具结果的事实投影已无条件化：生产与评估共用同一组规范 facts，评估不再改变 Agent 行为（显式默认市场参数走请求级 `AgentRunRequest.defaults`）。
+- D2a1 循环预算与停止（已完成主管验收）：`RunPolicy` 由主进程构造（15 次工具、24 次模型请求并预留 1 次 finalize、120 秒硬截止、20 秒 finalize 预留、健康 10 秒/模型请求 30 秒/工具 15 秒阶段超时、累计 80000 token；`DEFAULT_RUN_POLICY` 只允许被缩短不允许被提高，renderer 不再传固定 15 秒）。第 15 次 Observation 后进入一次受限最终汇总：`generateTurn(mode: 'finalize')` 不暴露任何业务/控制工具，Harness 执行门禁拒绝任何业务调用（绝不执行第 16 次），finalizer 失败、非法或剩余时间不足时只做一次确定性程序收束。健康检查、模型请求与领域工具贯穿同一运行 `AbortSignal`（`checkModelProfile` 与两个领域服务的 `query`/`searchDrops` 已支持可选 signal）；无法真正中止的迟到结果被隔离，一次运行最多提交一个终态。`ModelAdapter.adapterVersion` 升到 2（执行模式扩展，本地规则与 OpenAI-compatible 同步）。主管验收为 164 项根测试、桌面打包和 40/40 可见合成 Electron 回归；真实模型预算仍待校准。
 - DeepSeek Harness 的隔离适配器现位于 `experiments/deepseek-harness`：外置 Cordis 工具将 `market_query` 映射为逻辑 `market.query`，可信上下文 guard 拒绝权限负例，终态工具通过 `concludeTurn()` 提交模型判断；驱动器从正式 `session/event` 派生业务调用、从 `tools/result` 观察规范结果并输出同一 `AgentTrace`。keyless DSH 组合预检与固定候选的 30 条真实模型评估均已完成；首份 v1 `deepseek-v4-flash` 基线保持 0/30、20.22%。版本化 v2 runner 离线读取同一批 trace 后为 5/30、53.72%，并将工具后 `answer` 终态、必需/禁止事实语义和远程模型延迟预算从 v1 系统性误差中分离；无支撑事实、证据与权限门禁未放宽。它不进入桌面生产依赖，也不修改 DSH `agent-loop`。固定版本、许可与运行边界见 [`DEEPSEEK_HARNESS_BASELINE.md`](DEEPSEEK_HARNESS_BASELINE.md)。
 - renderer 启用 `contextIsolation` 与 sandbox，关闭 Node 集成；健康状态携带范围、检查时间、新鲜度、finding 和来源。
-- 模型可配置的最小 Agent 对话、OpenAI-compatible 接口与工具结果回送多轮终态已经实现；当前未用真实远程模型验收，也不包含视觉、OpenClaw/DSH 桌面 backend、fallback、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。
+- 模型可配置的最小 Agent 对话、OpenAI-compatible 接口、工具结果回送多轮终态与 D2a1 循环预算/停止已经实现；当前未用真实远程模型验收，也不包含视觉、OpenClaw/DSH 桌面 backend、fallback、个人快照、订阅或会话持久化，不得把这些能力视作已经交付。
+
+## 2026-09-05 目标行为收口
+
+上方当前实现段落仍是源码现状。目标增加主进程偏好服务、持久化会话和待答卡、原模板原生交互、显式订阅通知与关闭偏好。模型保留建议和取舍能力。详见 [产品行为合同](PRODUCT_BEHAVIOR.md) 与 [实施交接](IMPLEMENTATION_HANDOFF.md)，不得把设计当成当前已交付。
