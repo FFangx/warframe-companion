@@ -424,7 +424,7 @@ export class WarframeMarketQueryService {
     }
   }
 
-  async #json(path: string, request: MarketQueryRequest): Promise<unknown> {
+  async #json(path: string, request: MarketQueryRequest, externalSignal?: AbortSignal): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
     try {
@@ -435,7 +435,8 @@ export class WarframeMarketQueryService {
           Crossplay: String(request.crossplay),
           Language: 'zh-hans',
         },
-        signal: controller.signal,
+        // Agent run 的取消信号与自身的请求超时合并：两者任一触发都会中止底层 fetch。
+        signal: externalSignal ? AbortSignal.any([controller.signal, externalSignal]) : controller.signal,
       });
       if (response.status === 429) {
         throw new UpstreamFailure(
@@ -474,6 +475,7 @@ export class WarframeMarketQueryService {
     detail: ParsedDetail,
     catalog: MarketCatalogItem[],
     request: MarketQueryRequest,
+    externalSignal?: AbortSignal,
   ): Promise<MarketSetComparison> {
     const byId = new Map<string, MarketCatalogItem>();
     for (const entry of catalog) if (entry.id) byId.set(entry.id, entry);
@@ -490,8 +492,8 @@ export class WarframeMarketQueryService {
       const batch = parts.slice(offset, offset + SET_PART_BATCH);
       const rows = await Promise.all(batch.map(async (part) => {
         const [detailResult, ordersResult] = await Promise.allSettled([
-          this.#json(`/v2/item/${encodeURIComponent(part.slug)}`, request),
-          this.#json(`/v2/orders/item/${encodeURIComponent(part.slug)}/top`, request),
+          this.#json(`/v2/item/${encodeURIComponent(part.slug)}`, request, externalSignal),
+          this.#json(`/v2/orders/item/${encodeURIComponent(part.slug)}/top`, request, externalSignal),
         ]);
         if (detailResult.status !== 'fulfilled') {
           // A quote cannot be totalled without authoritative quantity metadata.
@@ -528,7 +530,11 @@ export class WarframeMarketQueryService {
     };
   }
 
-  async query(input: unknown): Promise<MarketQueryResult> {
+  /**
+   * 执行一次只读市场查询。`signal` 为可选的取消信号（Agent run 统一信号）；
+   * 与内部请求超时合并，取消即中止底层网络请求。
+   */
+  async query(input: unknown, signal?: AbortSignal): Promise<MarketQueryResult> {
     try {
       assertMarketQueryRequest(input);
     } catch (error) {
@@ -537,7 +543,7 @@ export class WarframeMarketQueryService {
     }
     const request = input;
     try {
-      const catalog = parseCatalog(await this.#json('/v2/items', request));
+      const catalog = parseCatalog(await this.#json('/v2/items', request, signal));
       const resolution = resolveMarketItem(catalog, request.item);
       if (!resolution.match) {
         if (resolution.candidates.length === 0) return failure('ITEM_NOT_FOUND', '没有找到匹配物品。');
@@ -547,7 +553,7 @@ export class WarframeMarketQueryService {
       }
 
       const detail = parseDetail(
-        await this.#json(`/v2/item/${encodeURIComponent(resolution.match.slug)}`, request),
+        await this.#json(`/v2/item/${encodeURIComponent(resolution.match.slug)}`, request, signal),
         resolution.match,
       );
       const resolvedRank = request.rank === 'max' ? detail.maxRank : request.rank;
@@ -555,8 +561,8 @@ export class WarframeMarketQueryService {
         return failure('INVALID_RANK', `等级超出物品范围（最高 ${detail.maxRank} 级）。`, { field: 'rank' });
       }
       const rankQuery = detail.maxRank > 0 ? `?rank=${encodeURIComponent(resolvedRank)}` : '';
-      const ordersPromise = this.#json(`/v2/orders/item/${encodeURIComponent(resolution.match.slug)}/top${rankQuery}`, request);
-      const statisticsPromise = this.#json(`/v1/items/${encodeURIComponent(resolution.match.slug)}/statistics`, request)
+      const ordersPromise = this.#json(`/v2/orders/item/${encodeURIComponent(resolution.match.slug)}/top${rankQuery}`, request, signal);
+      const statisticsPromise = this.#json(`/v1/items/${encodeURIComponent(resolution.match.slug)}/statistics`, request, signal)
         .then((payload) => parseStatistics(payload, resolvedRank, detail.maxRank > 0))
         .catch(() => undefined);
       const orders = parseOrders(await ordersPromise, this.#orderLimit);
@@ -577,7 +583,7 @@ export class WarframeMarketQueryService {
       let set: MarketSetComparison | undefined;
       if (detail.setRoot && detail.setParts.length > 1) {
         try {
-          set = await this.#resolveSetParts(detail, catalog, request);
+          set = await this.#resolveSetParts(detail, catalog, request, signal);
           set = { ...set, setLowest: orders.sellOrders[0]?.platinum ?? null };
         } catch {
           warnings.push({ code: 'SET_COMPONENTS_UNAVAILABLE', message: '散件单价不可用；整套当前挂单仍然有效。' });

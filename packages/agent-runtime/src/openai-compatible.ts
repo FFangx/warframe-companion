@@ -399,7 +399,7 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
   const resolver = options.resolveCredential ?? defaultCredentialResolver;
   return {
     id: OPENAI_COMPATIBLE_ADAPTER_ID,
-    adapterVersion: 1,
+    adapterVersion: 2,
     supportsToolRoundTrip: true,
     async checkHealth(profile, externalSignal) {
       let configuration: OpenAICompatibleConfiguration;
@@ -441,8 +441,13 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
       }
       const headers = { 'content-type': 'application/json', ...(await credentialHeaders(configuration, resolver)) };
       const defaults = input.defaults ? `\n调用方提供的显式默认参数：${JSON.stringify(input.defaults)}（用户消息中明确给出的平台、跨平台范围与等级优先于默认参数）。` : '';
+      // finalize 模式：受限最终汇总，绝不暴露业务工具（也不暴露 agent.clarify /
+      // agent.conclude）；模型只能基于已回送的工具摘要给出最终回答文本。
+      const systemPrompt = input.mode === 'finalize'
+        ? `你是只读 Warframe 工具路由器（最终汇总模式）。这是预算边界上的最后一次生成：根据已执行的只读工具摘要，用简洁中文给出最终回答。只能陈述摘要中给出的事实；不得请求或调用任何工具，不得提交事实、证据、身份、延迟、拒绝或调用次数。`
+        : `你是只读 Warframe 工具路由器。需要实时行情或掉落事实时必须调用注册工具；禁止交易、聊天和账号写操作。缺少市场平台、跨平台范围或等级时直接用文本澄清，不得猜测。等级缺省规则：未指定等级时可升级物品默认 0 级，"满级"按物品元数据解析，套装及不适用等级的物品不要求等级。工具执行后必须基于脱敏的工具结果作答，并用 agent.conclude 提交终态；事实、证据、身份、延迟和拒绝永远由调用方决定，不得自行提交。${defaults}`;
       const messages: Array<Record<string, unknown>> = [
-        { role: 'system', content: `你是只读 Warframe 工具路由器。需要实时行情或掉落事实时必须调用注册工具；禁止交易、聊天和账号写操作。缺少市场平台、跨平台范围或等级时直接用文本澄清，不得猜测。等级缺省规则：未指定等级时可升级物品默认 0 级，"满级"按物品元数据解析，套装及不适用等级的物品不要求等级。工具执行后必须基于脱敏的工具结果作答，并用 agent.conclude 提交终态；事实、证据、身份、延迟和拒绝永远由调用方决定，不得自行提交。${defaults}` },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: input.message },
       ];
       (input.history ?? []).forEach((step: ToolRoundStep, index: number) => {
@@ -458,8 +463,7 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
         stream: profile.capabilities.streaming,
         max_tokens: configuration.maxOutputTokens,
         messages,
-        tools: TOOLS,
-        tool_choice: 'auto',
+        ...(input.mode === 'finalize' ? {} : { tools: TOOLS, tool_choice: 'auto' }),
       };
       let response: Response;
       try {

@@ -107,6 +107,31 @@ function routedFetch(overrides = {}) {
   return { fetch, calls };
 }
 
+test('forwards an external cancellation signal to the active market fetch', async () => {
+  const controller = new AbortController();
+  let observedSignal;
+  let markStarted;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const service = new WarframeMarketQueryService({
+    timeoutMs: 5_000,
+    fetch: async (_url, init) => {
+      observedSignal = init.signal;
+      markStarted();
+      return await new Promise((_resolve, reject) => init.signal.addEventListener(
+        'abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true },
+      ));
+    },
+  });
+  const pending = service.query(REQUEST, controller.signal);
+  await started;
+  controller.abort(new Error('synthetic run cancelled'));
+  const result = await pending;
+  assert.equal(observedSignal instanceof AbortSignal, true);
+  assert.equal(observedSignal.aborted, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'UPSTREAM_TIMEOUT');
+});
+
 test('maps live API shapes to the typed contract and sorts /top orders explicitly', async () => {
   const transport = routedFetch();
   const service = new WarframeMarketQueryService({ fetch: transport.fetch, now: () => NOW });

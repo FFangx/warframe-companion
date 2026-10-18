@@ -30,6 +30,34 @@ async function fixture(t) {
   return { directory, fetch, calls };
 }
 
+test('forwards an external cancellation signal to active public-data fetches', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'warframe-data-abort-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const controller = new AbortController();
+  const observedSignals = [];
+  let markStarted;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const service = new WarframeDataService({
+    cacheDirectory: directory,
+    timeoutMs: 5_000,
+    fetch: async (_url, init) => {
+      observedSignals.push(init.signal);
+      markStarted();
+      return await new Promise((_resolve, reject) => init.signal.addEventListener(
+        'abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true },
+      ));
+    },
+  });
+  const pending = service.searchDrops(request('Example Blueprint'), controller.signal);
+  await started;
+  controller.abort(new Error('synthetic run cancelled'));
+  const result = await pending;
+  assert.ok(observedSignals.length >= 1);
+  assert.ok(observedSignals.every((signal) => signal instanceof AbortSignal && signal.aborted));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'SOURCE_UNAVAILABLE');
+});
+
 test('refreshes, validates and indexes a public snapshot without SQLite', async (t) => {
   const f = await fixture(t);
   const result = await new WarframeDataService({ cacheDirectory: f.directory, fetch: f.fetch, now: () => NOW }).searchDrops(request('example blueprint', 1));

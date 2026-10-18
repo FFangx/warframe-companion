@@ -4,6 +4,7 @@ import { createWarframeMarketQueryService } from '@warframe-companion/market-que
 import { createWarframeDataService } from '@warframe-companion/warframe-data-service';
 import {
   DEFAULT_MODEL_PROFILES,
+  DEFAULT_RUN_POLICY,
   checkModelProfile,
   createOpenAICompatibleAdapter,
   listModelProfiles,
@@ -11,6 +12,7 @@ import {
   runDesktopAgent,
   type ModelAdapter,
   type ModelProfile,
+  type RunPolicy,
 } from '@warframe-companion/agent-runtime';
 import { getSystemHealth } from './system-health.js';
 import { withMarketPresentation, type DesktopAgentEvent } from './agent-presentation.js';
@@ -36,7 +38,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 
 const currentDirectory = __dirname;
 const marketQueryService = createWarframeMarketQueryService();
-const openAICompatibleAdapter = createOpenAICompatibleAdapter();
+const openAICompatibleAdapter = createOpenAICompatibleAdapter({ healthTimeoutMs: DEFAULT_RUN_POLICY.healthTimeoutMs });
 const modelAdapters: readonly ModelAdapter[] = [localRulesModelAdapter, openAICompatibleAdapter];
 
 const activeAgentRuns = new Map<string, AbortController>();
@@ -65,7 +67,8 @@ function validAgentInput(value: unknown): value is { requestId: string; message:
   return typeof input.requestId === 'string' && /^[a-zA-Z0-9-]{1,80}$/u.test(input.requestId)
     && typeof input.message === 'string' && input.message.trim().length > 0 && input.message.length <= 500
     && (input.modelProfileId === undefined || (typeof input.modelProfileId === 'string' && /^[a-z0-9-]{1,80}$/u.test(input.modelProfileId)))
-    && (input.timeoutMs === undefined || (Number.isInteger(input.timeoutMs) && Number(input.timeoutMs) >= 100 && Number(input.timeoutMs) <= 60_000));
+    // 显式短超时只允许缩短默认策略（120 秒），renderer 不能提高预算。
+    && (input.timeoutMs === undefined || (Number.isInteger(input.timeoutMs) && Number(input.timeoutMs) >= 100 && Number(input.timeoutMs) <= DEFAULT_RUN_POLICY.hardDeadlineMs));
 }
 
 function systemHealth(): ReturnType<typeof getSystemHealth> {
@@ -175,23 +178,28 @@ app.whenReady().then(() => {
     event.sender.once('destroyed', onDestroyed);
     activeAgentRuns.get(input.requestId)?.abort(new Error('replaced'));
     activeAgentRuns.set(input.requestId, controller);
+    // 预算由主进程构造：默认 RunPolicy（120 秒硬截止、15 次工具、24 次模型请求，
+    // 预留 finalize）；renderer 的显式 timeoutMs 只能进一步缩短，不能提高。
+    const runPolicy: RunPolicy = input.timeoutMs === undefined
+      ? { ...DEFAULT_RUN_POLICY }
+      : { ...DEFAULT_RUN_POLICY, hardDeadlineMs: Math.min(DEFAULT_RUN_POLICY.hardDeadlineMs, input.timeoutMs) };
     // 每轮按当前已保存偏好补全范围：已配置则注入默认平台/跨平台（等级仍是
     // 物品条件，不在这里给默认）；未配置则让自然问价走一次可点击选择卡。
     void Promise.all([modelSnapshot(), loadMarketScopePreference(scopePreferencePath())]).then(([snapshot, scope]) => runDesktopAgent({
       requestId: input.requestId,
       message: input.message.trim(),
       ...(input.modelProfileId ? { modelProfileId: input.modelProfileId } : {}),
-      ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
+      runPolicy,
       ...agentScopeInputFor(scope.preference),
       context: { channel: 'desktop', trustedOwner: true, now: new Date().toISOString() },
     }, {
-      marketQuery: withMarketPresentation(
-        (request) => marketQueryService.query(request),
+      marketQuery: (request, runSignal) => withMarketPresentation(
+        (inner) => marketQueryService.query(inner, runSignal),
         send,
-        controller.signal,
-        (request, result) => marketSnapshots.register(request, result),
-      ),
-      searchDrops: (request) => warframeDataService.searchDrops(request),
+        runSignal ?? controller.signal,
+        (inner, result) => marketSnapshots.register(inner, result),
+      )(request),
+      searchDrops: (request, runSignal) => warframeDataService.searchDrops(request, runSignal),
       onEvent: send,
       signal: controller.signal,
       profiles: snapshot.profiles,

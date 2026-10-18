@@ -343,7 +343,8 @@ function AgentView() {
     setRunning(true); setActiveRequestId(id); setMessage('');
     activeRun.current = { id, dispose: () => {} };
     try {
-      const dispose = window.warframeCompanion.agent.run({ requestId: id, message: prompt, modelProfileId: profileId, timeoutMs: 15_000 }, (streamEvent) => {
+      // 运行预算由主进程构造（默认 120 秒）；renderer 不传超时，也不能提高预算。
+      const dispose = window.warframeCompanion.agent.run({ requestId: id, message: prompt, modelProfileId: profileId }, (streamEvent) => {
         if (activeRun.current?.id !== id) return;
         if (streamEvent.type === 'market_result') recordResult(streamEvent, prompt);
         setTurns((current) => current.map((turn) => {

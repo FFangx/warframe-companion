@@ -753,3 +753,355 @@ test('回送轮：第二轮模型阶段取消或超时仍然终止本轮', async
   assert.equal(result.trace.terminalReason, 'cancelled');
   assert.equal(result.trace.toolCalls.length, 1);
 });
+
+// ---- D2a1 循环预算和停止 ----
+
+test('D2a1：第 15 次观察后进入一次受限最终汇总，且无第 16 次业务执行', async () => {
+  let marketCalls = 0;
+  const modes = [];
+  const adapter = {
+    id: 'synthetic-finalize-ok', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn(input) {
+      modes.push(input.mode ?? 'decide');
+      if (input.mode === 'finalize') return { turn: { kind: 'answer', text: '最终汇总：基于第 15 次工具结果作答。' } };
+      return { turn: marketTurn() };
+    },
+  };
+  const profile = roundTripProfile('synthetic-finalize-ok', adapter);
+  const events = [];
+  const result = await runDesktopAgent({ requestId: 'd2a1-finalize-ok', message: '查行情。', modelProfileId: profile.id, context }, {
+    marketQuery: async () => { marketCalls += 1; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+    profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
+  });
+  assert.equal(marketCalls, 15);
+  assert.equal(result.trace.toolCalls.length, 15);
+  assert.equal(result.trace.toolAttempts, 15);
+  assert.equal(result.trace.modelRequests, 16);
+  assert.equal(result.trace.finalizedBy, 'model');
+  assert.equal(result.trace.conclusion, 'answered');
+  assert.equal(result.trace.conclusionSource, 'model');
+  assert.match(result.message, /最终汇总/u);
+  assert.equal(modes.filter((mode) => mode === 'finalize').length, 1);
+  assert.equal(events.filter((event) => event.type === 'completed').length, 1);
+});
+
+test('D2a1：finalizer 再次请求业务工具被执行门禁拒绝并确定性收束，不执行第 16 次', async () => {
+  let marketCalls = 0;
+  const adapter = {
+    id: 'synthetic-finalize-gate', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn() { return { turn: marketTurn() }; },
+  };
+  const profile = roundTripProfile('synthetic-finalize-gate', adapter);
+  const events = [];
+  const result = await runDesktopAgent({ requestId: 'd2a1-finalize-gate', message: '查行情。', modelProfileId: profile.id, context }, {
+    marketQuery: async () => { marketCalls += 1; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+    profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
+  });
+  assert.equal(marketCalls, 15);
+  assert.equal(result.trace.toolAttempts, 15);
+  assert.equal(result.trace.modelRequests, 16);
+  assert.equal(result.trace.finalizedBy, 'harness');
+  assert.equal(result.trace.conclusionSource, 'harness');
+  assert.equal(result.trace.modelFailure.code, 'MODEL_BAD_RESPONSE');
+  assert.match(result.trace.modelFailure.message, /执行门禁拒绝/u);
+  assert.match(result.message, /示例 Prime/u);
+  assert.equal(events.filter((event) => event.type === 'completed').length, 1);
+  assert.ok(events.some((event) => event.type === 'model_error' && event.error.code === 'MODEL_BAD_RESPONSE'));
+});
+
+test('D2a1：finalizer 失败或输出非法时只做一次确定性程序收束', async () => {
+  const variants = [
+    {
+      name: 'thrown', finalize: undefined,
+      error: new ModelAdapterError({ code: 'MODEL_UNAVAILABLE', category: 'upstream', message: '最终汇总模型不可用。', retryable: true }),
+    },
+    { name: 'clarify', finalize: { kind: 'clarify', text: '请补充平台。', facts: [{ key: 'missing_field', value: 'platform' }] } },
+    { name: 'conclude', finalize: { kind: 'conclude', text: '拒绝汇总。', conclusion: 'insufficient_data' } },
+  ];
+  for (const variant of variants) {
+    let marketCalls = 0;
+    const adapter = {
+      id: `synthetic-finalize-${variant.name}`, adapterVersion: 2, supportsToolRoundTrip: true,
+      async checkHealth() { return { available: true, summary: 'synthetic' }; },
+      async generateTurn(input) {
+        if (input.mode === 'finalize') {
+          if (variant.error) throw variant.error;
+          return { turn: variant.finalize };
+        }
+        return { turn: marketTurn() };
+      },
+    };
+    const profile = roundTripProfile(adapter.id, adapter);
+    const events = [];
+    const result = await runDesktopAgent({ requestId: `d2a1-finalize-${variant.name}`, message: '查行情。', modelProfileId: profile.id, context }, {
+      marketQuery: async () => { marketCalls += 1; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+      profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
+    });
+    assert.equal(marketCalls, 15, variant.name);
+    assert.equal(result.trace.toolAttempts, 15, variant.name);
+    assert.equal(result.trace.finalizedBy, 'harness', variant.name);
+    assert.equal(result.trace.conclusionSource, 'harness', variant.name);
+    assert.equal(result.trace.modelFailure.code, variant.error ? 'MODEL_UNAVAILABLE' : 'MODEL_BAD_RESPONSE', variant.name);
+    assert.equal(events.filter((event) => event.type === 'completed').length, 1, variant.name);
+    assert.match(result.message, /示例 Prime/u, variant.name);
+  }
+});
+
+test('D2a1：普通任务提前 answer 直接结束，不跑满 15 次也不附加最终汇总', async () => {
+  const modes = [];
+  const adapter = {
+    id: 'synthetic-early-answer', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn(input) {
+      modes.push(input.mode ?? 'decide');
+      if (!input.history) return { turn: marketTurn() };
+      return { turn: { kind: 'answer', text: '根据一次工具结果回答。' } };
+    },
+  };
+  const profile = roundTripProfile('synthetic-early-answer', adapter);
+  const events = [];
+  const result = await runDesktopAgent({ requestId: 'd2a1-early-answer', message: '查行情。', modelProfileId: profile.id, context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS),
+    profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
+  });
+  assert.equal(result.trace.toolAttempts, 1);
+  assert.equal(result.trace.modelRequests, 2);
+  assert.equal(result.trace.finalizedBy, undefined);
+  assert.equal(result.trace.conclusionSource, 'model');
+  assert.deepEqual(modes, ['decide', 'decide']);
+  assert.equal(events.filter((event) => event.type === 'completed').length, 1);
+});
+
+test('D2a1：模型请求预算预留第 24 次给最终汇总，决定轮不越界', async () => {
+  const modes = [];
+  let marketCalls = 0;
+  const adapter = {
+    id: 'synthetic-model-budget', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn(input) {
+      modes.push(input.mode ?? 'decide');
+      if (input.mode === 'finalize') return { turn: { kind: 'answer', text: '受限汇总。' } };
+      return { turn: marketTurn() };
+    },
+  };
+  const profile = roundTripProfile('synthetic-model-budget', adapter);
+  const result = await runDesktopAgent({ requestId: 'd2a1-model-budget', message: '查行情。', modelProfileId: profile.id, context, runPolicy: { maxModelRequests: 4 } }, {
+    marketQuery: async () => { marketCalls += 1; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+    profiles: [profile], adapters: [adapter],
+  });
+  assert.equal(marketCalls, 3);
+  assert.equal(result.trace.toolAttempts, 3);
+  assert.equal(result.trace.modelRequests, 4);
+  assert.equal(result.trace.finalizedBy, 'model');
+  assert.deepEqual(modes, ['decide', 'decide', 'decide', 'finalize']);
+});
+
+test('D2a1：累计 token 预算耗尽后不再发起任何模型请求并确定性收束', async () => {
+  const modes = [];
+  const adapter = {
+    id: 'synthetic-token-budget', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn(input) {
+      modes.push(input.mode ?? 'decide');
+      return { turn: marketTurn(), usage: { promptTokens: 20, completionTokens: 5, totalTokens: 25 } };
+    },
+  };
+  const profile = roundTripProfile('synthetic-token-budget', adapter);
+  const result = await runDesktopAgent({ requestId: 'd2a1-token-budget', message: '查行情。', modelProfileId: profile.id, context, runPolicy: { totalTokenBudget: 40 } }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS),
+    profiles: [profile], adapters: [adapter],
+  });
+  assert.equal(result.trace.toolAttempts, 2);
+  assert.equal(result.trace.modelRequests, 2);
+  assert.equal(result.trace.finalizedBy, undefined);
+  assert.equal(result.trace.conclusionSource, 'harness');
+  assert.equal(result.trace.usage.totalTokens, 50);
+  assert.deepEqual(modes, ['decide', 'decide']);
+});
+
+test('D2a1：外部取消后不再发起新的模型请求', async () => {
+  const controller = new AbortController();
+  let generateCalls = 0;
+  const adapter = {
+    id: 'synthetic-cancel-no-more', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn({ signal }) {
+      generateCalls += 1;
+      return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+    },
+  };
+  const profile = roundTripProfile('synthetic-cancel-no-more', adapter);
+  const promise = runDesktopAgent({ requestId: 'd2a1-cancel-no-more', message: '查行情。', modelProfileId: profile.id, context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [profile], adapters: [adapter], signal: controller.signal,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  controller.abort(new Error('cancelled'));
+  const result = await promise;
+  assert.equal(generateCalls, 1);
+  assert.equal(result.trace.modelRequests, 1);
+  assert.equal(result.trace.terminalReason, 'cancelled');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(generateCalls, 1);
+});
+
+test('D2a1：硬超时终止本轮，之后不再发起新的模型请求', async () => {
+  let generateCalls = 0;
+  const adapter = {
+    id: 'synthetic-hard-timeout', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn() {
+      generateCalls += 1;
+      return new Promise(() => { /* ignore signal: late result must be isolated */ });
+    },
+  };
+  const profile = roundTripProfile('synthetic-hard-timeout', adapter);
+  const result = await runDesktopAgent({ requestId: 'd2a1-hard-timeout', message: '查行情。', modelProfileId: profile.id, context, runPolicy: { hardDeadlineMs: 300, finalizeReserveMs: 120 } }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [profile], adapters: [adapter],
+  });
+  assert.equal(generateCalls, 1);
+  assert.equal(result.trace.modelRequests, 1);
+  assert.equal(result.trace.terminalReason, 'timeout');
+  assert.match(result.message, /超时/u);
+});
+
+test('D2a1：健康检查阶段超时归类为 timeout 且不会发起模型请求', async () => {
+  let generateCalled = false;
+  const adapter = {
+    id: 'synthetic-health-timeout', adapterVersion: 2,
+    async checkHealth() { return new Promise(() => { /* deliberately ignores cancellation */ }); },
+    async generateTurn() { generateCalled = true; return { turn: marketTurn() }; },
+  };
+  const profile = roundTripProfile(adapter.id, adapter);
+  const result = await runDesktopAgent({
+    requestId: 'd2a1-health-timeout', message: '查行情。', modelProfileId: profile.id, context,
+    runPolicy: { hardDeadlineMs: 300, healthTimeoutMs: 20 },
+  }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [profile], adapters: [adapter],
+  });
+  assert.equal(generateCalled, false);
+  assert.equal(result.trace.modelRequests, 0);
+  assert.equal(result.trace.terminalReason, 'timeout');
+  assert.equal(result.trace.modelFailure.code, 'MODEL_TIMEOUT');
+});
+
+test('D2a1：健康检查与领域工具收到同一取消信号并响应；迟到工具结果被隔离', async () => {
+  // 健康检查阶段取消：checkHealth 收到信号并中止，模型生成不被调用。
+  const controller = new AbortController();
+  let healthSignal;
+  let healthAborted = false;
+  let generateCalled = false;
+  const healthAdapter = {
+    id: 'synthetic-health-cancel', adapterVersion: 2,
+    async checkHealth(_profile, signal) {
+      healthSignal = signal;
+      return new Promise((_resolve, reject) => signal.addEventListener('abort', () => {
+        healthAborted = true;
+        reject(signal.reason);
+      }, { once: true }));
+    },
+    async generateTurn() { generateCalled = true; return { turn: marketTurn() }; },
+  };
+  const healthProfile = {
+    id: 'synthetic-health-cancel', label: 'Synthetic', adapterId: healthAdapter.id, model: 'synthetic', description: 'synthetic',
+    capabilities: { ...ROUND_TRIP_CAPABILITIES },
+  };
+  const promise = runDesktopAgent({ requestId: 'd2a1-health-cancel', message: '查行情。', modelProfileId: healthProfile.id, context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS), profiles: [healthProfile], adapters: [healthAdapter], signal: controller.signal,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  controller.abort(new Error('cancelled'));
+  const healthResult = await promise;
+  assert.equal(healthSignal instanceof AbortSignal, true);
+  assert.equal(healthAborted, true);
+  assert.equal(generateCalled, false);
+  assert.equal(healthResult.trace.terminalReason, 'cancelled');
+
+  // 领域工具阶段取消：deps.marketQuery 收到同一运行信号；其后到达的迟到结果不得覆盖终态。
+  const toolController = new AbortController();
+  const events = [];
+  let toolSignal;
+  let toolRejected = false;
+  const toolAdapter = {
+    id: 'synthetic-tool-cancel', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn() { return { turn: marketTurn() }; },
+  };
+  const toolProfile = roundTripProfile('synthetic-tool-cancel', toolAdapter);
+  const toolPromise = runDesktopAgent({ requestId: 'd2a1-tool-cancel', message: '查行情。', modelProfileId: toolProfile.id, context }, {
+    marketQuery: (_request, signal) => {
+      toolSignal = signal;
+      return new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => { toolRejected = true; reject(signal.reason); }, { once: true });
+      });
+    },
+    profiles: [toolProfile], adapters: [toolAdapter], signal: toolController.signal, onEvent: (event) => events.push(event),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  toolController.abort(new Error('cancelled'));
+  const toolResult = await toolPromise;
+  assert.equal(toolSignal instanceof AbortSignal, true);
+  assert.equal(toolRejected, true);
+  assert.equal(toolResult.trace.terminalReason, 'cancelled');
+  assert.equal(events.filter((event) => event.type === 'completed').length, 1);
+  // 迟到的领域工具结果（忽略信号）在取消后到达：隔离，不产生新事件或第二个终态。
+  let releaseLate;
+  const lateController = new AbortController();
+  const lateEvents = [];
+  const latePromise = runDesktopAgent({ requestId: 'd2a1-late-result', message: '查行情。', modelProfileId: toolProfile.id, context }, {
+    marketQuery: () => new Promise((resolve) => { releaseLate = resolve; }),
+    profiles: [toolProfile], adapters: [toolAdapter], signal: lateController.signal, onEvent: (event) => lateEvents.push(event),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  lateController.abort(new Error('cancelled'));
+  const lateTerminal = await latePromise;
+  assert.equal(lateTerminal.trace.terminalReason, 'cancelled');
+  assert.equal(lateEvents.filter((event) => event.type === 'completed').length, 1);
+  releaseLate(structuredClone(MOCK_MARKET_QUERY_SUCCESS));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(lateEvents.filter((event) => event.type === 'completed').length, 1);
+  assert.equal(lateEvents.some((event) => event.type === 'tool_result'), false);
+  assert.equal(lateTerminal.trace.toolAttempts, 1);
+});
+
+test('D2a1：finalize 流式候选在终态形状校验前不会泄漏到界面', async () => {
+  const events = [];
+  let marketCalls = 0;
+  const adapter = {
+    id: 'synthetic-finalize-buffer', adapterVersion: 2, supportsToolRoundTrip: true,
+    async checkHealth() { return { available: true, summary: 'synthetic' }; },
+    async generateTurn(input) {
+      if (input.mode === 'finalize') {
+        await input.onTextDelta?.('不应出现的候选文本');
+        return { turn: marketTurn() };
+      }
+      return { turn: marketTurn() };
+    },
+  };
+  const profile = roundTripProfile(adapter.id, adapter);
+  const result = await runDesktopAgent({
+    requestId: 'd2a1-finalize-buffer', message: '查行情。', modelProfileId: profile.id, context,
+    runPolicy: { maxToolAttempts: 1 },
+  }, {
+    marketQuery: async () => { marketCalls += 1; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); },
+    profiles: [profile], adapters: [adapter], onEvent: (event) => events.push(event),
+  });
+  assert.equal(marketCalls, 1);
+  assert.equal(result.trace.finalizedBy, 'harness');
+  assert.equal(events.some((event) => event.type === 'message_delta' && event.delta.includes('不应出现')), false);
+  assert.equal(events.filter((event) => event.type === 'completed').length, 1);
+});
+
+test('D2a1：事件通道故障时仍只提交一次终态', async () => {
+  let completedCount = 0;
+  const result = await runDesktopAgent({ requestId: 'd2a1-terminal-once', message: '查一下示例 Prime 蓝图当前行情，PC 跨平台，0级。', context }, {
+    marketQuery: async () => structuredClone(MOCK_MARKET_QUERY_SUCCESS),
+    onEvent: async (event) => {
+      if (event.type === 'completed') { completedCount += 1; throw new Error('channel broken'); }
+    },
+  });
+  assert.equal(completedCount, 1);
+  assert.equal(result.trace.terminalReason, 'completed');
+  assert.equal(result.trace.toolAttempts, 1);
+});

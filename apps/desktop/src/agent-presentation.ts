@@ -10,7 +10,11 @@ export interface DesktopAgentRequest {
   requestId: string;
   message: string;
   modelProfileId: string;
-  timeoutMs: number;
+  /**
+   * 可选：只允许比主进程默认策略更短的显式超时（测试/诊断用）；
+   * 不传则使用主进程构造的默认 RunPolicy（120 秒）。
+   */
+  timeoutMs?: number;
 }
 
 // Order identities belong to the desktop session, not model messages or AgentTrace.

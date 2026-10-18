@@ -60,4 +60,18 @@ describe('desktop-only market presentation', () => {
     await pending;
     expect(present).not.toHaveBeenCalled();
   });
+
+  it('does not register a late market snapshot after its phase signal is cancelled', async () => {
+    const controller = new AbortController();
+    const present = vi.fn();
+    const register = vi.fn(() => 'late-snapshot');
+    let resolve!: (result: typeof MOCK_MARKET_QUERY_SUCCESS) => void;
+    const result = new Promise<typeof MOCK_MARKET_QUERY_SUCCESS>((done) => { resolve = done; });
+    const pending = withMarketPresentation(() => result, present, controller.signal, register)(MOCK_MARKET_QUERY_REQUEST);
+    controller.abort(new Error('phase timeout'));
+    resolve(MOCK_MARKET_QUERY_SUCCESS);
+    await pending;
+    expect(present).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+  });
 });
