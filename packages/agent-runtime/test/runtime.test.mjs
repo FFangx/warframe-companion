@@ -318,7 +318,7 @@ test('回送轮：模型可连续调用多个工具，每轮结果都回送并�
   assert.equal(result.trace.conclusionSource, 'model');
 });
 
-test('回送轮：模型反复调用工具时在 3 轮上限后由 Harness 确定性收尾', async () => {
+test('回送轮：模型反复调用工具时在 15 轮上限后由 Harness 确定性收尾', async () => {
   let marketCalls = 0;
   const adapter = {
     id: 'synthetic-loop', adapterVersion: 1, supportsToolRoundTrip: true,
@@ -329,8 +329,8 @@ test('回送轮：模型反复调用工具时在 3 轮上限后由 Harness 确�
   const result = await runDesktopAgent({ requestId: 'synthetic-loop', message: '查行情。', modelProfileId: profile.id, context }, {
     marketQuery: async () => { marketCalls += 1; return structuredClone(MOCK_MARKET_QUERY_SUCCESS); }, profiles: [profile], adapters: [adapter],
   });
-  assert.equal(marketCalls, 3);
-  assert.equal(result.trace.toolCalls.length, 3);
+  assert.equal(marketCalls, 15);
+  assert.equal(result.trace.toolCalls.length, 15);
   assert.equal(result.trace.conclusion, 'answered');
   assert.equal(result.trace.conclusionSource, 'harness');
   assert.equal(result.trace.terminalReason, 'completed');

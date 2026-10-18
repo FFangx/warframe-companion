@@ -534,7 +534,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       return await finish('模型在工具执行前提交了终态，属于协议错误。', 'answer', 'error');
     }
 
-    const MAX_TOOL_ROUNDS = 3;
+    const MAX_TOOL_ROUNDS = 15;
     const toolRounds: ToolRoundStep[] = [];
     let lastText = '';
     let lastOk = false;
