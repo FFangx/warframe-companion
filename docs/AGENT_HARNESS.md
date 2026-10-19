@@ -1,6 +1,6 @@
 # Warframe Agent Harness
 
-> 状态：本机模型配置与 OpenAI-compatible adapter 切片，2026-08-14。
+> 状态：现有实现说明，2026-09-04 校准。下文保留历史切片验收；后续运行架构与迁移设计见 [AGENT_RUNTIME_DESIGN.md](AGENT_RUNTIME_DESIGN.md)，其中待实现能力不代表当前行为。
 
 ## 产品边界
 
@@ -51,7 +51,8 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 
 - `ModelAdapter` 通过可选 `supportsToolRoundTrip` 声明多轮能力；`generateTurn` 的 `history` 按 OpenAI 语义拼接 assistant `tool_calls` 与 `tool` 角色消息，工具结果只回送脱敏摘要，不回送原始订单、响应体或证据对象。
 - Harness 在每次工具执行后把结果回送模型，模型可用文本 `answer` 或 `agent.conclude { text, conclusion }` 终态；`conclusion` 只有 `answered` 与 `insufficient_data`，且 `insufficient_data` 仅在上一次工具实际失败时被接受。模型不能提交事实、证据、身份、拒绝、延迟或调用次数；工具成功后的 `insufficient_data`、工具后的 `clarify` 与工具前的 `conclude` 都按协议滥用处理。
-- 工具轮上限为 3；达到上限或第二轮模型故障（上游/协议类）时回落 Harness 确定性组织回答，并把稳定 `modelFailure` 记录进轨迹；取消与超时始终终止本轮，不回落。
+- 工具轮上限由主进程 `RunPolicy.maxToolAttempts` 构成（默认 15；D2a1 起预算与停止见下）；达到上限或第二轮模型故障（上游/协议类）时：第 15 次 Observation 记录后进入一次受限最终汇总——finalize 模式下 adapter 不暴露任何业务/控制工具（`generateTurn(mode:'finalize')`，adapter 接口升到版本 2），Harness 执行门禁同时拒绝任何业务调用（绝不执行第 16 次）；汇总失败、结构不合法、仍请求业务工具或剩余时间不足时只做一次确定性程序收束，稳定 `modelFailure` 记录进轨迹；取消与硬超时始终终止本轮，不回落、不再发起模型请求。
+- D2a1 循环预算与停止：主进程构造 `RunPolicy`（默认 120 秒硬截止、20 秒 finalize 预留、24 次模型请求并预留最后一次给 finalize、健康 10 秒/模型请求 30 秒/工具 15 秒阶段超时、累计 80000 token）；renderer 不再固定传 15 秒，显式 `timeoutMs` 只能缩短、不能提高预算。健康检查、模型请求与领域工具贯穿同一运行 `AbortSignal`（`checkModelProfile` 支持 `signal`/`timeoutMs`，领域服务 `query`/`searchDrops` 支持可选 signal）；无法真正中止的迟到结果被隔离；一次运行最多提交一个终态。`AgentTrace` 新增 `toolAttempts`/`modelRequests`/`finalizedBy` 审计字段。
 - `AgentTrace` 新增 `conclusion`/`conclusionSource`（`model` 或 `harness`）与可选 `modelFailure`；`decision` 在工具轮后仍为 `call_tool`，不破坏既有 eval 口径。事件流新增 `model_conclusion`。
 - 离线 `warframe-local-rules` 后端不声明回送，继续由 Harness 确定性组织回答；桌面 UI 在工具轨迹中显示终态来源。
 - 事实投影无条件化：Harness 对工具结果始终派生同一组规范 facts 并写入 `AgentTrace`（市场成功：卖/买单存在性、快照范围、当前挂单口径、90 天历史口径、统计可用性；失败：availability/error.code/retryable 等），生产与评估同构。已删除 `evaluation.factMode` 投影开关；显式默认市场参数改为请求级 `AgentRunRequest.defaults`，评估驱动器只在请求层注入，不再改变 Agent 行为。
@@ -71,4 +72,4 @@ Warframe Agent Harness 是 Companion 自己拥有的运行内核，不是通用 
 
 ## 下一入口
 
-后续首选设计视觉模型与 fallback：先定义视觉输入的观察协议，再实现回退 profile 与健康路由；不得让文本模型伪装成支持截图，也不得自动探测或迁移密钥。真实远程模型仍只在用户主动保存 profile、健康检查并发送消息后调用。
+下一入口以 [实施交接](IMPLEMENTATION_HANDOFF.md) 为准：D1b键盘收尾、D2b0、D1c 与 D2a1 已完成主管验收。随后按 [运行架构设计](AGENT_RUNTIME_DESIGN.md) 的 D2a2 证据与协议、D2b 会话上下文、D2c 渐进规划推进，配套 D3 及后续组合查询；D2d 个人状态与动作随 D5/D6 实施。视觉、自动 fallback 和多 Agent 暂不作为近期前置。真实远程模型仍只在用户主动配置与发送后调用；本轮 D2a1 验收为合成测试与 Electron 回归，历史服务级冒烟不等于真实模型预算校准。

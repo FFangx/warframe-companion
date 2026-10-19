@@ -261,11 +261,13 @@ export class WarframeDataService {
     }
   }
 
-  async #json(url: string): Promise<unknown> {
+  async #json(url: string, externalSignal?: AbortSignal): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
     try {
-      const response = await this.#fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+      // Agent run 的取消信号与自身请求超时合并：两者任一触发都会中止底层 fetch。
+      const signal = externalSignal ? AbortSignal.any([controller.signal, externalSignal]) : controller.signal;
+      const response = await this.#fetch(url, { headers: { Accept: 'application/json' }, signal });
       if (!response.ok) throw new SourceFailure(`status ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -284,11 +286,11 @@ export class WarframeDataService {
       await rename(temporary, this.#cacheFile);
     } finally { await rm(temporary, { force: true }); }
   }
-  async #refresh(): Promise<DropSnapshot> {
+  async #refresh(externalSignal?: AbortSignal): Promise<DropSnapshot> {
     const loadedAt = this.#now();
-    const primaryPromise = this.#json(`${this.#baseUrl}/info.json`).then(parseInfo).catch(() => null);
+    const primaryPromise = this.#json(`${this.#baseUrl}/info.json`, externalSignal).then(parseInfo).catch(() => null);
     const alternativePromise = this.#alternativeBaseUrl
-      ? this.#json(`${this.#alternativeBaseUrl}/info.json`).then(parseInfo).catch(() => null)
+      ? this.#json(`${this.#alternativeBaseUrl}/info.json`, externalSignal).then(parseInfo).catch(() => null)
       : Promise.resolve(null);
     const [primary, alternative] = await Promise.all([primaryPromise, alternativePromise]);
     if (!primary && !alternative) throw new SourceFailure('no source metadata');
@@ -316,7 +318,7 @@ export class WarframeDataService {
     };
     let batch: SourceDropBatch;
     try {
-      batch = await this.#json(`${selectedBaseUrl}/all.slim.json`).then(parseDrops);
+      batch = await this.#json(`${selectedBaseUrl}/all.slim.json`, externalSignal).then(parseDrops);
     } catch (error) {
       const fallbackInfo = selectedEndpoint === 'wfcd.github-raw' ? primary : alternative;
       const fallbackBaseUrl = selectedEndpoint === 'wfcd.github-raw' ? this.#baseUrl : this.#alternativeBaseUrl;
@@ -330,32 +332,32 @@ export class WarframeDataService {
         preferred: selectedEndpoint === 'wfcd.jsdelivr' ? 'primary' : 'alternative',
         reason: 'payload_fallback',
       };
-      batch = await this.#json(`${selectedBaseUrl}/all.slim.json`).then(parseDrops);
+      batch = await this.#json(`${selectedBaseUrl}/all.slim.json`, externalSignal).then(parseDrops);
     }
     const snapshot = compile(selectedInfo, batch, loadedAt, selectedEndpoint, comparison);
     await this.#writeCache(snapshot);
     return snapshot;
   }
-  async #loadOnce(): Promise<{ snapshot: DropSnapshot; stale: boolean } | null> {
+  async #loadOnce(externalSignal?: AbortSignal): Promise<{ snapshot: DropSnapshot; stale: boolean } | null> {
     const cached = this.#snapshot ?? await this.#readCache();
     const fresh = cached && this.#now().getTime() - Date.parse(cached.loadedAt) <= this.#ttlMs;
     const sourceRejected = cached && this.#now().getTime() - Date.parse(cached.sourceModifiedAt) > this.#maxSourceAgeMs;
     if (fresh && !sourceRejected) { this.#snapshot = cached; return { snapshot: cached, stale: false }; }
     try {
-      this.#snapshot = await this.#refresh();
+      this.#snapshot = await this.#refresh(externalSignal);
       return { snapshot: this.#snapshot, stale: false };
     } catch {
       if (cached) { this.#snapshot = cached; return { snapshot: cached, stale: true }; }
       return null;
     }
   }
-  async #load(): Promise<{ snapshot: DropSnapshot; stale: boolean } | null> {
+  async #load(externalSignal?: AbortSignal): Promise<{ snapshot: DropSnapshot; stale: boolean } | null> {
     if (this.#loading) return await this.#loading;
-    this.#loading = this.#loadOnce();
+    this.#loading = this.#loadOnce(externalSignal);
     try { return await this.#loading; } finally { this.#loading = undefined; }
   }
 
-  async searchDrops(input: unknown): Promise<DropSearchResult> {
+  async searchDrops(input: unknown, signal?: AbortSignal): Promise<DropSearchResult> {
     const request = record(input);
     const limit = request?.limit ?? DEFAULT_LIMIT;
     if (request?.contractVersion !== DROP_SEARCH_CONTRACT_VERSION || typeof request.item !== 'string'
@@ -363,7 +365,7 @@ export class WarframeDataService {
       || !Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 100) {
       return failure('INVALID_REQUEST', '掉落查询请求无效。');
     }
-    const loaded = await this.#load();
+    const loaded = await this.#load(signal);
     if (!loaded) return failure('SOURCE_UNAVAILABLE', '公共掉落数据暂时不可用，本地也没有可验证快照。');
     const sourceAgeMs = Math.max(0, this.#now().getTime() - Date.parse(loaded.snapshot.sourceModifiedAt));
     const sourceAgeStatus: DropEvidence['sourceAge']['status'] = sourceAgeMs > this.#maxSourceAgeMs

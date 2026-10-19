@@ -1,9 +1,17 @@
 import {
+  assertMarketQueryRequest,
   MARKET_QUERY_CONTRACT_VERSION,
-  type MarketPlatform,
   type MarketQueryRequest,
   type MarketQueryResult,
 } from '@warframe-companion/market-query-contract';
+import {
+  MARKET_SCOPE_OPTIONS,
+  SCOPE_CHOICE_PROMPT,
+  marketScopeFromMessage,
+  normalizeMarketQueryRequest,
+  scopeChoiceRequired,
+  type MarketScopeOption,
+} from './market-scope.js';
 import {
   DROP_SEARCH_CONTRACT_VERSION,
   type DropSearchRequest,
@@ -14,6 +22,7 @@ import {
   type AccountSnapshotRequest,
   type AccountSnapshotResult,
 } from './account-snapshot.js';
+import { DEFAULT_RUN_POLICY, resolveRunPolicy, type RunPolicy } from './run-policy.js';
 
 export type AgentDecision = 'call_tool' | 'clarify' | 'answer' | 'refuse';
 export type RefusalReason = 'identity_untrusted' | 'private_scope' | 'write_forbidden';
@@ -58,6 +67,12 @@ export interface AgentTrace {
   adapterVersion?: number;
   usage?: ModelUsage;
   finishReason?: ModelFinishReason;
+  /** D2a1：实际进入领域工具执行的次数（成功、失败都算），与 toolCalls 长度一致。 */
+  toolAttempts?: number;
+  /** D2a1：实际发起的模型生成请求次数（含最终汇总）。 */
+  modelRequests?: number;
+  /** D2a1：是否经过受限最终汇总，以及由谁提交最终回答。 */
+  finalizedBy?: 'model' | 'harness';
 }
 
 export interface ModelCapabilities {
@@ -174,10 +189,16 @@ export interface ModelAdapter {
   checkHealth(profile: ModelProfile, signal?: AbortSignal): Promise<{ available: boolean; summary: string; error?: ModelFailure }>;
   generateTurn(input: {
     message: string;
-    defaults?: MarketQueryRequest;
+    defaults?: Partial<MarketQueryRequest>;
     history?: readonly ToolRoundStep[];
     signal: AbortSignal;
     onTextDelta?: (delta: string) => void | Promise<void>;
+    /**
+     * decide（默认）：正常决策，契约允许携带注册业务工具。
+     * finalize：受限最终汇总（预算边界/第 15 次观察后）；adapter 不得暴露或
+     * 执行业务工具，只应返回最终回答文本。Harness 同时有执行门禁兜底。
+     */
+    mode?: 'decide' | 'finalize';
   }, profile: ModelProfile): Promise<ModelTurnResult>;
 }
 
@@ -203,13 +224,33 @@ export interface AgentRunRequest {
   requestId: string;
   message: string;
   modelProfileId?: string;
+  /**
+   * 兼容入口：只允许把硬截止时间缩短（renderer 不能提高预算）。
+   * 与 runPolicy.hardDeadlineMs 取更小值；保留显式更短测试超时。
+   */
   timeoutMs?: number;
   /**
-   * 显式默认市场参数（可选）。生产桌面路径不传：缺失平台/跨平台/等级时由
-   * adapter 澄清；评估驱动器可在请求层注入，保持生产与评估同构（不再藏在
-   * evaluation 内部改变 Agent 行为）。
+   * 运行预算覆盖值（可选）。生产桌面由主进程构造（默认 DEFAULT_RUN_POLICY，
+   * 120 秒），模型与 renderer 都看不到或不能提高预算；非法值回落默认。
+   * 只包含 D2a1 的循环预算字段，plan/repair 预算属于 D2c/D2a2。
    */
-  defaults?: MarketQueryRequest;
+  runPolicy?: Partial<RunPolicy>;
+  /**
+   * 调用方补全的市场参数默认值（可选，生产桌面由主进程按已保存偏好注入）。
+   * 建议只携带平台/跨平台范围：等级是物品条件，不进入全局偏好；未指定等级
+   * 时由 Harness 在工具执行前按“消息明确条件 → defaults → 0”程序归一化，
+   * 不依赖模型遵守提示。任何 adapter 返回的 market_query 都会先经该归一化
+   * 再执行，模型给错范围不能覆盖本条消息的明确条件或已保存偏好。
+   * 用户可以只传局部字段（Partial），评估驱动器仍可传完整请求。
+   */
+  defaults?: Partial<MarketQueryRequest>;
+  /**
+   * 未保存默认范围且自然市场问价缺平台/跨平台时，用一次选择卡代替纯文本追问。
+   * 由 Harness 在调用模型之前模型无关地判定并稳定发出（仅桌面主进程在偏好
+   * 未配置时设置；未设置时保持原有文本澄清行为）。选择后主进程保存偏好并
+   * 重跑原消息；本卡与消息临时范围都不自动写偏好。
+   */
+  askScopeIfMissing?: boolean;
   context: { channel: 'desktop' | 'qq_private' | 'qq_group' | 'untrusted_test'; trustedOwner: boolean; now: string };
 }
 export type AgentStreamEvent =
@@ -222,11 +263,16 @@ export type AgentStreamEvent =
   | { type: 'model_error'; error: ModelFailure }
   | { type: 'message_delta'; delta: string }
   | { type: 'model_conclusion'; conclusion: 'answered' | 'insufficient_data'; source: 'model' | 'harness' }
+  | { type: 'scope_choice_required'; questionId: string; prompt: string; options: readonly MarketScopeOption[] }
   | { type: 'completed'; message: string; trace: AgentTrace };
 export interface AgentRunDependencies {
-  marketQuery(request: MarketQueryRequest): Promise<MarketQueryResult>;
-  searchDrops?(request: DropSearchRequest): Promise<DropSearchResult>;
-  getSnapshot?(request: AccountSnapshotRequest): Promise<AccountSnapshotResult>;
+  /**
+   * 领域工具尽量贯穿同一 AbortSignal；未支持 signal 的实现可以忽略，
+   * Harness 仍会把迟到结果与已提交终态隔离。
+   */
+  marketQuery(request: MarketQueryRequest, signal?: AbortSignal): Promise<MarketQueryResult>;
+  searchDrops?(request: DropSearchRequest, signal?: AbortSignal): Promise<DropSearchResult>;
+  getSnapshot?(request: AccountSnapshotRequest, signal?: AbortSignal): Promise<AccountSnapshotResult>;
   onEvent?(event: AgentStreamEvent): void | Promise<void>;
   now?: () => number;
   signal?: AbortSignal;
@@ -239,6 +285,18 @@ function personalScopeRefusal(request: AgentRunRequest): { reason: RefusalReason
   if (!request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能读取个人数据。' };
   return null;
 }
+/**
+ * 该澄清是否由“缺少平台/跨平台范围”引起；只有这种情况才允许用一次选择卡
+ * 代替文本追问（由主进程按偏好是否已保存决定启用）。
+ */
+function isMissingMarketScope(turn: ModelTurn): boolean {
+  if (turn.kind !== 'clarify') return false;
+  return turn.facts.some((fact) => {
+    if (fact.key !== 'missing_field') return false;
+    const fields = String(fact.value).split(',').map((field) => field.trim());
+    return fields.includes('platform') || fields.includes('crossplay');
+  });
+}
 function policyRefusal(message: string, request: AgentRunRequest): { reason: RefusalReason; text: string } | null {
   if (/替.*(?:挂|改|删).*单|(?:创建|修改|删除|自动).*订单|发送游戏私聊|给买家发送|自动交易/u.test(message)) return { reason: 'write_forbidden', text: '我不能操作市场、交易或游戏聊天；可以帮你查公开行情并由你手动处理。' };
   if (/原始账号快照|完整快照|导出.*快照/u.test(message)) return { reason: 'private_scope', text: '原始个人快照不能导出或展示。' };
@@ -246,24 +304,10 @@ function policyRefusal(message: string, request: AgentRunRequest): { reason: Ref
   if (/创建提醒订阅|替.*订阅/u.test(message) && !request.context.trustedOwner) return { reason: 'identity_untrusted', text: '当前会话没有可信主人身份，不能创建订阅。' };
   return null;
 }
-function platformFrom(message: string): MarketPlatform | undefined {
-  if (/\bPC\b/iu.test(message)) return 'pc';
-  if (/\bPS\b|PlayStation/iu.test(message)) return 'ps4';
-  if (/Xbox/iu.test(message)) return 'xbox';
-  if (/Switch/iu.test(message)) return 'switch';
-  if (/移动端|mobile/iu.test(message)) return 'mobile';
-  return undefined;
-}
-function rankFrom(message: string): number | 'max' | undefined | null {
-  if (/满级|满阶|\bmax\b/iu.test(message)) return 'max';
-  if (/(?:等级\s*)?负\s*[一二三四五六七八九十\d]+|-\d+/u.test(message)) return null;
-  const match = message.match(/(?:等级\s*)?(\d+)\s*级|(?:，|\s)(\d+)\s*(?:。|$)/u);
-  return match ? Number(match[1] ?? match[2]) : undefined;
-}
 function itemFrom(message: string): string | undefined {
   const patterns = [
     /查一下(.+?)(?:当前行情|行情|价格|多少钱)/u,
-    /(?:查|查询)(.+?)(?:，|。|价格|行情|多少钱|$)/u,
+    /查(?:询)?(.+?)(?:，|。|价格|行情|多少钱|$)/u,
     /这个[“"](.+?)[”"]/u,
     /^(.+?)(?:满级)?多少钱/u,
   ];
@@ -287,16 +331,17 @@ function dropItemFrom(message: string): string | undefined {
 
 export const localRulesModelAdapter: ModelAdapter = {
   id: 'warframe-local-rules',
-  adapterVersion: 1,
+  adapterVersion: 2,
   async checkHealth(profile) {
     return { available: profile.adapterId === this.id, summary: '本地规则后端可用；不会读取密钥或发起模型请求。' };
   },
   async generateTurn({ message, defaults, signal }) {
     if (signal.aborted) throw signal.reason;
-    if (!defaults && /个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) {
+    if (/个人库存|我的库存|白金余额|个人白金|我的账号|账号状态|我的遗物|我的赋能/u.test(message)) {
       // Harness 的策略门禁已保证走到这里的请求来自可信主人（群聊/非主人/原始导出
       // 会在 policyRefusal 被拒）；adapter 只做结构化路由，数据可用性由 getSnapshot
-      // 服务决定，模型永远拿不到原始快照。
+      // 服务决定，模型永远拿不到原始快照。注意该路由不受 defaults 门控：
+      // 生产桌面配置了市场范围偏好后（defaults 由主进程注入）个人查询同样必须路由。
       const item = message.match(/我的库存\s*(.+?)(?:[，。；;]|$)/u)?.[1]?.trim();
       return {
         turn: {
@@ -306,18 +351,27 @@ export const localRulesModelAdapter: ModelAdapter = {
       };
     }
     const dropItem = dropItemFrom(message);
-    if (!defaults && dropItem) {
+    if (dropItem) {
+      // 同样不受 defaults 门控：掉落查询与市场范围偏好无关。
       return { turn: { kind: 'drop_search', request: { contractVersion: DROP_SEARCH_CONTRACT_VERSION, item: dropItem } } };
     }
-    if (!defaults && !/查|查询|价格|行情|多少钱/u.test(message)) {
+    // 调用方在 defaults 中给出具体物品（显式市场请求，例如评估驱动）即视为明确的
+    // 市场查询；生产桌面只注入平台/跨平台偏好、从不带物品，寒暄仍按非市场意图处理。
+    const explicitMarketItem = typeof defaults?.item === 'string' && defaults.item.trim().length > 0;
+    if (!explicitMarketItem && !/查|查询|价格|行情|多少钱/u.test(message)) {
+      // 非市场意图（寒暄等）不因存在范围偏好就当成问价：没有明确市场意图时
+      // 直接说明当前能力，而不是追问市场参数或弹出一次选择卡。
       return { turn: { kind: 'answer', text: '桌面 Agent 当前只支持公开市场查询，请明确物品、平台、跨平台范围和等级。' } };
     }
-    const rank = rankFrom(message);
-    if (rank === null) return { turn: { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] } };
+    const scope = marketScopeFromMessage(message);
+    if (scope.rank === null) return { turn: { kind: 'clarify', text: '等级必须是非负整数或 max。', facts: [{ key: 'invalid_field', value: 'rank' }] } };
     const item = itemFrom(message) ?? defaults?.item;
-    const platform = platformFrom(message) ?? defaults?.platform;
-    const crossplay = /不跨平台|单平台/u.test(message) ? false : /跨平台/u.test(message) ? true : defaults?.crossplay;
-    const resolvedRank = rank ?? defaults?.rank ?? (platform && crossplay !== undefined ? 0 : undefined);
+    const platform = scope.platform ?? defaults?.platform;
+    const crossplay = scope.crossplay ?? defaults?.crossplay;
+    // 等级缺省规则：未明确给出时按“可升级物品默认 0 级”补全；'max' 与等级上界由
+    // 领域服务按物品元数据求值；套装/部件等不适用等级的物品按 maxRank=0 处理，
+    // 不会要求玩家提供等级。
+    const resolvedRank = scope.rank ?? defaults?.rank ?? (platform && crossplay !== undefined ? 0 : undefined);
     if (!item || !platform || crossplay === undefined || resolvedRank === undefined) {
       return { turn: { kind: 'clarify', text: '请明确平台、是否跨平台交易，以及等级（非负整数或 max）。', facts: [{ key: 'missing_field', value: 'platform,crossplay,rank' }] } };
     }
@@ -328,7 +382,15 @@ export const localRulesModelAdapter: ModelAdapter = {
 function profileRegistry(profiles = DEFAULT_MODEL_PROFILES): Map<string, ModelProfile> { return new Map(profiles.map((profile) => [profile.id, profile])); }
 function adapterRegistry(adapters: readonly ModelAdapter[] = [localRulesModelAdapter]): Map<string, ModelAdapter> { return new Map(adapters.map((adapter) => [adapter.id, adapter])); }
 export function listModelProfiles(profiles: readonly ModelProfile[] = DEFAULT_MODEL_PROFILES): ModelProfile[] { return profiles.map((profile) => structuredClone(profile)); }
-export async function checkModelProfile(profileId: string, options: { profiles?: readonly ModelProfile[]; adapters?: readonly ModelAdapter[]; now?: () => Date } = {}): Promise<ModelHealth> {
+export async function checkModelProfile(profileId: string, options: {
+  profiles?: readonly ModelProfile[];
+  adapters?: readonly ModelAdapter[];
+  now?: () => Date;
+  /** 与运行共享的取消信号：健康检查（以及它背后的网络请求）尽量同源取消。 */
+  signal?: AbortSignal;
+  /** 健康检查超时（RunPolicy.healthTimeoutMs）；不传则不额外限时。 */
+  timeoutMs?: number;
+} = {}): Promise<ModelHealth> {
   const profile = profileRegistry(options.profiles).get(profileId);
   const checkedAt = (options.now?.() ?? new Date()).toISOString();
   if (!profile) return { profileId, status: 'unavailable', checkedAt, summary: '模型 profile 不存在。', missingCapabilities: [] };
@@ -336,8 +398,31 @@ export async function checkModelProfile(profileId: string, options: { profiles?:
   if (missingCapabilities.length) return { profileId, status: 'incompatible', checkedAt, summary: `缺少桌面 Agent 必需能力：${missingCapabilities.join(', ')}`, missingCapabilities };
   const adapter = adapterRegistry(options.adapters).get(profile.adapterId);
   if (!adapter) return { profileId, status: 'unavailable', checkedAt, summary: `模型适配器 ${profile.adapterId} 未注册。`, missingCapabilities: [] };
-  const health = await adapter.checkHealth(profile);
-  return { profileId, status: health.available ? 'healthy' : 'unavailable', checkedAt, summary: health.summary, missingCapabilities: [], ...(health.error ? { error: health.error } : {}) };
+  if (options.signal?.aborted) {
+    const failure: ModelFailure = { code: 'MODEL_CANCELLED', category: 'cancelled', message: '模型健康检查已取消。', retryable: false };
+    return { profileId, status: 'unavailable', checkedAt, summary: failure.message, missingCapabilities: [], error: failure };
+  }
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = Number.isInteger(options.timeoutMs) && Number(options.timeoutMs) > 0
+    ? setTimeout(() => { timedOut = true; controller.abort(new Error('health check timeout')); }, Number(options.timeoutMs)) : undefined;
+  const forwardAbort = () => controller.abort(options.signal?.reason ?? new Error('cancelled'));
+  options.signal?.addEventListener('abort', forwardAbort, { once: true });
+  try {
+    const health = await Promise.race([
+      adapter.checkHealth(profile, controller.signal),
+      new Promise<never>((_resolve, reject) => controller.signal.addEventListener('abort', () => reject(controller.signal.reason ?? new Error('cancelled')), { once: true })),
+    ]);
+    return { profileId, status: health.available ? 'healthy' : 'unavailable', checkedAt, summary: health.summary, missingCapabilities: [], ...(health.error ? { error: health.error } : {}) };
+  } catch (error) {
+    const failure: ModelFailure = timedOut
+      ? { code: 'MODEL_TIMEOUT', category: 'upstream', message: '模型健康检查超时。', retryable: true }
+      : { code: 'MODEL_CANCELLED', category: 'cancelled', message: '模型健康检查已取消。', retryable: false };
+    return { profileId, status: 'unavailable', checkedAt, summary: failure.message, missingCapabilities: [], error: failure };
+  } finally {
+    if (timer) clearTimeout(timer);
+    options.signal?.removeEventListener('abort', forwardAbort);
+  }
 }
 
 /**
@@ -417,10 +502,18 @@ function addUsage(current: ModelUsage | undefined, next: ModelUsage): ModelUsage
   };
 }
 function responseFor(result: MarketQueryResult): string {
-  if (!result.ok) return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
+  if (!result.ok) {
+    if (result.error.code === 'ITEM_AMBIGUOUS') {
+      const candidates = result.error.details?.candidates?.map((candidate) => candidate.name.zhHans).join('、');
+      return candidates ? `${result.error.message} 请在候选中选择：${candidates}。` : `${result.error.message} 请补充更完整的名称。`;
+    }
+    return `${result.error.message}${result.error.retryable ? ' 可以稍后重试。' : ''}`;
+  }
   const { item, sellOrders, buyOrders, statistics } = result.data;
+  // 等级只在物品实际可升级时展示：套装/部件等 maxRank=0 的条目不要求等级。
+  const rankText = item.rank.maxRank > 0 ? `（等级 ${item.rank.resolved}/${item.rank.maxRank}）` : '（无需等级）';
   const orders = sellOrders.length || buyOrders.length ? `当前快照有 ${sellOrders.length} 条卖单、${buyOrders.length} 条买单。` : '当前查询范围内没有可见买卖单。';
-  return `${item.name.zhHans}（等级 ${item.rank.resolved}/${item.rank.maxRank}）：${orders}${statistics ? ` 90 日成交中位数 ${statistics.median} 白金。` : ''} 数据时间 ${result.evidence.asOf}，来源 Warframe.Market。`;
+  return `${item.name.zhHans}${rankText}：${orders}${statistics ? ` 90 日成交中位数 ${statistics.median} 白金。` : ''} 数据时间 ${result.evidence.asOf}，来源 Warframe.Market。`;
 }
 function dropResponseFor(result: DropSearchResult): string {
   if (!result.ok) {
@@ -450,6 +543,15 @@ async function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T
     new Promise<never>((_resolve, reject) => signal.addEventListener('abort', () => reject(abortError(signal)), { once: true })),
   ]);
 }
+/** 某阶段（模型请求 / 领域工具 / 最终汇总）自身的超时边界，区别于整个 run 的硬超时。 */
+class PhaseTimeoutError extends Error {
+  readonly phase: 'model' | 'tool' | 'finalize';
+  constructor(phase: 'model' | 'tool' | 'finalize') {
+    super(`phase timeout: ${phase}`);
+    this.name = 'PhaseTimeoutError';
+    this.phase = phase;
+  }
+}
 
 function marketToolSummary(result: MarketQueryResult): string {
   if (!result.ok) return `market.query 失败：${result.error.code} ${result.error.message}${result.error.retryable ? '（可重试）' : ''}。`;
@@ -468,39 +570,107 @@ function dropToolSummary(result: DropSearchResult): string {
 export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDependencies): Promise<{ message: string; trace: AgentTrace }> {
   const started = deps.now?.() ?? Date.now();
   const elapsed = () => (deps.now?.() ?? Date.now()) - started;
+  const now = () => deps.now?.() ?? Date.now();
+  const policy = resolveRunPolicy(request.runPolicy, request.timeoutMs);
   const toolCalls: ToolCallTrace[] = [];
   let facts: EvalFact[] = [];
   let usage: ModelUsage | undefined;
   let finishReason: ModelFinishReason | undefined;
-  const timeout = Math.min(Math.max(request.timeoutMs ?? 15_000, 100), 60_000);
+  const deadlineAt = started + policy.hardDeadlineMs;
+  const softDeadlineAt = Math.max(started, deadlineAt - policy.finalizeReserveMs);
+  const remainingUntil = (until: number) => Math.max(0, until - now());
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(new Error('timeout')), timeout);
+  const timeoutHandle = setTimeout(() => controller.abort(new Error('timeout')), policy.hardDeadlineMs);
   const forwardAbort = () => controller.abort(deps.signal?.reason ?? new Error('cancelled'));
   deps.signal?.addEventListener('abort', forwardAbort, { once: true });
+  /**
+   * 每个阶段（模型请求 / 领域工具 / 最终汇总）绑定到同一运行 AbortSignal，并
+   * 施加该阶段自身的超时上限。无法真正中止的底层 I/O 由 abortable 竞速隔离：
+   * 迟到结果无法覆盖已经提交的终态。
+   */
+  const runPhase = async <T>(phase: 'model' | 'tool' | 'finalize', timeoutMs: number, work: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+    if (controller.signal.aborted) throw abortError(controller.signal);
+    const phaseController = new AbortController();
+    const timer = setTimeout(() => phaseController.abort(new PhaseTimeoutError(phase)), timeoutMs);
+    const forward = () => phaseController.abort(controller.signal.reason ?? new Error('cancelled'));
+    controller.signal.addEventListener('abort', forward, { once: true });
+    try {
+      return await abortable(work(phaseController.signal), phaseController.signal);
+    } catch (error) {
+      // 阶段计时器先触发（而不是整个 run 被取消）时，把 adapter/工具自身
+      // 抛出的取消归一化为阶段超时，避免误报成“用户取消”。
+      if (phaseController.signal.aborted && phaseController.signal.reason instanceof PhaseTimeoutError
+        && !controller.signal.aborted && !(error instanceof PhaseTimeoutError)) {
+        throw phaseController.signal.reason;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      controller.signal.removeEventListener('abort', forward);
+    }
+  };
   const profileId = request.modelProfileId ?? DEFAULT_MODEL_PROFILES[0]!.id;
   const profile = profileRegistry(deps.profiles).get(profileId);
   const adapter = profile ? adapterRegistry(deps.adapters).get(profile.adapterId) : undefined;
   const adapterVersion = adapter?.adapterVersion;
+  let toolAttempts = 0;
+  let modelRequestsUsed = 0;
+  let finalizedBy: AgentTrace['finalizedBy'];
+  /** 终态一次性：任何路径最多调用一次 finish 并提交一个 completed 事件。 */
+  let settledResult: { message: string; trace: AgentTrace } | undefined;
   const finish = async (
     message: string, decision: AgentDecision, terminalReason: AgentTrace['terminalReason'] = 'completed', refusalReason?: RefusalReason,
     conclusion?: AgentTrace['conclusion'], conclusionSource?: AgentTrace['conclusionSource'], modelFailure?: ModelFailure,
   ) => {
+    if (settledResult) return settledResult;
     const trace: AgentTrace = {
       caseId: request.requestId, decision, toolCalls, facts, latencyMs: elapsed(), modelProfileId: profileId, terminalReason,
+      toolAttempts, modelRequests: modelRequestsUsed,
       ...(refusalReason ? { refusalReason } : {}),
       ...(conclusion && conclusionSource ? { conclusion, conclusionSource } : {}),
       ...(modelFailure ? { modelFailure } : {}),
+      ...(finalizedBy ? { finalizedBy } : {}),
       ...(adapterVersion !== undefined ? { adapterVersion } : {}),
       ...(usage ? { usage } : {}),
       ...(finishReason ? { finishReason } : {}),
     };
-    await emit(deps, { type: 'completed', message, trace });
-    return { message, trace };
+    settledResult = { message, trace };
+    try { await emit(deps, { type: 'completed', message, trace }); } catch { /* 事件通道故障不能产生第二个终态 */ }
+    return settledResult;
+  };
+  /** 终态路径上的事件尽力送达：通道故障时仍只提交一次终态。 */
+  const safeEmit = async (event: AgentStreamEvent): Promise<void> => { try { await emit(deps, event); } catch { /* best-effort */ } };
+  const toolRounds: ToolRoundStep[] = [];
+  let lastText = '';
+  let lastOk = false;
+  let modelFailure: ModelFailure | undefined;
+  const tokenBudgetExceeded = () => usage !== undefined && usage.totalTokens >= policy.totalTokenBudget;
+  const deterministicFinish = async (options: { terminalReason?: 'completed' | 'cancelled' | 'timeout' | 'error' } = {}) => {
+    await safeEmit({ type: 'status', phase: 'composing', text: '正在按工具证据组织回答' });
+    const text = lastText.trim() ? lastText : '本轮未获得可用的工具证据，已按已有信息收束。';
+    for (const delta of text.match(/.{1,24}/gu) ?? []) await safeEmit({ type: 'message_delta', delta });
+    const conclusion: NonNullable<AgentTrace['conclusion']> = lastOk ? 'answered' : 'insufficient_data';
+    await safeEmit({ type: 'model_conclusion', conclusion, source: 'harness' });
+    return await finish(text, 'call_tool', options.terminalReason ?? 'completed', undefined, conclusion, 'harness', modelFailure);
+  };
+  const modelFinish = async (text: string, conclusion: NonNullable<AgentTrace['conclusion']>) => {
+    await safeEmit({ type: 'model_conclusion', conclusion, source: 'model' });
+    return await finish(text, 'call_tool', 'completed', undefined, conclusion, 'model', modelFailure);
   };
   try {
     if (!profile || !adapter) return await finish('所选模型配置不可用，请重新选择并检查健康状态。', 'answer', 'error');
-    const health = await checkModelProfile(profileId, { ...(deps.profiles ? { profiles: deps.profiles } : {}), ...(deps.adapters ? { adapters: deps.adapters } : {}) });
-    if (health.status !== 'healthy') return await finish(health.summary, 'answer', 'error');
+    const healthTimeoutMs = Math.min(policy.healthTimeoutMs, Math.max(1, remainingUntil(deadlineAt)));
+    const health = await abortable(checkModelProfile(profileId, {
+      ...(deps.profiles ? { profiles: deps.profiles } : {}),
+      ...(deps.adapters ? { adapters: deps.adapters } : {}),
+      signal: controller.signal,
+      timeoutMs: healthTimeoutMs,
+    }), controller.signal);
+    if (controller.signal.aborted) throw abortError(controller.signal);
+    if (health.status !== 'healthy') {
+      const terminalReason: AgentTrace['terminalReason'] = health.error?.code === 'MODEL_TIMEOUT' ? 'timeout' : 'error';
+      return await finish(health.summary, 'answer', terminalReason, undefined, undefined, undefined, health.error);
+    }
     await emit(deps, { type: 'model_selected', profile });
     await emit(deps, { type: 'status', phase: 'thinking', text: '正在通过可信策略与模型能力门禁' });
     const denied = policyRefusal(request.message, request);
@@ -509,54 +679,209 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
       return await finish(denied.text, 'refuse', 'completed', denied.reason);
     }
     const defaults = request.defaults;
-    let streamedText = '';
-    const onTextDelta = async (delta: string) => {
-      streamedText += delta;
-      await emit(deps, { type: 'message_delta', delta });
-    };
-    let turnResult = await abortable(adapter.generateTurn({
-      message: request.message,
-      signal: controller.signal,
-      ...(defaults ? { defaults } : {}),
-      onTextDelta,
-    }, profile), controller.signal);
-    if (controller.signal.aborted) throw abortError(controller.signal);
-    let turn = turnResult.turn;
-    if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
-    if (turnResult.finishReason) finishReason = turnResult.finishReason;
-    if (turn.kind === 'answer') {
-      if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
-      return await finish(turn.text, 'answer');
-    }
-    if (turn.kind === 'clarify') { facts = turn.facts; await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'clarify'); }
-    if (turn.kind === 'conclude') {
-      await emit(deps, { type: 'model_error', error: { code: 'MODEL_BAD_RESPONSE', category: 'protocol', message: '模型在工具执行前提交了终态。', retryable: false } });
-      return await finish('模型在工具执行前提交了终态，属于协议错误。', 'answer', 'error');
+    // 模型无关的一次选择卡预检：未保存默认范围且自然市场问价缺平台/跨平台时，
+    // 在调用任何 adapter 生成（即调用模型）之前由 Harness 稳定发出。这样返回
+    // 普通文本而不是结构化 clarify 的 OpenAI-compatible adapter 也无法绕过；
+    // 掉落、个人查询、寒暄、写操作拒绝与明确完整范围已在判定中排除。
+    // 选择后由桌面主进程保存偏好并重跑原消息；本卡不自动写任何设置。
+    if (scopeChoiceRequired(request.message, defaults, request.askScopeIfMissing)) {
+      const explicit = marketScopeFromMessage(request.message);
+      const missingFields = [
+        ...(explicit.platform !== undefined || defaults?.platform !== undefined ? [] : ['platform']),
+        ...(explicit.crossplay !== undefined || defaults?.crossplay !== undefined ? [] : ['crossplay']),
+      ];
+      facts = [{ key: 'missing_field', value: missingFields.join(',') }];
+      await emit(deps, {
+        type: 'scope_choice_required',
+        questionId: `scope-${request.requestId}`,
+        prompt: SCOPE_CHOICE_PROMPT,
+        options: MARKET_SCOPE_OPTIONS.map((option) => ({ ...option })),
+      });
+      await emit(deps, { type: 'message_delta', delta: SCOPE_CHOICE_PROMPT });
+      return await finish(SCOPE_CHOICE_PROMPT, 'clarify');
     }
 
-    const MAX_TOOL_ROUNDS = 3;
-    const toolRounds: ToolRoundStep[] = [];
-    let lastText = '';
-    let lastOk = false;
-    let modelFailure: ModelFailure | undefined;
-    const deterministicFinish = async () => {
-      await emit(deps, { type: 'status', phase: 'composing', text: '正在按工具证据组织回答' });
-      for (const delta of lastText.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
-      const conclusion: NonNullable<AgentTrace['conclusion']> = lastOk ? 'answered' : 'insufficient_data';
-      await emit(deps, { type: 'model_conclusion', conclusion, source: 'harness' });
-      return await finish(lastText, 'call_tool', 'completed', undefined, conclusion, 'harness', modelFailure);
-    };
-    const modelFinish = async (text: string, conclusion: NonNullable<AgentTrace['conclusion']>) => {
-      await emit(deps, { type: 'model_conclusion', conclusion, source: 'model' });
-      return await finish(text, 'call_tool', 'completed', undefined, conclusion, 'model', modelFailure);
+    // 受限最终汇总（finalize）：仅允许一次；adapter 在 finalize 模式下不暴露
+    // 业务工具，Harness 再以执行门禁兜底拒绝任何业务调用，绝不执行第 16 次。
+    let finalizeAttempted = false;
+    const enterFinalize = async (): Promise<{ message: string; trace: AgentTrace }> => {
+      if (finalizeAttempted) return await deterministicFinish();
+      finalizeAttempted = true;
+      const canFinalize = adapter.supportsToolRoundTrip === true && toolRounds.length > 0;
+      if (!canFinalize || modelRequestsUsed >= policy.maxModelRequests || tokenBudgetExceeded() || remainingUntil(deadlineAt) <= 0) {
+        return await deterministicFinish();
+      }
+      await safeEmit({ type: 'status', phase: 'composing', text: '正在生成受限最终汇总（仅允许最终回答，不提供业务工具）' });
+      const timeoutMs = Math.min(policy.finalizeRequestTimeoutMs, Math.max(1, remainingUntil(deadlineAt)));
+      try {
+        modelRequestsUsed += 1;
+        const finalResult = await runPhase('finalize', timeoutMs, (signal) => adapter.generateTurn({
+          message: request.message,
+          history: toolRounds,
+          signal,
+          mode: 'finalize',
+        }, profile));
+        if (finalResult.usage) usage = addUsage(usage, finalResult.usage);
+        if (finalResult.finishReason) finishReason = finalResult.finishReason;
+        if (controller.signal.aborted) throw abortError(controller.signal);
+        const finalTurn = finalResult.turn;
+        if (finalTurn.kind === 'answer') {
+          finalizedBy = 'model';
+          // Finalize candidates stay buffered inside the adapter and are committed only
+          // after the Harness validates the terminal shape. This prevents an invalid
+          // or tool-requesting finalizer from leaking draft text into the completed UI.
+          await safeEmit({ type: 'message_delta', delta: finalTurn.text });
+          return await modelFinish(finalTurn.text, 'answered');
+        }
+        const businessName = finalTurn.kind === 'market_query' ? 'market.query'
+          : finalTurn.kind === 'drop_search' ? 'drops.search'
+            : finalTurn.kind === 'account_snapshot' ? 'account.snapshot' : undefined;
+        modelFailure = businessName
+          ? { code: 'MODEL_BAD_RESPONSE', category: 'protocol', message: `最终汇总阶段模型仍请求业务工具 ${businessName}，已被执行门禁拒绝；未执行任何工具。`, retryable: false }
+          : { code: 'MODEL_BAD_RESPONSE', category: 'protocol', message: '最终汇总阶段模型输出非法；已按门禁拒绝，未重试。', retryable: false };
+        await safeEmit({ type: 'model_error', error: modelFailure });
+        finalizedBy = 'harness';
+        return await deterministicFinish();
+      } catch (error) {
+        if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
+          modelFailure = error.failure;
+          await safeEmit({ type: 'model_error', error: error.failure });
+          finalizedBy = 'harness';
+          return await deterministicFinish();
+        }
+        if (error instanceof PhaseTimeoutError) {
+          modelFailure = { code: 'MODEL_TIMEOUT', category: 'upstream', message: '最终汇总模型请求超时；已按已有证据程序收束。', retryable: true };
+          await safeEmit({ type: 'model_error', error: modelFailure });
+          finalizedBy = 'harness';
+          return await deterministicFinish();
+        }
+        throw error;
+      }
     };
 
+    let turnResult: ModelTurnResult;
     for (;;) {
+      if (controller.signal.aborted) throw abortError(controller.signal);
+      // 预算边界：达到第 15 次观察、模型请求预留耗尽、越过软截止点或 token
+      // 预算耗尽时，不再发起正常决策，进入受限最终汇总（或直接程序收束）。
+      if (toolAttempts >= policy.maxToolAttempts
+        || (toolRounds.length > 0 && modelRequestsUsed >= policy.maxModelRequests - 1)
+        || now() >= softDeadlineAt
+        || tokenBudgetExceeded()) {
+        return await enterFinalize();
+      }
+      if (toolRounds.length > 0) await emit(deps, { type: 'status', phase: 'composing', text: '正在把工具结果回送模型生成回答' });
+      const requestTimeoutMs = Math.min(policy.modelRequestTimeoutMs, Math.max(1, remainingUntil(deadlineAt)));
+      modelRequestsUsed += 1;
+      // Each model request owns its own streaming buffer. Text from a previous
+      // decision must not suppress or contaminate a later answer.
+      let streamedText = '';
+      const onTextDelta = async (delta: string) => {
+        streamedText += delta;
+        await emit(deps, { type: 'message_delta', delta });
+      };
+      try {
+        turnResult = await runPhase('model', requestTimeoutMs, (signal) => adapter.generateTurn({
+          message: request.message,
+          signal,
+          ...(defaults ? { defaults } : {}),
+          ...(toolRounds.length ? { history: toolRounds } : {}),
+          onTextDelta,
+          mode: 'decide',
+        }, profile));
+      } catch (error) {
+        if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
+          modelFailure = error.failure;
+          if (toolRounds.length === 0) {
+            facts = [{ key: 'model.error_code', value: error.failure.code }, { key: 'model.error_retryable', value: error.failure.retryable }];
+            await safeEmit({ type: 'model_error', error: error.failure });
+            return await finish(error.failure.message, 'answer', 'error');
+          }
+          await safeEmit({ type: 'model_error', error: error.failure });
+          return await deterministicFinish();
+        }
+        if (error instanceof PhaseTimeoutError) {
+          const failure: ModelFailure = { code: 'MODEL_TIMEOUT', category: 'upstream', message: '模型请求超时；本轮已停止，未执行后续操作。', retryable: true };
+          modelFailure = failure;
+          await safeEmit({ type: 'model_error', error: failure });
+          if (toolRounds.length === 0) return await finish(failure.message, 'answer', 'timeout', undefined, undefined, undefined, failure);
+          return await deterministicFinish({ terminalReason: 'timeout' });
+        }
+        throw error;
+      }
+      if (controller.signal.aborted) throw abortError(controller.signal);
+      const turn = turnResult.turn;
+      if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
+      if (turnResult.finishReason) finishReason = turnResult.finishReason;
+      if (toolRounds.length === 0) {
+        // 首轮：允许 answer / clarify / conclude 等 v1 决策直接结束本轮。
+        if (turn.kind === 'answer') {
+          if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
+          return await finish(turn.text, 'answer');
+        }
+        if (turn.kind === 'clarify' && request.askScopeIfMissing && isMissingMarketScope(turn)) {
+          // 兜底路径：预检未命中（例如意图口径外的消息）但 adapter 仍以结构化
+          // clarify 报告缺范围时，仍给同一次可点击选择卡，行为与预检一致。
+          const prompt = SCOPE_CHOICE_PROMPT;
+          await emit(deps, {
+            type: 'scope_choice_required',
+            questionId: `scope-${request.requestId}`,
+            prompt,
+            options: MARKET_SCOPE_OPTIONS.map((option) => ({ ...option })),
+          });
+          facts = turn.facts;
+          await emit(deps, { type: 'message_delta', delta: prompt });
+          return await finish(prompt, 'clarify');
+        }
+        if (turn.kind === 'clarify') { facts = turn.facts; await emit(deps, { type: 'message_delta', delta: turn.text }); return await finish(turn.text, 'clarify'); }
+        if (turn.kind === 'conclude') {
+          await emit(deps, { type: 'model_error', error: { code: 'MODEL_BAD_RESPONSE', category: 'protocol', message: '模型在工具执行前提交了终态。', retryable: false } });
+          return await finish('模型在工具执行前提交了终态，属于协议错误。', 'answer', 'error');
+        }
+      } else if (turn.kind === 'answer') {
+        if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
+        return await modelFinish(turn.text, 'answered');
+      } else if (turn.kind === 'conclude' && turn.conclusion === 'answered') {
+        await emit(deps, { type: 'status', phase: 'composing', text: '正在采用模型提交的终态回答' });
+        for (const delta of turn.text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
+        return await modelFinish(turn.text, 'answered');
+      } else if (turn.kind === 'conclude' && turn.conclusion === 'insufficient_data' && !lastOk) {
+        await emit(deps, { type: 'status', phase: 'composing', text: '模型声明数据不足，采用确定性工具结果' });
+        for (const delta of lastText.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
+        return await modelFinish(lastText, 'insufficient_data');
+      } else if (turn.kind === 'clarify' || (turn.kind === 'conclude' && turn.conclusion === 'insufficient_data')) {
+        // 工具成功后声明数据不足、工具后澄清等都属于终态滥用，回落 Harness 确定性回答。
+        return await deterministicFinish();
+      }
+      // 业务工具（首轮与回送轮都可能出现）：执行前仍走归一化与契约校验。
       if (turn.kind === 'market_query') {
-        toolCalls.push({ name: 'market.query', arguments: { ...turn.request } });
+        // 程序归一化（模型无关）：任何 adapter 给出的范围都不能覆盖本条消息的
+        // 明确条件或已保存偏好；缺省等级由程序补 0，不依赖模型遵守提示词。
+        const explicitScope = marketScopeFromMessage(request.message);
+        if (explicitScope.rank === null) {
+          // 用户明确给出非法等级（如“负3级”）：模型若未按契约澄清而仍提交
+          // market_query（例如默认成 0 级），Harness 也必须程序化文本澄清，
+          // 不得把非法条件静默归一化后执行。
+          const text = '等级必须是非负整数或 max。';
+          facts = [{ key: 'invalid_field', value: 'rank' }];
+          await emit(deps, { type: 'message_delta', delta: text });
+          return await finish(text, 'clarify');
+        }
+        const normalized = normalizeMarketQueryRequest(turn.request, request.message, request.defaults);
+        // 保留并执行严格契约校验：归一化结果仍必须通过 MarketQueryRequest 校验。
+        try {
+          assertMarketQueryRequest(normalized);
+        } catch {
+          return await finish('市场查询参数不合法，已停止本轮，未执行任何查询。', 'answer', 'error');
+        }
+        toolCalls.push({ name: 'market.query', arguments: { ...normalized } });
         await emit(deps, { type: 'status', phase: 'tool', text: '正在查询公开市场快照' });
-        await emit(deps, { type: 'tool_call', name: 'market.query', arguments: turn.request });
-        const result = await abortable(deps.marketQuery(turn.request), controller.signal);
+        await emit(deps, { type: 'tool_call', name: 'market.query', arguments: normalized });
+        // Count on entry to the domain executor: a cancelled, timed-out, or
+        // throwing attempt still consumed the run's tool budget.
+        toolAttempts += 1;
+        const result = await runPhase('tool', Math.min(policy.toolTimeoutMs, Math.max(1, remainingUntil(deadlineAt))),
+          (signal) => deps.marketQuery(normalized, signal));
         if (controller.signal.aborted) throw abortError(controller.signal);
         await emit(deps, { type: 'tool_result', name: 'market.query', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
         facts = marketFacts(result);
@@ -564,7 +889,7 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         lastOk = result.ok;
         toolRounds.push({
           toolName: 'market.query',
-          toolCall: { ...turn.request },
+          toolCall: { ...normalized },
           toolResultSummary: marketToolSummary(result),
           ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
         });
@@ -573,7 +898,9 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         await emit(deps, { type: 'status', phase: 'tool', text: '正在读取版本化公共掉落快照' });
         await emit(deps, { type: 'tool_call', name: 'drops.search', arguments: turn.request });
         if (!deps.searchDrops) return await finish('本地掉落数据服务尚未配置。', 'answer', 'error');
-        const result = await abortable(deps.searchDrops(turn.request), controller.signal);
+        toolAttempts += 1;
+        const result = await runPhase('tool', Math.min(policy.toolTimeoutMs, Math.max(1, remainingUntil(deadlineAt))),
+          (signal) => deps.searchDrops!(turn.request, signal));
         if (controller.signal.aborted) throw abortError(controller.signal);
         await emit(deps, { type: 'tool_result', name: 'drops.search', ok: result.ok, summary: result.ok ? result.evidence.freshness : result.error.code });
         if (result.ok) {
@@ -607,7 +934,9 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
         await emit(deps, { type: 'status', phase: 'tool', text: '正在读取本机账号快照摘要' });
         await emit(deps, { type: 'tool_call', name: 'account.snapshot', arguments: turn.request });
         if (!deps.getSnapshot) return await finish('个人快照服务尚未配置；当前版本不读取本机账号数据。', 'answer', 'error');
-        const result = await abortable(deps.getSnapshot(turn.request), controller.signal);
+        toolAttempts += 1;
+        const result = await runPhase('tool', Math.min(policy.toolTimeoutMs, Math.max(1, remainingUntil(deadlineAt))),
+          (signal) => deps.getSnapshot!(turn.request, signal));
         if (controller.signal.aborted) throw abortError(controller.signal);
         await emit(deps, { type: 'tool_result', name: 'account.snapshot', ok: result.ok, summary: result.ok ? result.evidence.finding : result.error.code });
         facts = accountFacts(result);
@@ -619,57 +948,30 @@ export async function runDesktopAgent(request: AgentRunRequest, deps: AgentRunDe
           toolResultSummary: accountToolSummary(result),
           ...(turnResult.reasoning ? { assistantReasoning: turnResult.reasoning } : {}),
         });
-      } else {
-        // 第二轮起才允许非工具轮：answer 与 agent.conclude 是唯二合法终态，
-        // clarify 等一律回落 Harness 确定性组织回答（模型不得在工具后自行澄清/拒绝）。
-        if (turn.kind === 'answer') {
-          if (!turn.streamed || streamedText.length === 0) await emit(deps, { type: 'message_delta', delta: turn.text });
-          return await modelFinish(turn.text, 'answered');
-        }
-        if (turn.kind === 'conclude' && turn.conclusion === 'answered') {
-          await emit(deps, { type: 'status', phase: 'composing', text: '正在采用模型提交的终态回答' });
-          for (const delta of turn.text.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
-          return await modelFinish(turn.text, 'answered');
-        }
-        if (turn.kind === 'conclude' && turn.conclusion === 'insufficient_data' && !lastOk) {
-          await emit(deps, { type: 'status', phase: 'composing', text: '模型声明数据不足，采用确定性工具结果' });
-          for (const delta of lastText.match(/.{1,24}/gu) ?? []) await emit(deps, { type: 'message_delta', delta });
-          return await modelFinish(lastText, 'insufficient_data');
-        }
-        // 工具成功后声明数据不足、工具后澄清等都属于终态滥用，回落 Harness 确定性回答。
-        return await deterministicFinish();
       }
-      if (!adapter.supportsToolRoundTrip || toolRounds.length >= MAX_TOOL_ROUNDS) return await deterministicFinish();
-      await emit(deps, { type: 'status', phase: 'composing', text: '正在把工具结果回送模型生成回答' });
-      try {
-        turnResult = await abortable(adapter.generateTurn({
-          message: request.message,
-          history: toolRounds,
-          signal: controller.signal,
-          onTextDelta,
-        }, profile), controller.signal);
-        turn = turnResult.turn;
-        if (turnResult.usage) usage = addUsage(usage, turnResult.usage);
-        if (turnResult.finishReason) finishReason = turnResult.finishReason;
-      } catch (error) {
-        if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
-          modelFailure = error.failure;
-          await emit(deps, { type: 'model_error', error: error.failure });
-          return await deterministicFinish();
-        }
-        throw error;
-      }
-      if (controller.signal.aborted) throw abortError(controller.signal);
+      // 普通任务提前 answer/conclude 已在上面直接提交，不附加固定反思；只有
+      // 未声明工具回送的 adapter 在这里走确定性收束（本地规则后端）。
+      if (!adapter.supportsToolRoundTrip) return await deterministicFinish();
     }
   } catch (error) {
-    const timedOut = controller.signal.reason instanceof Error && controller.signal.reason.message === 'timeout';
+    const hardTimedOut = controller.signal.reason instanceof Error && controller.signal.reason.message === 'timeout';
     if (error instanceof ModelAdapterError && error.failure.code !== 'MODEL_CANCELLED') {
       facts = [{ key: 'model.error_code', value: error.failure.code }, { key: 'model.error_retryable', value: error.failure.retryable }];
-      await emit(deps, { type: 'model_error', error: error.failure });
+      await safeEmit({ type: 'model_error', error: error.failure });
       return await finish(error.failure.message, 'answer', 'error');
     }
-    const message = timedOut ? '本轮 Agent 已超时停止，可调整请求后重试。' : '本轮 Agent 已停止；未继续执行或提交任何写操作。';
-    return await finish(message, 'answer', timedOut ? 'timeout' : 'cancelled');
+    if (error instanceof PhaseTimeoutError) {
+      const failure: ModelFailure = {
+        code: 'MODEL_TIMEOUT', category: 'upstream', retryable: true,
+        message: error.phase === 'tool' ? '领域工具执行超时；本轮已停止，未执行后续操作。' : '模型请求超时；本轮已停止，未执行后续操作。',
+      };
+      modelFailure = failure;
+      await safeEmit({ type: 'model_error', error: failure });
+      if (toolRounds.length === 0) return await finish(failure.message, 'answer', 'timeout', undefined, undefined, undefined, failure);
+      return await deterministicFinish({ terminalReason: 'timeout' });
+    }
+    const message = hardTimedOut ? '本轮 Agent 已超时停止，可调整请求后重试。' : '本轮 Agent 已停止；未继续执行或提交任何写操作。';
+    return await finish(message, 'answer', hardTimedOut ? 'timeout' : 'cancelled');
   } finally {
     clearTimeout(timeoutHandle);
     deps.signal?.removeEventListener('abort', forwardAbort);
@@ -697,3 +999,19 @@ export {
   type OpenAICompatibleAdapterOptions,
   type OpenAICompatibleProfileInput,
 } from './openai-compatible.js';
+export {
+  MARKET_SCOPE_OPTIONS,
+  SCOPE_CHOICE_PROMPT,
+  isNaturalMarketPriceQuery,
+  marketScopeFromMessage,
+  marketScopeMissing,
+  normalizeMarketQueryRequest,
+  scopeChoiceRequired,
+  type ExplicitMarketScope,
+  type MarketScopeOption,
+} from './market-scope.js';
+export {
+  DEFAULT_RUN_POLICY,
+  resolveRunPolicy,
+  type RunPolicy,
+} from './run-policy.js';

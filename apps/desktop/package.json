@@ -29,6 +29,7 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
+    "@phosphor-icons/react": "2.1.10",
     "@warframe-companion/agent-runtime": "0.1.0",
     "@warframe-companion/market-query-contract": "0.1.0",
     "@warframe-companion/market-query-service": "0.1.0",

@@ -25,6 +25,12 @@ const item = {
   ducats: 45,
   tradingTax: 4000,
   masteryRank: null,
+  image: {
+    thumb: 'https://warframe.market/static/assets/example_prime_blueprint.png',
+    icon: 'https://warframe.market/static/assets/example_prime_blueprint_icon.png',
+    subIcon: null,
+  },
+  description: { en: null, zhHans: null },
 } as const;
 
 export const MOCK_MARKET_QUERY_SUCCESS = {
@@ -35,15 +41,69 @@ export const MOCK_MARKET_QUERY_SUCCESS = {
     item,
     sellOrders: [{
       side: 'sell', platinum: 12, quantity: 2, ingameName: 'SyntheticTennoA', status: 'ingame',
-      platform: 'pc', crossplay: true, rank: null, updatedAt: '2030-01-02T03:03:00.000Z',
+      platform: 'pc', crossplay: true, rank: null, reputation: 40, locale: 'zh-hans',
+      updatedAt: '2030-01-02T03:03:00.000Z',
     }],
     buyOrders: [{
       side: 'buy', platinum: 9, quantity: 1, ingameName: 'SyntheticTennoB', status: 'online',
-      platform: 'pc', crossplay: true, rank: null, updatedAt: '2030-01-02T03:02:00.000Z',
+      platform: 'pc', crossplay: true, rank: null, reputation: null, locale: 'en',
+      updatedAt: '2030-01-02T03:02:00.000Z',
     }],
     statistics: {
       basis: 'closed_trades_90_days', median: 10, dailyVolume: 3.2, sampleSize: 288, rank: 0,
-      asOf: '2030-01-02T03:04:05.000Z',
+      asOf: '2030-01-02T03:04:05.000Z', deviationPct: 20,
+    },
+  },
+  evidence: { ...evidence, finding: 'confirmed_present' },
+  warnings: [],
+} as const satisfies MarketQuerySuccess;
+
+export const MOCK_MARKET_QUERY_SET_SUCCESS = {
+  contractVersion: '1.0',
+  ok: true,
+  data: {
+    requestedItem: '示例 Prime 一套',
+    item: {
+      slug: 'example_prime_set',
+      name: { en: 'Example Prime Set', zhHans: '示例 Prime 一套' },
+      tags: ['prime', 'set'] as string[],
+      rank: { requested: 0, resolved: 0, maxRank: 0 },
+      ducats: 90,
+      tradingTax: 4000,
+      masteryRank: null,
+      image: {
+        thumb: 'https://warframe.market/static/assets/example_prime_set.png',
+        icon: null,
+        subIcon: null,
+      },
+      description: { en: null, zhHans: null },
+    },
+    sellOrders: [{
+      side: 'sell', platinum: 45, quantity: 1, ingameName: 'SyntheticTennoSet', status: 'online',
+      platform: 'pc', crossplay: true, rank: null, reputation: 12, locale: 'en',
+      updatedAt: '2030-01-02T03:03:00.000Z',
+    }],
+    buyOrders: [{
+      side: 'buy', platinum: 30, quantity: 1, ingameName: 'SyntheticTennoBuyer', status: 'ingame',
+      platform: 'pc', crossplay: true, rank: null, reputation: null, locale: 'zh-hans',
+      updatedAt: '2030-01-02T03:02:00.000Z',
+    }],
+    statistics: {
+      basis: 'closed_trades_90_days', median: 44, dailyVolume: 2.1, sampleSize: 96, rank: 0,
+      asOf: '2030-01-02T03:04:05.000Z', deviationPct: 2,
+    },
+    set: {
+      root: true,
+      components: [
+        { slug: 'example_prime_neuroptics', name: { en: 'Example Prime Neuroptics', zhHans: '示例 Prime 头部神经光元' }, quantity: 1, lowestSell: 8 },
+        { slug: 'example_prime_chassis', name: { en: 'Example Prime Chassis', zhHans: '示例 Prime 机体' }, quantity: 1, lowestSell: 11 },
+        { slug: 'example_prime_systems', name: { en: 'Example Prime Systems', zhHans: '示例 Prime 系统' }, quantity: 1, lowestSell: null },
+        { slug: 'example_prime_blueprint', name: { en: 'Example Prime Blueprint', zhHans: '示例 Prime 蓝图' }, quantity: 1, lowestSell: 12 },
+      ],
+      componentsTotal: 31,
+      pricedCount: 3,
+      missingCount: 1,
+      setLowest: 45,
     },
   },
   evidence: { ...evidence, finding: 'confirmed_present' },
@@ -54,7 +114,13 @@ export const MOCK_MARKET_QUERY_NO_ORDERS = {
   contractVersion: '1.0',
   ok: true,
   data: {
-    requestedItem: '示例 Prime 蓝图', item, sellOrders: [], buyOrders: [],
+    requestedItem: '示例 Prime 蓝图',
+    item: {
+      ...item,
+      image: null,
+      description: { en: null, zhHans: null },
+    },
+    sellOrders: [], buyOrders: [],
   },
   evidence: { ...evidence, finding: 'confirmed_absent_in_scope' },
   warnings: [
@@ -94,6 +160,7 @@ export const MOCK_MARKET_QUERY_FAILURES = {
 
 export const MOCK_MARKET_QUERY_RESULTS = [
   MOCK_MARKET_QUERY_SUCCESS,
+  MOCK_MARKET_QUERY_SET_SUCCESS,
   MOCK_MARKET_QUERY_NO_ORDERS,
   ...Object.values(MOCK_MARKET_QUERY_FAILURES),
 ] as const;

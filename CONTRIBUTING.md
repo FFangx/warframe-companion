@@ -11,7 +11,7 @@
 
 ## 开发环境与验证
 
-要求 Windows、Node.js 22+ 和仓库声明的 npm 版本。提交前从仓库根运行：
+要求 Windows、Node.js 22+ 和仓库声明的 npm 版本。原型修改后从根运行 `npm test` 和与改动相关的验证；文档修改检查 `npm run check:repo` 与 `git diff --check`，UI 修改需实际启动或渲染。完整检查用于 CI 和发布准备，命令如下：
 
 ```powershell
 npm ci

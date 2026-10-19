@@ -19,3 +19,7 @@ data/
 state/
 snapshots/
 secrets/
+
+# Private, machine-local project handoff records.
+/CURRENT.md
+/MEMORY.md

@@ -15,6 +15,13 @@ export interface MarketQueryRequest {
 export type MarketUserStatus = 'ingame' | 'online' | 'offline' | 'unknown';
 export type MarketOrderSide = 'sell' | 'buy';
 
+/**
+ * Bounded https URL for Warframe.Market static assets. The renderer may only
+ * load these known-safe URLs; anything else (data:, file:, arbitrary hosts,
+ * query strings) is rejected by contract validation.
+ */
+export type MarketAssetUrl = `https://warframe.market/static/assets/${string}`;
+
 export interface MarketOrder {
   side: MarketOrderSide;
   platinum: number;
@@ -24,7 +31,26 @@ export interface MarketOrder {
   platform: MarketPlatform;
   crossplay: boolean | null;
   rank: number | null;
+  /** Seller community reputation as reported by warframe.market; null when absent. */
+  reputation: number | null;
+  /** Seller account locale (e.g. `zh-hans`, `en`); null when unknown. Drives the `/w` language. */
+  locale: string | null;
   updatedAt: string;
+}
+
+export interface MarketItemImage {
+  thumb: MarketAssetUrl | null;
+  icon: MarketAssetUrl | null;
+  subIcon: MarketAssetUrl | null;
+}
+
+/**
+ * Localized item description. MOD/arcane card effects are derived from the
+ * zh-Hans description (falling back to English); other items may be null.
+ */
+export interface MarketItemDescription {
+  en: string | null;
+  zhHans: string | null;
 }
 
 export interface ResolvedMarketItem {
@@ -42,6 +68,9 @@ export interface ResolvedMarketItem {
   ducats: number | null;
   tradingTax: number | null;
   masteryRank: number | null;
+  /** Safe display image; null when the item has no usable image (section-local degradation). */
+  image: MarketItemImage | null;
+  description: MarketItemDescription;
 }
 
 export interface ClosedTradeStatistics {
@@ -51,12 +80,47 @@ export interface ClosedTradeStatistics {
   sampleSize: number;
   rank: number;
   asOf: string;
+  /**
+   * Current lowest sell order vs the 90-day closed-trade median, in percent
+   * (positive = current is higher than history). null when there is no sell
+   * order or the median is zero. History and current stay separate fields:
+   * this is a comparison, never a price of its own.
+   */
+  deviationPct: number | null;
+}
+
+export interface MarketSetComponent {
+  slug: string;
+  name: {
+    en: string;
+    zhHans: string;
+  };
+  /** Copies required to build the set (from item detail metadata). */
+  quantity: number;
+  /** Current lowest sell of this component; null = quote missing (no fabrication). */
+  lowestSell: number | null;
+}
+
+export interface MarketSetComparison {
+  root: true;
+  components: MarketSetComponent[];
+  /**
+   * Sum of the available component quotes only. null when no component has a
+   * quote; missing components never contribute a zero or a guess, and the
+   * missing count is reported separately.
+   */
+  componentsTotal: number | null;
+  pricedCount: number;
+  missingCount: number;
+  /** Current lowest sell of the whole set from the same snapshot. */
+  setLowest: number | null;
 }
 
 export type MarketWarningCode =
   | 'NO_SELL_ORDERS'
   | 'NO_BUY_ORDERS'
   | 'STATISTICS_UNAVAILABLE'
+  | 'SET_COMPONENTS_UNAVAILABLE'
   | 'STALE_DATA';
 
 export interface MarketWarning {
@@ -83,6 +147,8 @@ export interface MarketQuerySuccess {
     sellOrders: MarketOrder[];
     buyOrders: MarketOrder[];
     statistics?: ClosedTradeStatistics;
+    /** Present only for set-root items after component resolution; omitted when unavailable. */
+    set?: MarketSetComparison;
   };
   evidence: MarketEvidence;
   warnings: MarketWarning[];
@@ -147,10 +213,18 @@ const RETRYABLE_ERROR_CODES = new Set<MarketQueryErrorCode>([
 ]);
 
 const WARNING_CODES = new Set<MarketWarningCode>([
-  'NO_SELL_ORDERS', 'NO_BUY_ORDERS', 'STATISTICS_UNAVAILABLE', 'STALE_DATA',
+  'NO_SELL_ORDERS', 'NO_BUY_ORDERS', 'STATISTICS_UNAVAILABLE', 'SET_COMPONENTS_UNAVAILABLE', 'STALE_DATA',
 ]);
 const ERROR_CODES = new Set<MarketQueryErrorCode>(Object.keys(ERROR_CATEGORY_BY_CODE) as MarketQueryErrorCode[]);
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u;
+// Bounded market asset URL: https only, fixed host, no query/fragment/userinfo
+// or path traversal. The renderer must never load an unvalidated URL.
+const MARKET_ASSET_URL = /^https:\/\/warframe\.market\/static\/assets\/[A-Za-z0-9._/-]{1,200}$/u;
+const LOCALE = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u;
+const SET_COMPONENT_LIMIT = 24;
+const ORDER_ARRAY_LIMIT = 50;
+const WARNING_LIMIT = 12;
+const TAG_LIMIT = 24;
 
 export class MarketContractViolation extends TypeError {
   constructor(public readonly path: string, message: string) {
@@ -204,6 +278,36 @@ function validateRank(value: unknown, path: string): asserts value is MarketRank
   number(value, path, { integer: true, min: 0 });
 }
 
+function boundedAssetUrl(value: unknown, path: string): void {
+  if (typeof value !== 'string' || value.length > 300 || !MARKET_ASSET_URL.test(value) || value.includes('..')) {
+    throw new MarketContractViolation(path, '必须是 warframe.market 静态资源 https URL');
+  }
+}
+
+function nullableAssetUrl(value: unknown, path: string): void {
+  if (value !== null) boundedAssetUrl(value, path);
+}
+
+function nullableLocale(value: unknown, path: string): void {
+  if (value === null) return;
+  if (typeof value !== 'string' || value.length > 40 || !LOCALE.test(value)) {
+    throw new MarketContractViolation(path, '必须是 BCP-47 风格语言标签或 null');
+  }
+}
+
+function nullableBoundedNumber(value: unknown, path: string, min: number, max: number): void {
+  if (value === null) return;
+  number(value, path);
+  if (value < min || value > max) throw new MarketContractViolation(path, `数值超出 ${min}–${max} 范围`);
+}
+
+function boundedArray<T>(value: unknown, path: string, limit: number, validate: (entry: unknown, index: number) => asserts entry is T): void {
+  if (!Array.isArray(value) || value.length > limit) {
+    throw new MarketContractViolation(path, `必须是至多 ${limit} 项的数组`);
+  }
+  value.forEach((entry, index) => validate(entry, index));
+}
+
 function validateName(value: unknown, path: string): void {
   const name = record(value, path);
   exactKeys(name, ['en', 'zhHans'], path);
@@ -211,12 +315,32 @@ function validateName(value: unknown, path: string): void {
   text(name.zhHans, `${path}.zhHans`, 120);
 }
 
+function validateImage(value: unknown, path: string): void {
+  if (value === null) return;
+  const image = record(value, path);
+  exactKeys(image, ['thumb', 'icon', 'subIcon'], path);
+  nullableAssetUrl(image.thumb, `${path}.thumb`);
+  nullableAssetUrl(image.icon, `${path}.icon`);
+  nullableAssetUrl(image.subIcon, `${path}.subIcon`);
+}
+
+function validateDescription(value: unknown, path: string): void {
+  const description = record(value, path);
+  exactKeys(description, ['en', 'zhHans'], path);
+  for (const [key, lang] of [['en', 'en'], ['zhHans', 'zhHans']] as const) {
+    const entry = description[key];
+    if (entry !== null && (typeof entry !== 'string' || entry.length > 2_000)) {
+      throw new MarketContractViolation(`${path}.${lang}`, '必须是至多 2000 字符的字符串或 null');
+    }
+  }
+}
+
 function validateResolvedItem(value: unknown, path: string): void {
   const item = record(value, path);
-  exactKeys(item, ['slug', 'name', 'tags', 'rank', 'ducats', 'tradingTax', 'masteryRank'], path);
+  exactKeys(item, ['slug', 'name', 'tags', 'rank', 'ducats', 'tradingTax', 'masteryRank', 'image', 'description'], path);
   text(item.slug, `${path}.slug`, 120);
   validateName(item.name, `${path}.name`);
-  if (!Array.isArray(item.tags)) throw new MarketContractViolation(`${path}.tags`, '必须是数组');
+  if (!Array.isArray(item.tags) || item.tags.length > TAG_LIMIT) throw new MarketContractViolation(`${path}.tags`, `必须是至多 ${TAG_LIMIT} 项的数组`);
   item.tags.forEach((tag, index) => text(tag, `${path}.tags[${index}]`, 60));
   const rank = record(item.rank, `${path}.rank`);
   exactKeys(rank, ['requested', 'resolved', 'maxRank'], `${path}.rank`);
@@ -227,11 +351,13 @@ function validateResolvedItem(value: unknown, path: string): void {
   nullableNumber(item.ducats, `${path}.ducats`);
   nullableNumber(item.tradingTax, `${path}.tradingTax`);
   nullableNumber(item.masteryRank, `${path}.masteryRank`);
+  validateImage(item.image, `${path}.image`);
+  validateDescription(item.description, `${path}.description`);
 }
 
 function validateOrder(value: unknown, side: MarketOrderSide, path: string): void {
   const order = record(value, path);
-  exactKeys(order, ['side', 'platinum', 'quantity', 'ingameName', 'status', 'platform', 'crossplay', 'rank', 'updatedAt'], path);
+  exactKeys(order, ['side', 'platinum', 'quantity', 'ingameName', 'status', 'platform', 'crossplay', 'rank', 'reputation', 'locale', 'updatedAt'], path);
   if (order.side !== side) throw new MarketContractViolation(`${path}.side`, `必须是 ${side}`);
   number(order.platinum, `${path}.platinum`, { min: 0 });
   number(order.quantity, `${path}.quantity`, { integer: true, min: 1 });
@@ -240,6 +366,8 @@ function validateOrder(value: unknown, side: MarketOrderSide, path: string): voi
   enumValue(order.platform, MARKET_PLATFORMS, `${path}.platform`);
   if (order.crossplay !== null && typeof order.crossplay !== 'boolean') throw new MarketContractViolation(`${path}.crossplay`, '必须是 boolean 或 null');
   if (order.rank !== null) number(order.rank, `${path}.rank`, { integer: true, min: 0 });
+  nullableBoundedNumber(order.reputation, `${path}.reputation`, -1_000_000, 1_000_000);
+  nullableLocale(order.locale, `${path}.locale`);
   iso(order.updatedAt, `${path}.updatedAt`);
 }
 
@@ -265,30 +393,78 @@ export function assertMarketQueryRequest(value: unknown): asserts value is Marke
   validateRank(request.rank, '$.rank');
 }
 
+function validateStatistics(value: unknown, path: string): void {
+  const stats = record(value, path);
+  exactKeys(stats, ['basis', 'median', 'dailyVolume', 'sampleSize', 'rank', 'asOf', 'deviationPct'], path);
+  if (stats.basis !== 'closed_trades_90_days') throw new MarketContractViolation(`${path}.basis`, '统计口径无效');
+  number(stats.median, `${path}.median`, { min: 0 });
+  number(stats.dailyVolume, `${path}.dailyVolume`, { min: 0 });
+  number(stats.sampleSize, `${path}.sampleSize`, { integer: true, min: 0 });
+  number(stats.rank, `${path}.rank`, { integer: true, min: 0 });
+  iso(stats.asOf, `${path}.asOf`);
+  nullableBoundedNumber(stats.deviationPct, `${path}.deviationPct`, -1_000, 1_000);
+}
+
+function validateSetComparison(value: unknown, path: string): void {
+  const set = record(value, path);
+  exactKeys(set, ['root', 'components', 'componentsTotal', 'pricedCount', 'missingCount', 'setLowest'], path);
+  if (set.root !== true) throw new MarketContractViolation(`${path}.root`, '必须是 true');
+  boundedArray(set.components, `${path}.components`, SET_COMPONENT_LIMIT, (entry, index) => {
+    const component = record(entry, `${path}.components[${index}]`);
+    exactKeys(component, ['slug', 'name', 'quantity', 'lowestSell'], `${path}.components[${index}]`);
+    text(component.slug, `${path}.components[${index}].slug`, 120);
+    validateName(component.name, `${path}.components[${index}].name`);
+    number(component.quantity, `${path}.components[${index}].quantity`, { integer: true, min: 1 });
+    if (component.quantity > 99) throw new MarketContractViolation(`${path}.components[${index}].quantity`, '必须不大于 99');
+    nullableNumber(component.lowestSell, `${path}.components[${index}].lowestSell`);
+  });
+  const components = set.components as unknown[];
+  const pricedCount = set.pricedCount;
+  const missingCount = set.missingCount;
+  number(pricedCount, `${path}.pricedCount`, { integer: true, min: 0 });
+  number(missingCount, `${path}.missingCount`, { integer: true, min: 0 });
+  if (pricedCount + missingCount !== components.length) {
+    throw new MarketContractViolation(`${path}`, 'pricedCount + missingCount 必须等于部件数量');
+  }
+  const quotedComponents = (set.components as Array<Record<string, unknown>>).filter((component) => component.lowestSell !== null);
+  if (pricedCount !== quotedComponents.length || missingCount !== components.length - quotedComponents.length) {
+    throw new MarketContractViolation(`${path}`, '报价计数必须与部件报价逐项一致');
+  }
+  if (set.componentsTotal !== null) number(set.componentsTotal, `${path}.componentsTotal`, { min: 0 });
+  if ((pricedCount === 0) !== (set.componentsTotal === null)) {
+    throw new MarketContractViolation(`${path}.componentsTotal`, '无任何报价时必须为 null，有报价时必须给出求和');
+  }
+  if (set.componentsTotal !== null) {
+    const expectedTotal = Math.round(quotedComponents.reduce((sum, component) =>
+      sum + Number(component.lowestSell) * Number(component.quantity), 0) * 10) / 10;
+    if (set.componentsTotal !== expectedTotal) {
+      throw new MarketContractViolation(`${path}.componentsTotal`, '必须等于已有部件报价按数量求和');
+    }
+  }
+  nullableNumber(set.setLowest, `${path}.setLowest`);
+}
+
 function validateSuccess(value: Record<string, unknown>): void {
   exactKeys(value, ['contractVersion', 'ok', 'data', 'evidence', 'warnings'], '$');
   const data = record(value.data, '$.data');
-  exactKeys(data, ['requestedItem', 'item', 'sellOrders', 'buyOrders', 'statistics'], '$.data');
+  exactKeys(data, ['requestedItem', 'item', 'sellOrders', 'buyOrders', 'statistics', 'set'], '$.data');
   text(data.requestedItem, '$.data.requestedItem', 120);
   validateResolvedItem(data.item, '$.data.item');
   for (const [key, side] of [['sellOrders', 'sell'], ['buyOrders', 'buy']] as const) {
-    const orders = data[key];
-    if (!Array.isArray(orders)) throw new MarketContractViolation(`$.data.${key}`, '必须是数组');
-    orders.forEach((order, index) => validateOrder(order, side, `$.data.${key}[${index}]`));
+    boundedArray(data[key], `$.data.${key}`, ORDER_ARRAY_LIMIT, (order, index) => validateOrder(order, side, `$.data.${key}[${index}]`));
   }
-  if (data.statistics !== undefined) {
-    const stats = record(data.statistics, '$.data.statistics');
-    exactKeys(stats, ['basis', 'median', 'dailyVolume', 'sampleSize', 'rank', 'asOf'], '$.data.statistics');
-    if (stats.basis !== 'closed_trades_90_days') throw new MarketContractViolation('$.data.statistics.basis', '统计口径无效');
-    number(stats.median, '$.data.statistics.median', { min: 0 });
-    number(stats.dailyVolume, '$.data.statistics.dailyVolume', { min: 0 });
-    number(stats.sampleSize, '$.data.statistics.sampleSize', { integer: true, min: 0 });
-    number(stats.rank, '$.data.statistics.rank', { integer: true, min: 0 });
-    iso(stats.asOf, '$.data.statistics.asOf');
+  if (data.statistics !== undefined) validateStatistics(data.statistics, '$.data.statistics');
+  if (data.set !== undefined) {
+    validateSetComparison(data.set, '$.data.set');
+    const set = data.set as Record<string, unknown>;
+    const sellOrders = data.sellOrders as Array<Record<string, unknown>>;
+    const expectedSetLowest = sellOrders.length ? sellOrders[0]?.platinum ?? null : null;
+    if (set.setLowest !== expectedSetLowest) {
+      throw new MarketContractViolation('$.data.set.setLowest', '必须匹配当前快照最低卖价');
+    }
   }
   validateEvidence(value.evidence, '$.evidence');
-  if (!Array.isArray(value.warnings)) throw new MarketContractViolation('$.warnings', '必须是数组');
-  value.warnings.forEach((entry, index) => {
+  boundedArray(value.warnings, '$.warnings', WARNING_LIMIT, (entry, index) => {
     const warning = record(entry, `$.warnings[${index}]`);
     exactKeys(warning, ['code', 'message'], `$.warnings[${index}]`);
     enumValue(warning.code, [...WARNING_CODES], `$.warnings[${index}].code`);
