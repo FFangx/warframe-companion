@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="820" viewBox="0 0 1440 820" role="img" aria-labelledby="title desc">
+  <title id="title">Warframe Companion product overview</title>
+  <desc id="desc">A flat black, gold and cyan product board showing how a player asks a Warframe question, the Companion selects a typed read-only tool, deterministic services verify current data and evidence, and the desktop presents a clear answer.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#D69B55"/>
+    </marker>
+    <style>
+      text { font-family: Inter, "Segoe UI", "Microsoft YaHei UI", Arial, sans-serif; }
+      .display { fill: #E8EEF6; font-size: 52px; font-weight: 620; letter-spacing: -1.5px; }
+      .lead { fill: #A7B4C0; font-size: 20px; }
+      .section { fill: #D69B55; font-size: 13px; font-weight: 650; letter-spacing: 1.8px; }
+      .step { fill: #E8EEF6; font-size: 22px; font-weight: 600; }
+      .body { fill: #93A3B1; font-size: 16px; }
+      .small { fill: #718492; font-size: 13px; }
+      .mono { font-family: "Cascadia Code", Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="820" fill="#080C12"/>
+  <path d="M0 0H1440V6H0Z" fill="#D69B55"/>
+  <path d="M0 814H1440V820H0Z" fill="#18232D"/>
+
+  <!-- Brand and product promise -->
+  <g transform="translate(72 64)">
+    <path d="M28 0L56 14L50 48L28 62L6 48L0 14Z" fill="#0D141D" stroke="#D69B55" stroke-width="2"/>
+    <path d="M18 19L28 12L38 19L35 39L28 48L21 39Z" fill="none" stroke="#E6B978" stroke-width="2"/>
+    <circle cx="28" cy="29" r="4" fill="#D69B55"/>
+    <text x="76" y="24" fill="#E8EEF6" font-size="22" font-weight="600">WARFRAME COMPANION</text>
+    <text x="76" y="49" fill="#6F8190" font-size="13" letter-spacing="1.1">LOCAL-FIRST PERSONAL AGENT</text>
+  </g>
+  <g transform="translate(72 174)">
+    <text class="display" x="0" y="0">Ask naturally.</text>
+    <text class="display" x="0" y="62">Get an answer you can verify.</text>
+    <text class="lead" x="0" y="110">Live Warframe facts, explicit freshness, and no game automation.</text>
+  </g>
+
+  <!-- Current scope rail -->
+  <g transform="translate(1038 64)">
+    <path d="M0 0H330V94H0Z" fill="#0D141D" stroke="#273540"/>
+    <path d="M0 0H5V94H0Z" fill="#D69B55"/>
+    <text x="24" y="28" fill="#D69B55" font-size="12" font-weight="650" letter-spacing="1.4">CURRENT PUBLIC SLICE</text>
+    <text x="24" y="55" fill="#DDE6ED" font-size="16">Market · Drops · System health</text>
+    <circle cx="28" cy="75" r="4" fill="#63D2DF"/>
+    <text x="41" y="80" fill="#7F9BA6" font-size="12">Desktop Agent with auditable traces</text>
+  </g>
+
+  <!-- Product journey -->
+  <g transform="translate(72 350)">
+    <text class="section" x="0" y="0">FROM QUESTION TO TRUSTED ANSWER</text>
+    <path d="M0 22H1296" stroke="#26343F"/>
+
+    <!-- Ask -->
+    <g transform="translate(0 56)">
+      <text x="0" y="20" fill="#D69B55" font-size="15" font-weight="700">01</text>
+      <text class="step" x="0" y="55">Ask</text>
+      <text class="body" x="0" y="84">Use the desktop or</text>
+      <text class="body" x="0" y="108">an approved remote channel.</text>
+      <path d="M0 132H252V214H0Z" fill="#0D141D" stroke="#2B3A46"/>
+      <text class="small mono" x="18" y="158">PLAYER</text>
+      <text x="18" y="190" fill="#E8EEF6" font-size="16">“Where do Neurodes drop?”</text>
+    </g>
+
+    <!-- Select -->
+    <g transform="translate(342 56)">
+      <text x="0" y="20" fill="#D69B55" font-size="15" font-weight="700">02</text>
+      <text class="step" x="0" y="55">Understand</text>
+      <text class="body" x="0" y="84">The Agent selects a typed tool.</text>
+      <text class="body" x="0" y="108">Policy stays outside the model.</text>
+      <path d="M0 132H252V214H0Z" fill="#0D141D" stroke="#D69B55"/>
+      <path d="M0 132H5V214H0Z" fill="#D69B55"/>
+      <text class="small mono" x="20" y="158">COMPANION HARNESS</text>
+      <text x="20" y="190" fill="#E6B978" font-size="16" class="mono">drops.search(...)</text>
+    </g>
+
+    <!-- Verify -->
+    <g transform="translate(684 56)">
+      <text x="0" y="20" fill="#D69B55" font-size="15" font-weight="700">03</text>
+      <text class="step" x="0" y="55">Verify</text>
+      <text class="body" x="0" y="84">Deterministic services read</text>
+      <text class="body" x="0" y="108">licensed, read-only sources.</text>
+      <path d="M0 132H252V214H0Z" fill="#0D141D" stroke="#2B3A46"/>
+      <text class="small mono" x="18" y="158">WFCD PUBLIC DATA</text>
+      <circle cx="22" cy="187" r="5" fill="#63D2DF"/>
+      <text x="38" y="192" fill="#B9D7DB" font-size="15">Fresh · source checked</text>
+    </g>
+
+    <!-- Present -->
+    <g transform="translate(1026 56)">
+      <text x="0" y="20" fill="#D69B55" font-size="15" font-weight="700">04</text>
+      <text class="step" x="0" y="55">Answer</text>
+      <text class="body" x="0" y="84">See the finding, its source,</text>
+      <text class="body" x="0" y="108">and when it was checked.</text>
+      <path d="M0 132H270V214H0Z" fill="#101922" stroke="#37505F"/>
+      <path d="M0 132H270V137H0Z" fill="#63D2DF"/>
+      <text x="18" y="165" fill="#E8EEF6" font-size="17" font-weight="600">Drop locations found</text>
+      <text class="small" x="18" y="191">Ranked by chance · evidence attached</text>
+    </g>
+
+    <path d="M270 220H324" stroke="#D69B55" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path d="M612 220H666" stroke="#D69B55" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path d="M954 220H1008" stroke="#D69B55" stroke-width="1.8" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- Trust strip -->
+  <g transform="translate(72 696)">
+    <path d="M0 0H1296V70H0Z" fill="#0B1118" stroke="#26343F"/>
+    <g transform="translate(24 0)">
+      <path d="M0 18V52" stroke="#D69B55" stroke-width="3"/>
+      <text x="18" y="31" fill="#DDE6ED" font-size="15" font-weight="600">Local-first</text>
+      <text class="small" x="18" y="51">Credentials stay on this machine</text>
+    </g>
+    <g transform="translate(340 0)">
+      <path d="M0 18V52" stroke="#D69B55" stroke-width="3"/>
+      <text x="18" y="31" fill="#DDE6ED" font-size="15" font-weight="600">Read-only</text>
+      <text class="small" x="18" y="51">No trading, chat, or game control</text>
+    </g>
+    <g transform="translate(658 0)">
+      <path d="M0 18V52" stroke="#63D2DF" stroke-width="3"/>
+      <text x="18" y="31" fill="#DDE6ED" font-size="15" font-weight="600">Evidence attached</text>
+      <text class="small" x="18" y="51">Scope, source, time, and freshness</text>
+    </g>
+    <g transform="translate(1002 0)">
+      <path d="M0 18V52" stroke="#63D2DF" stroke-width="3"/>
+      <text x="18" y="31" fill="#DDE6ED" font-size="15" font-weight="600">Regression-tested</text>
+      <text class="small" x="18" y="51">41 synthetic / redacted cases</text>
+    </g>
+  </g>
+
+  <text x="1368" y="794" text-anchor="end" fill="#465965" font-size="11">Warframe Companion · source / CI stage</text>
+</svg>

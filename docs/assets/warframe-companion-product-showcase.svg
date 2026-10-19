@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Warframe Companion LinkedIn project image</title>
+  <desc id="desc">A flat black and gold product introduction for Warframe Companion. The left side states the product promise. The right side shows a compact desktop Agent conversation using a read-only drop search tool and returning evidence.</desc>
+  <style>
+    text { font-family: Inter, "Segoe UI", "Microsoft YaHei UI", Arial, sans-serif; }
+    .muted { fill: #7E909E; }
+    .soft { fill: #A8B6C1; }
+    .gold { fill: #D69B55; }
+    .cyan { fill: #63D2DF; }
+    .mono { font-family: "Cascadia Code", Consolas, monospace; }
+  </style>
+
+  <rect width="1200" height="675" fill="#080C12"/>
+  <path d="M0 0H1200V7H0Z" fill="#D69B55"/>
+  <path d="M0 668H1200V675H0Z" fill="#17232D"/>
+
+  <!-- Brand -->
+  <g transform="translate(62 54)">
+    <text x="0" y="23" fill="#E8EEF6" font-size="20" font-weight="650">WARFRAME COMPANION</text>
+    <text x="0" y="47" fill="#728593" font-size="12" letter-spacing="1.2">LOCAL-FIRST PERSONAL AGENT</text>
+  </g>
+
+  <!-- Product promise -->
+  <g transform="translate(62 176)">
+    <text x="0" y="0" fill="#E8EEF6" font-size="49" font-weight="620" letter-spacing="-1.2">Warframe answers.</text>
+    <text x="0" y="58" fill="#E8EEF6" font-size="49" font-weight="620" letter-spacing="-1.2">Evidence included.</text>
+    <text class="soft" x="0" y="105" font-size="18">Ask about market prices and public drop data.</text>
+    <text class="soft" x="0" y="132" font-size="18">Get a clear answer without giving up control.</text>
+  </g>
+
+  <!-- Trust statements -->
+  <g transform="translate(62 380)">
+    <path d="M0 0V42" stroke="#D69B55" stroke-width="3"/>
+    <text x="18" y="17" fill="#E1E8EE" font-size="15" font-weight="600">Ask in plain language</text>
+    <text class="muted" x="18" y="39" font-size="13">The Agent selects a typed tool.</text>
+
+    <path d="M0 76V118" stroke="#D69B55" stroke-width="3"/>
+    <text x="18" y="93" fill="#E1E8EE" font-size="15" font-weight="600">Facts stay deterministic</text>
+    <text class="muted" x="18" y="115" font-size="13">Models do not invent live data.</text>
+
+    <path d="M0 152V194" stroke="#63D2DF" stroke-width="3"/>
+    <text x="18" y="169" fill="#E1E8EE" font-size="15" font-weight="600">Verify every result</text>
+    <text class="muted" x="18" y="191" font-size="13">Source, time, scope, and freshness.</text>
+  </g>
+
+  <!-- Flat desktop preview -->
+  <g transform="translate(558 54)">
+    <path d="M0 0H580V566H0Z" fill="#0B1118" stroke="#2A3945" stroke-width="1.5"/>
+    <path d="M0 0H580V38H0Z" fill="#0E161F"/>
+    <circle cx="20" cy="19" r="4" fill="#D69B55"/>
+    <text x="34" y="24" fill="#AEBCC6" font-size="12">Companion / Agent</text>
+    <text x="552" y="24" text-anchor="end" fill="#526673" font-size="11">Read-only session</text>
+
+    <!-- Navigation rail -->
+    <path d="M0 38H76V566H0Z" fill="#080D13"/>
+    <path d="M75 38V566" stroke="#202D37"/>
+    <text x="38" y="119" text-anchor="middle" fill="#50626F" font-size="10">SYS</text>
+    <text x="38" y="163" text-anchor="middle" fill="#50626F" font-size="10">MKT</text>
+    <path d="M0 184H76V228H0Z" fill="#101B24"/>
+    <path d="M0 184H3V228H0Z" fill="#D69B55"/>
+    <text x="38" y="211" text-anchor="middle" fill="#E5B26D" font-size="10">AGT</text>
+    <text x="38" y="532" text-anchor="middle" fill="#42545F" font-size="9">LOCAL</text>
+
+    <!-- Header -->
+    <text x="104" y="83" fill="#E6EDF2" font-size="23" font-weight="600">Ask the Companion</text>
+    <text x="104" y="108" fill="#6F8390" font-size="12">Natural language in. Verified Warframe data out.</text>
+    <path d="M104 130H550" stroke="#202E38"/>
+
+    <!-- User question -->
+    <text class="mono" x="104" y="167" fill="#D69B55" font-size="10">YOU</text>
+    <path d="M104 181H530V237H104Z" fill="#111D26" stroke="#293A46"/>
+    <text x="122" y="215" fill="#DCE6ED" font-size="15">Where do Neurodes drop?</text>
+
+    <!-- Tool trace -->
+    <path d="M104 260H530V302H104Z" fill="#0B151D" stroke="#283844"/>
+    <circle cx="121" cy="281" r="4" fill="#D69B55"/>
+    <text class="mono" x="135" y="286" fill="#D7A862" font-size="12">drops.search</text>
+    <text x="510" y="286" text-anchor="end" fill="#627582" font-size="11">read-only</text>
+
+    <!-- Answer -->
+    <text class="mono" x="104" y="338" fill="#63D2DF" font-size="10">COMPANION</text>
+    <path d="M104 352H550V458H104Z" fill="#0F1922" stroke="#31505D"/>
+    <path d="M104 352H550V356H104Z" fill="#63D2DF"/>
+    <text x="124" y="390" fill="#E8EEF6" font-size="19" font-weight="600">Drop locations found</text>
+    <text x="124" y="419" fill="#8FA1AE" font-size="13">Results are ranked by drop chance.</text>
+    <circle cx="128" cy="441" r="4" fill="#63D2DF"/>
+    <text x="141" y="446" fill="#83B8BF" font-size="11">Evidence is fresh and source-checked</text>
+
+    <!-- Evidence bar -->
+    <path d="M104 482H550" stroke="#24343E"/>
+    <text class="mono" x="104" y="510" fill="#5F7481" font-size="10">SOURCE</text>
+    <text x="104" y="531" fill="#A0AFB9" font-size="12">WFCD public data</text>
+    <text class="mono" x="294" y="510" fill="#5F7481" font-size="10">FRESHNESS</text>
+    <text x="294" y="531" fill="#7DC8CE" font-size="12">Fresh</text>
+    <text class="mono" x="418" y="510" fill="#5F7481" font-size="10">POLICY</text>
+    <text x="418" y="531" fill="#D3A15D" font-size="12">No game control</text>
+  </g>
+
+  <text x="62" y="639" fill="#465965" font-size="11">Desktop Agent · Market and drop data · Auditable traces</text>
+</svg>

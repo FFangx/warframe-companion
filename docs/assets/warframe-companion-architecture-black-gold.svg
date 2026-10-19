@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1030" viewBox="0 0 1000 1030" role="img" aria-labelledby="title desc">
+  <title id="title">Warframe Companion — black and gold architecture overview</title>
+  <desc id="desc">Desktop requests enter the local application boundary through typed preload IPC. Direct queries call deterministic services; Agent requests enter the Companion Harness, which uses model adapters and calls the same services. Services return facts, evidence and classified errors from read-only public sources. The account.snapshot permission and redaction contract is implemented in agent-runtime, but its live local data adapter is not connected. Remote channels would enter through a planned Channel Gateway and shared application interface. OpenClaw and QQ currently run separately. Cross-host shared-core migration, subscriptions and personal-data integration remain targets. Evaluation consumes Harness traces outside the user request path. Solid connectors indicate implemented calls; dashed connectors indicate planned integration. External ownership is labelled separately.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080c12"/>
+      <stop offset="1" stop-color="#0b1017"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#111923"/>
+      <stop offset="1" stop-color="#0d141d"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 8 4 0 8Z" fill="#d69b55"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#000" flood-opacity=".24"/>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#d69b55" stroke-opacity=".025" stroke-width="1"/>
+    </pattern>
+    <style>
+      text { font-family: "Segoe UI", Arial, sans-serif; fill: #e8eef6; font-size: 17px; }
+      .heading { font-size: 29px; font-weight: 650; letter-spacing: -.4px; }
+      .subtitle { fill: #a8b6c1; }
+      .name { font-size: 20px; font-weight: 650; }
+      .small { font-size: 15px; fill: #8fa0ad; }
+      .label { font-size: 14px; fill: #63d2df; font-weight: 700; letter-spacing: .7px; }
+      .external-label { fill: #9cabb6; }
+      .target-label { fill: #d69b55; }
+      .partial-label { fill: #d69b55; }
+      .box { fill: url(#panel); stroke: #2b3a46; stroke-width: 1.5; filter: url(#shadow); }
+      .box-implemented { stroke: #31515a; }
+      .box-external { stroke: #34434f; }
+      .planned { fill: #0d141d; stroke: #8c7352; stroke-width: 1.5; stroke-dasharray: 7 6; }
+      .line { fill: none; stroke: #d69b55; stroke-width: 1.8; marker-end: url(#arrow); }
+      .future { stroke: #8c7352; stroke-dasharray: 7 6; }
+      .rule { stroke: #263641; stroke-width: 1; }
+      .gold { fill: #d69b55; }
+      .cyan { fill: #63d2df; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="1030" fill="url(#bg)"/>
+  <rect width="1000" height="1030" fill="url(#grid)"/>
+  <rect x="40" y="28" width="4" height="52" rx="2" fill="#d69b55"/>
+  <text class="heading" x="58" y="50">Warframe Companion</text>
+  <text class="subtitle" x="58" y="77">Local-first architecture · current slices and target boundaries</text>
+
+  <!-- External ownership and implementation status are independent. -->
+  <rect class="box box-implemented" x="40" y="110" width="560" height="100" rx="8"/>
+  <rect x="40" y="110" width="4" height="100" rx="2" fill="#63d2df"/>
+  <text class="label" x="58" y="134">IMPLEMENTED · WINDOWS DESKTOP</text>
+  <text class="name" x="58" y="162">Electron / React</text>
+  <text x="58" y="190">Market page · Agent conversation · health · model profiles</text>
+  <rect class="box box-external" x="670" y="110" width="290" height="100" rx="8"/>
+  <rect x="670" y="110" width="4" height="100" rx="2" fill="#718392"/>
+  <text class="label external-label" x="688" y="134">EXTERNAL · SEPARATE RUNTIME</text>
+  <text class="name" x="688" y="162">OpenClaw / QQ</text>
+  <text class="small" x="688" y="190">Current remote production entry</text>
+  <path class="line" d="M230 210 V260"/>
+  <text class="small" x="245" y="239">Typed preload IPC / events</text>
+  <path class="line future" d="M815 210 V260"/>
+  <text class="small" x="830" y="239">Bridge</text>
+
+  <rect class="box box-implemented" x="40" y="260" width="560" height="112" rx="8"/>
+  <rect x="40" y="260" width="4" height="112" rx="2" fill="#63d2df"/>
+  <text class="label" x="58" y="284">IMPLEMENTED SLICE · ELECTRON MAIN PROCESS</text>
+  <text class="name" x="58" y="312">Local application boundary</text>
+  <text x="58" y="338">Request validation · trusted context · service composition</text>
+  <text class="small" x="58" y="359">Health probes check availability; they do not import account data.</text>
+  <rect class="planned" x="670" y="260" width="290" height="112" rx="8"/>
+  <rect x="670" y="260" width="4" height="112" rx="2" fill="#8c7352"/>
+  <text class="label target-label" x="688" y="284">TARGET · CHANNEL ADAPTERS</text>
+  <text class="name" x="688" y="312">Local Channel Gateway</text>
+  <text class="small" x="688" y="338">Binding · trusted identity · Outbox</text>
+  <text class="small" x="688" y="359">Window-independent lifecycle</text>
+  <path class="line future" d="M670 317 H600"/>
+
+  <!-- Application composition branches into direct and Agent requests. -->
+  <path class="line" d="M230 372 V438"/>
+  <text class="small" x="245" y="409">Agent request</text>
+  <path class="line" d="M555 372 V401 H745 V438"/>
+  <text class="small" x="635" y="423" text-anchor="middle">Direct market query</text>
+
+  <rect class="box box-implemented" x="40" y="438" width="385" height="240" rx="8"/>
+  <rect x="40" y="438" width="4" height="240" rx="2" fill="#63d2df"/>
+  <text class="label" x="58" y="463">IMPLEMENTED · AGENT-RUNTIME</text>
+  <text class="name" x="58" y="491">Companion Agent Harness</text>
+  <text x="58" y="521">Policy / capability gates · Agent loop</text>
+  <text x="58" y="548">Tool execution · cancellation · timeout</text>
+  <path class="rule" d="M58 565 H407"/>
+  <text x="58" y="590">ModelProfile → ModelAdapter</text>
+  <text class="small" x="58" y="615">Local rules / OpenAI-compatible provider</text>
+  <text class="small" x="58" y="640">Redacted tool-result round trips</text>
+  <text class="small" x="58" y="661">Remote use requires user configuration.</text>
+  <path class="line" d="M425 511 H535"/>
+  <text class="small" x="480" y="484" text-anchor="middle">Typed tools</text>
+  <path class="line" d="M535 566 H425"/>
+  <text class="small" x="480" y="590" text-anchor="middle">Results</text>
+
+  <rect class="box box-implemented" x="535" y="438" width="425" height="240" rx="8"/>
+  <rect x="535" y="438" width="4" height="240" rx="2" fill="#63d2df"/>
+  <text class="label" x="553" y="463">IMPLEMENTED · DETERMINISTIC SERVICES</text>
+  <text class="name" x="553" y="491">Warframe facts and evidence</text>
+  <text x="553" y="521">market.query · drops.search</text>
+  <text x="553" y="548">Validation · resolution · source / cache policy</text>
+  <text x="553" y="575">Typed data · evidence · classified errors</text>
+  <path class="rule" d="M553 591 H942"/>
+  <text class="label partial-label" x="553" y="615">PARTIAL · ACCOUNT.SNAPSHOT</text>
+  <text class="small" x="553" y="639">Permission / redaction contract in agent-runtime;</text>
+  <text class="small" x="553" y="662">live personal-snapshot adapter not connected.</text>
+  <path class="line" d="M230 678 V732"/>
+  <text class="small" x="245" y="711">AgentTrace</text>
+  <path class="line" d="M745 678 V732"/>
+  <text class="small" x="760" y="711">Read-only fetch</text>
+
+  <rect class="box box-implemented" x="40" y="732" width="385" height="96" rx="8"/>
+  <rect x="40" y="732" width="4" height="96" rx="2" fill="#63d2df"/>
+  <text class="label" x="58" y="757">IMPLEMENTED · OFFLINE VERIFICATION</text>
+  <text x="58" y="784">41 synthetic / redacted evaluation cases</text>
+  <text class="small" x="58" y="809">Harness traces → deterministic scoring</text>
+  <rect class="box box-external" x="535" y="732" width="425" height="96" rx="8"/>
+  <rect x="535" y="732" width="4" height="96" rx="2" fill="#718392"/>
+  <text class="label external-label" x="553" y="757">EXTERNAL · PUBLIC DATA SOURCES</text>
+  <text x="553" y="784">Warframe.Market · WFCD drop snapshots</text>
+  <text class="small" x="553" y="809">WFCD: validated JSON cache + in-memory index</text>
+
+  <path class="rule" d="M40 858 H960"/>
+  <text class="label target-label" x="40" y="885">TARGET SHARED CORE · MIGRATION STILL REQUIRED</text>
+  <text x="40" y="912">Desktop + Gateway → shared application interface → versioned deterministic core</text>
+  <text class="small" x="40" y="937">OpenClaw will consume the same package artifact. No deployed-runtime path imports.</text>
+  <text class="small" x="40" y="959">World state, subscriptions and live account data remain targets; DSH is an isolated experiment.</text>
+  <path class="line" d="M40 995 H76"/>
+  <text class="small" x="88" y="1000">Implemented call</text>
+  <path class="line future" d="M275 995 H311"/>
+  <text class="small" x="323" y="1000">Planned integration</text>
+  <text class="small" x="960" y="1000" text-anchor="end">Source / CI stage · no accepted Windows installer</text>
+</svg>
