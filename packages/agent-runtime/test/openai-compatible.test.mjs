@@ -213,3 +213,22 @@ test('取消信号传入 fetch 并稳定分类为 MODEL_CANCELLED', async () => 
   controller.abort(new Error('cancelled'));
   await assert.rejects(pending, (error) => error instanceof ModelAdapterError && error.failure.code === 'MODEL_CANCELLED');
 });
+
+test('D2a1：finalize 模式请求不暴露任何业务/控制工具，只生成最终回答文本', async () => {
+  let requestBody;
+  const adapter = createOpenAICompatibleAdapter({ fetch: async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return json({ choices: [{ message: { role: 'assistant', content: '最终汇总文本。' }, finish_reason: 'stop' }] });
+  } });
+  const result = await adapter.generateTurn({
+    message: 'synthetic finalize', signal: new AbortController().signal, mode: 'finalize',
+    history: [
+      { toolName: 'market.query', toolCall: { contractVersion: '1.0', item: 'Synthetic Prime', platform: 'pc', crossplay: true, rank: 0 }, toolResultSummary: 'market.query 成功：卖单 1 条。' },
+    ],
+  }, profile());
+  assert.deepEqual(result.turn, { kind: 'answer', text: '最终汇总文本。' });
+  assert.equal(requestBody.tools, undefined);
+  assert.equal(requestBody.tool_choice, undefined);
+  assert.match(requestBody.messages[0].content, /最终汇总模式/u);
+  assert.equal(requestBody.messages.length, 4);
+});

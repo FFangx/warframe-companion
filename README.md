@@ -6,11 +6,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-> **当前状态：早期开发版。** 源码与可重复验证流程公开，但尚未发布经过安装、升级、卸载和实机验收的 Windows 安装包。不要把源码测试通过等同于可安装产品已经发布。
+> **当前状态：桌面原型开发中。** D1a 已打通 Agent 共享行情卡与切页保留，下一步补订单操作，再接遗物、世界情报、个人数据与提醒。可通过开发启动试用已有功能；Windows 安装包尚未发布。
 
 一个 Windows 本地优先、只读、证据驱动的 Warframe 国际服个人 Agent 主机。目标是把现有确定性查询、个人快照、订阅诊断和 Agent 能力交付为可安装桌面应用，同时以受控 Channel Adapter 保留 QQ/OpenClaw，并按真实需求扩展飞书、微信或其他远程频道。
 
-当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、系统健康页、原生市场查询卡、流式 Agent 对话，以及 41 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
+当前已完成市场、公共掉落数据与 Agent 桌面垂直切片：`market.query`、带缓存/源年龄双维度和替代源对照的版本化 `drops.search`、许可证明确的中英文别名层、真实只读适配器、Electron/React 桌面应用、总览与助手双区界面、按需行情详情、设置中的健康诊断、流式 Agent 对话，以及 41 条合成/脱敏 eval、确定性 runner、参考基线、真实桌面 Harness 基线与 OpenAI-compatible 合同 mock 基线。
 
 ![Warframe Companion：本地优先、只读且可验证的个人 Agent](docs/assets/warframe-companion-product-showcase.svg)
 

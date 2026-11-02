@@ -107,6 +107,31 @@ function routedFetch(overrides = {}) {
   return { fetch, calls };
 }
 
+test('forwards an external cancellation signal to the active market fetch', async () => {
+  const controller = new AbortController();
+  let observedSignal;
+  let markStarted;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const service = new WarframeMarketQueryService({
+    timeoutMs: 5_000,
+    fetch: async (_url, init) => {
+      observedSignal = init.signal;
+      markStarted();
+      return await new Promise((_resolve, reject) => init.signal.addEventListener(
+        'abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true },
+      ));
+    },
+  });
+  const pending = service.query(REQUEST, controller.signal);
+  await started;
+  controller.abort(new Error('synthetic run cancelled'));
+  const result = await pending;
+  assert.equal(observedSignal instanceof AbortSignal, true);
+  assert.equal(observedSignal.aborted, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'UPSTREAM_TIMEOUT');
+});
+
 test('maps live API shapes to the typed contract and sorts /top orders explicitly', async () => {
   const transport = routedFetch();
   const service = new WarframeMarketQueryService({ fetch: transport.fetch, now: () => NOW });
@@ -122,7 +147,12 @@ test('maps live API shapes to the typed contract and sorts /top orders explicitl
   assert.equal(result.data.statistics.median, 11);
   assert.equal(result.data.statistics.dailyVolume, 3);
   assert.equal(result.data.statistics.sampleSize, 9);
+  // Lowest sell (10) vs 90-day median (11): round((10-11)/11*100) = -9%.
+  assert.equal(result.data.statistics.deviationPct, -9);
   assert.equal(result.data.statistics.asOf, '2030-01-01T00:00:00.000Z');
+  assert.equal(result.data.item.image, null);
+  assert.deepEqual(result.data.item.description, { en: null, zhHans: null });
+  assert.equal(result.data.set, undefined);
   assert.equal(result.evidence.finding, 'confirmed_present');
   assert.equal(result.evidence.asOf, NOW.toISOString());
   assert.equal(result.evidence.expiresAt, '2030-01-02T03:09:05.000Z');
@@ -279,4 +309,253 @@ test('rejects malformed order rows as a bad upstream response instead of silentl
   assert.equal(result.ok, false);
   assert.equal(result.error.code, 'UPSTREAM_BAD_RESPONSE');
   assert.equal(result.evidence.finding, 'unavailable');
+});
+
+test('maps seller reputation and locale into the typed contract and keeps the /w language decision data', async () => {
+  const localized = await new WarframeMarketQueryService({
+    fetch: async (url) => {
+      if (url.endsWith('/v2/items')) return jsonResponse(CATALOG);
+      if (url.endsWith('/v2/item/example_arcane')) return jsonResponse(DETAIL);
+      if (url.endsWith('/v2/orders/item/example_arcane/top?rank=5')) return jsonResponse({
+        data: {
+          sell: [order('sell', 10, 'SyntheticTennoZh', '2030-01-02T03:03:01Z', {
+            user: {
+              ingameName: 'SyntheticTennoZh', platform: 'pc', crossplay: true, status: 'ingame',
+              reputation: 152, locale: 'zh-hans',
+            },
+          })],
+          buy: [order('buy', 8, 'SyntheticTennoEn', '2030-01-02T03:02:01Z', {
+            user: {
+              ingameName: 'SyntheticTennoEn', platform: 'pc', crossplay: true, status: 'online',
+              reputation: null, locale: 'de',
+            },
+          })],
+        },
+      });
+      if (url.endsWith('/v1/items/example_arcane/statistics')) return jsonResponse(STATISTICS);
+      throw new Error(`unexpected synthetic URL: ${url}`);
+    },
+    now: () => NOW,
+  }).query(REQUEST);
+  assert.equal(localized.ok, true);
+  assert.equal(localized.data.sellOrders[0].reputation, 152);
+  assert.equal(localized.data.sellOrders[0].locale, 'zh-hans');
+  assert.equal(localized.data.buyOrders[0].reputation, null);
+  assert.equal(localized.data.buyOrders[0].locale, 'de');
+  // Out-of-contract values are treated as unknown, never fabricated.
+  const sanitized = await new WarframeMarketQueryService({
+    fetch: async (url) => {
+      if (url.endsWith('/v2/items')) return jsonResponse(CATALOG);
+      if (url.endsWith('/v2/item/example_arcane')) return jsonResponse(DETAIL);
+      if (url.endsWith('/v2/orders/item/example_arcane/top?rank=5')) return jsonResponse({
+        data: {
+          sell: [order('sell', 10, 'SyntheticTennoWeird', '2030-01-02T03:03:01Z', {
+            user: {
+              ingameName: 'SyntheticTennoWeird', platform: 'pc', crossplay: true, status: 'ingame',
+              reputation: 9_999_999, locale: 'zh_hans_bad',
+            },
+          })],
+          buy: [],
+        },
+      });
+      if (url.endsWith('/v1/items/example_arcane/statistics')) return jsonResponse(STATISTICS);
+      throw new Error(`unexpected synthetic URL: ${url}`);
+    },
+    now: () => NOW,
+  }).query(REQUEST);
+  assert.equal(sanitized.ok, true);
+  assert.equal(sanitized.data.sellOrders[0].reputation, null);
+  assert.equal(sanitized.data.sellOrders[0].locale, null);
+});
+
+test('computes legendary arcane trading tax per synthesis rank (parity: 0级 100,000 / 5级 2,100,000)', async () => {
+  const fetch = async (url) => {
+    if (url.endsWith('/v2/items')) return jsonResponse(CATALOG);
+    if (url.endsWith('/v2/item/example_arcane')) return jsonResponse(DETAIL);
+    if (/\/v2\/orders\/item\/example_arcane\/top\?rank=\d+$/u.test(url)) return jsonResponse(ORDERS);
+    if (url.endsWith('/v1/items/example_arcane/statistics')) return jsonResponse(STATISTICS);
+    throw new Error(`unexpected synthetic URL: ${url}`);
+  };
+  const service = new WarframeMarketQueryService({ fetch, now: () => NOW });
+  const max = await service.query(REQUEST);
+  assert.equal(max.ok, true);
+  assert.equal(max.data.item.tradingTax, 2_100_000);
+  const base = await service.query({ ...REQUEST, rank: 0 });
+  assert.equal(base.ok, true);
+  assert.equal(base.data.item.tradingTax, 100_000);
+});
+
+test('parses safe market asset URLs, drops placeholders, and keeps description text', async () => {
+  const detail = {
+    data: {
+      ...DETAIL.data,
+      i18n: {
+        en: {
+          name: 'Example Arcane',
+          icon: '/static/assets/example_icon.png',
+          thumb: '/static/assets/example_thumb.png',
+          subIcon: '/static/assets/example_sub.png',
+        },
+        'zh-hans': {
+          name: '示例赋能',
+          description: '+50 能量\n初始能量 +100',
+        },
+      },
+    },
+  };
+  const result = await new WarframeMarketQueryService({
+    fetch: async (url) => {
+      if (url.endsWith('/v2/items')) return jsonResponse(CATALOG);
+      if (url.endsWith('/v2/item/example_arcane')) return jsonResponse(detail);
+      if (url.endsWith('/v2/orders/item/example_arcane/top?rank=5')) return jsonResponse({ data: { sell: [], buy: [] } });
+      if (url.endsWith('/v1/items/example_arcane/statistics')) return jsonResponse({ payload: {} });
+      throw new Error(`unexpected synthetic URL: ${url}`);
+    },
+    now: () => NOW,
+  }).query(REQUEST);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.item.image, {
+    icon: 'https://warframe.market/static/assets/example_icon.png',
+    thumb: 'https://warframe.market/static/assets/example_thumb.png',
+    subIcon: 'https://warframe.market/static/assets/example_sub.png',
+  });
+  assert.equal(result.data.item.description.zhHans, '+50 能量\n初始能量 +100');
+  assert.equal(result.data.item.description.en, null);
+
+  const placeholderDetail = {
+    data: {
+      ...DETAIL.data,
+      i18n: {
+        en: { name: 'Example Arcane', icon: '/static/assets/5c3a.fd671126fd4051e8e3addc13ae56d1f0.128x128.png', thumb: 'https://evil.example/static/assets/x.png', subIcon: 'blueprint_128x128.abc123.png' },
+        'zh-hans': { name: '示例赋能' },
+      },
+    },
+  };
+  const degraded = await new WarframeMarketQueryService({
+    fetch: async (url) => {
+      if (url.endsWith('/v2/items')) return jsonResponse(CATALOG);
+      if (url.endsWith('/v2/item/example_arcane')) return jsonResponse(placeholderDetail);
+      if (url.endsWith('/v2/orders/item/example_arcane/top?rank=5')) return jsonResponse({ data: { sell: [], buy: [] } });
+      if (url.endsWith('/v1/items/example_arcane/statistics')) return jsonResponse({ payload: {} });
+      throw new Error(`unexpected synthetic URL: ${url}`);
+    },
+    now: () => NOW,
+  }).query(REQUEST);
+  assert.equal(degraded.ok, true);
+  assert.equal(degraded.data.item.image, null);
+  assert.deepEqual(degraded.data.item.description, { en: null, zhHans: null });
+});
+
+const SET_CATALOG = {
+  data: [
+    { id: 'catalog-set-1', slug: 'example_prime_set', tags: ['prime', 'set'], i18n: { en: { name: 'Example Prime Set' }, 'zh-hans': { name: '示例 Prime 一套' } } },
+    { id: 'part-a', slug: 'example_prime_neuroptics', tags: ['prime'], i18n: { en: { name: 'Example Prime Neuroptics' }, 'zh-hans': { name: '示例 Prime 头部神经光元' } } },
+    { id: 'part-b', slug: 'example_prime_chassis', tags: ['prime'], i18n: { en: { name: 'Example Prime Chassis' }, 'zh-hans': { name: '示例 Prime 机体' } } },
+    { id: 'part-c', slug: 'example_prime_systems', tags: ['prime'], i18n: { en: { name: 'Example Prime Systems' }, 'zh-hans': { name: '示例 Prime 系统' } } },
+    { id: 'part-d', slug: 'example_prime_blueprint', tags: ['prime'], i18n: { en: { name: 'Example Prime Blueprint' }, 'zh-hans': { name: '示例 Prime 蓝图' } } },
+  ],
+};
+
+const SET_DETAIL = {
+  data: {
+    id: 'catalog-set-1',
+    slug: 'example_prime_set',
+    tags: ['prime', 'set'],
+    setRoot: true,
+    setParts: ['catalog-set-1', 'part-a', 'part-b', 'part-c', 'part-d'],
+    tradingTax: 4000,
+    i18n: { en: { name: 'Example Prime Set' }, 'zh-hans': { name: '示例 Prime 一套' } },
+  },
+};
+
+function partDetail(slug, enName, zhName, quantityInSet) {
+  return { data: { id: `part-for-${slug}`, slug, tags: ['prime'], quantityInSet, i18n: { en: { name: enName }, 'zh-hans': { name: zhName } } } };
+}
+
+function sealedOrders(platinum) {
+  if (platinum === null) {
+    return () => new Response('', { status: 503 });
+  }
+  return { data: { sell: [{ platinum, quantity: 1, visible: true, id: `synthetic-sell-${platinum}`, updatedAt: '2030-01-02T03:03:00Z', user: { ingameName: 'SyntheticTennoPart', status: 'online', platform: 'pc' } }], buy: [] } };
+}
+
+async function setQuery(fetchOverrides = {}) {
+  const fetch = async (url) => {
+    const override = fetchOverrides[url];
+    if (override) return typeof override === 'function' ? override(url) : jsonResponse(override);
+    if (url.endsWith('/v2/items')) return jsonResponse(SET_CATALOG);
+    if (url.endsWith('/v2/item/example_prime_set')) return jsonResponse(SET_DETAIL);
+    if (url.endsWith('/v2/orders/item/example_prime_set/top')) return jsonResponse(sealedOrders(45));
+    if (url.endsWith('/v2/item/example_prime_neuroptics')) return jsonResponse(partDetail('example_prime_neuroptics', 'Example Prime Neuroptics', '示例 Prime 头部神经光元', 1));
+    if (url.endsWith('/v2/orders/item/example_prime_neuroptics/top')) return jsonResponse(sealedOrders(8));
+    if (url.endsWith('/v2/item/example_prime_chassis')) return jsonResponse(partDetail('example_prime_chassis', 'Example Prime Chassis', '示例 Prime 机体', 2));
+    if (url.endsWith('/v2/orders/item/example_prime_chassis/top')) return jsonResponse(sealedOrders(11));
+    if (url.endsWith('/v2/item/example_prime_systems')) return jsonResponse(partDetail('example_prime_systems', 'Example Prime Systems', '示例 Prime 系统', 1));
+    if (url.endsWith('/v2/orders/item/example_prime_systems/top')) return new Response('', { status: 503 });
+    if (url.endsWith('/v2/item/example_prime_blueprint')) return jsonResponse(partDetail('example_prime_blueprint', 'Example Prime Blueprint', '示例 Prime 蓝图', 1));
+    if (url.endsWith('/v2/orders/item/example_prime_blueprint/top')) return jsonResponse(sealedOrders(12));
+    if (url.endsWith('/v1/items/example_prime_set/statistics')) return jsonResponse({ payload: {} });
+    throw new Error(`unexpected synthetic URL: ${url}`);
+  };
+  return new WarframeMarketQueryService({ fetch, now: () => NOW }).query({ ...REQUEST, item: '示例p' });
+}
+
+test('resolves set components from catalog/detail metadata with quantities and an explicit incomplete total', async () => {
+  const result = await setQuery();
+  assert.equal(result.ok, true);
+  const set = result.data.set;
+  assert.equal(set.root, true);
+  assert.deepEqual(set.components.map((component) => component.slug), [
+    'example_prime_neuroptics', 'example_prime_chassis', 'example_prime_systems', 'example_prime_blueprint',
+  ]);
+  assert.equal(set.components[1].quantity, 2);
+  // 8*1 + 11*2 + 12*1 = 42; the missing systems quote never contributes zero.
+  assert.equal(set.componentsTotal, 42);
+  assert.equal(set.pricedCount, 3);
+  assert.equal(set.missingCount, 1);
+  assert.equal(set.setLowest, 45);
+  assert.deepEqual(result.warnings.map((warning) => warning.code), ['NO_BUY_ORDERS', 'STATISTICS_UNAVAILABLE']);
+});
+
+test('keeps the comparison explicitly incomplete when every component quote is missing', async () => {
+  const result = await setQuery({
+    'https://api.warframe.market/v2/item/example_prime_neuroptics': () => new Response('', { status: 503 }),
+    'https://api.warframe.market/v2/item/example_prime_chassis': () => new Response('', { status: 503 }),
+    'https://api.warframe.market/v2/item/example_prime_systems': () => new Response('', { status: 503 }),
+    'https://api.warframe.market/v2/item/example_prime_blueprint': () => new Response('', { status: 503 }),
+  });
+  assert.equal(result.ok, true);
+  const set = result.data.set;
+  assert.equal(set.root, true);
+  assert.equal(set.pricedCount, 0);
+  assert.equal(set.missingCount, 4);
+  assert.equal(set.componentsTotal, null);
+  assert.equal(set.setLowest, 45);
+  assert.deepEqual(result.warnings.map((warning) => warning.code), ['NO_BUY_ORDERS', 'STATISTICS_UNAVAILABLE']);
+});
+
+test('keeps authoritative component quantity when only that component quote fails', async () => {
+  const result = await setQuery({
+    'https://api.warframe.market/v2/orders/item/example_prime_chassis/top': () => new Response('', { status: 503 }),
+  });
+  assert.equal(result.ok, true);
+  const chassis = result.data.set.components.find((component) => component.slug === 'example_prime_chassis');
+  assert.equal(chassis.quantity, 2);
+  assert.equal(chassis.lowestSell, null);
+  // Neuroptics 8 + blueprint 12; chassis and systems are explicitly missing.
+  assert.equal(result.data.set.componentsTotal, 20);
+  assert.equal(result.data.set.pricedCount, 2);
+  assert.equal(result.data.set.missingCount, 2);
+});
+
+test('degrades the whole set section without failing the current-order snapshot', async () => {
+  const noIds = structuredClone(SET_CATALOG);
+  noIds.data.forEach((entry) => delete entry.id);
+  const result = await setQuery({
+    'https://api.warframe.market/v2/items': () => jsonResponse(noIds),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.data.set, undefined);
+  assert.equal(result.data.sellOrders.length, 1);
+  assert.deepEqual(result.warnings.map((warning) => warning.code), ['NO_BUY_ORDERS', 'STATISTICS_UNAVAILABLE', 'SET_COMPONENTS_UNAVAILABLE']);
 });

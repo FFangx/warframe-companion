@@ -6,6 +6,8 @@ import {
   assertMarketQueryResult,
   type ClosedTradeStatistics,
   type MarketEvidence,
+  type MarketItemDescription,
+  type MarketItemImage,
   type MarketOrder,
   type MarketOrderSide,
   type MarketPlatform,
@@ -14,7 +16,10 @@ import {
   type MarketQueryRequest,
   type MarketQueryResult,
   type MarketQuerySuccess,
+  type MarketSetComponent,
+  type MarketSetComparison,
   type MarketWarning,
+  type MarketAssetUrl,
 } from '@warframe-companion/market-query-contract';
 import { resolveMarketItem, type MarketCatalogItem } from './item-resolver.js';
 
@@ -22,6 +27,17 @@ const DEFAULT_BASE_URL = 'https://api.warframe.market';
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_EVIDENCE_TTL_MS = 5 * 60_000;
 const DEFAULT_ORDER_LIMIT = 5;
+const SET_PART_LIMIT = 24;
+const SET_PART_BATCH = 3;
+
+// Warframe.Market placeholder assets (question-mark image) and the generic
+// blueprint subIcon are not real artwork: treat them as missing images so the
+// card degrades locally instead of showing a broken/placeholder icon. This is
+// asset path identity matching only — we never decode or fetch the image here.
+const MARKET_PLACEHOLDER_HASH = 'fd671126fd4051e8e3addc13ae56d1f0';
+const MARKET_PLACEHOLDER_ASSET_RE = new RegExp(`\\.${MARKET_PLACEHOLDER_HASH}\\.(?:128x128\\.)?[a-z0-9]+$`, 'iu');
+const MARKET_GENERIC_BLUEPRINT_RE = /(?:^|\/)blueprint_128x128\.[a-z0-9]+$/iu;
+const MARKET_ASSET_FILE = /^[A-Za-z0-9._/-]{1,200}$/u;
 
 export type MarketFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -163,22 +179,36 @@ function parseCatalog(payload: unknown): MarketCatalogItem[] {
     const zhHans = object(i18n?.['zh-hans'])?.name;
     const slug = item?.slug;
     const tags = item?.tags;
+    const id = item?.id;
     if (typeof slug !== 'string' || !slug || typeof en !== 'string' || !en
       || typeof zhHans !== 'string' || !zhHans || !Array.isArray(tags)
       || tags.some((tag) => typeof tag !== 'string')) {
       throw new UpstreamFailure('UPSTREAM_BAD_RESPONSE');
     }
-    return { slug, name: { en, zhHans }, tags: [...tags] as string[] };
+    return {
+      id: typeof id === 'string' && id ? id : null,
+      slug,
+      name: { en, zhHans },
+      tags: [...tags] as string[],
+    };
   });
 }
 
 interface ParsedDetail {
+  id: string | null;
   name: MarketCatalogItem['name'];
   tags: string[];
   maxRank: number;
   ducats: number | null;
   tradingTax: number | null;
   masteryRank: number | null;
+  /** setRoot=true items list the component ids that make up the set. */
+  setRoot: boolean;
+  setParts: string[];
+  /** Copies of this component inside its set; null when unknown. */
+  quantityInSet: number | null;
+  image: MarketItemImage | null;
+  description: MarketItemDescription;
 }
 
 function nullableNonNegative(value: unknown): number | null {
@@ -186,6 +216,49 @@ function nullableNonNegative(value: unknown): number | null {
   const parsed = nonNegativeNumber(value);
   if (parsed === null) throw new UpstreamFailure('UPSTREAM_BAD_RESPONSE');
   return parsed;
+}
+
+/**
+ * Turns a Warframe.Market i18n asset path into an absolute asset URL, or null
+ * when the path is missing, unsafe, or a known placeholder. The card is only
+ * ever handed these bounded https URLs (never data: or arbitrary hosts).
+ */
+function assetUrl(value: unknown, genericBlueprintIsMissing = false): MarketAssetUrl | null {
+  if (typeof value !== 'string' || !value) return null;
+  let path = value.trim();
+  if (/^https?:\/\//iu.test(path)) {
+    let absolute: URL;
+    try { absolute = new URL(path); } catch { return null; }
+    if (absolute.protocol !== 'https:' || absolute.hostname !== 'warframe.market'
+      || absolute.port || absolute.username || absolute.password || absolute.search || absolute.hash) return null;
+    path = absolute.pathname;
+  }
+  path = path.replace(/^\/+/u, '');
+  if (!path.startsWith('static/assets/')) return null;
+  const file = path.slice('static/assets/'.length);
+  if (!MARKET_ASSET_FILE.test(file) || file.includes('..')) return null;
+  if (MARKET_PLACEHOLDER_ASSET_RE.test(file)) return null;
+  if (genericBlueprintIsMissing && MARKET_GENERIC_BLUEPRINT_RE.test(file)) return null;
+  // The startsWith check above guarantees the static/assets shape.
+  return `https://warframe.market/${path}` as MarketAssetUrl;
+}
+
+function parseImage(i18nEn: Record<string, unknown> | null): MarketItemImage | null {
+  const icon = assetUrl(i18nEn?.icon);
+  const thumb = assetUrl(i18nEn?.thumb);
+  const subIcon = assetUrl(i18nEn?.subIcon, true);
+  if (icon === null && thumb === null && subIcon === null) return null;
+  return { icon, thumb, subIcon };
+}
+
+function parseDescription(i18n: Record<string, unknown> | null): MarketItemDescription {
+  const en = i18n?.en;
+  const zhHans = i18n?.['zh-hans'];
+  const textOf = (section: Record<string, unknown> | null): string | null => {
+    const value = section?.description;
+    return typeof value === 'string' && value.trim() ? value.trim().slice(0, 2_000) : null;
+  };
+  return { en: textOf(object(en)), zhHans: textOf(object(zhHans)) };
 }
 
 function parseDetail(payload: unknown, catalogItem: MarketCatalogItem): ParsedDetail {
@@ -202,13 +275,30 @@ function parseDetail(payload: unknown, catalogItem: MarketCatalogItem): ParsedDe
   const rawMaxRank = data.maxRank;
   const maxRank = rawMaxRank === undefined || rawMaxRank === null ? 0 : nonNegativeInteger(rawMaxRank);
   if (maxRank === null) throw new UpstreamFailure('UPSTREAM_BAD_RESPONSE');
+  const rawQuantity = data.quantityInSet;
+  const quantityInSet = rawQuantity === undefined || rawQuantity === null
+    ? null
+    : nonNegativeInteger(rawQuantity);
+  if (rawQuantity !== undefined && rawQuantity !== null && quantityInSet === null) {
+    throw new UpstreamFailure('UPSTREAM_BAD_RESPONSE');
+  }
+  const rawId = data.id;
+  const setParts = Array.isArray(data.setParts)
+    ? data.setParts.filter((entry): entry is string => typeof entry === 'string' && Boolean(entry)).slice(0, SET_PART_LIMIT)
+    : [];
   return {
+    id: typeof rawId === 'string' && rawId ? rawId : null,
     name: { en, zhHans },
     tags: [...tags] as string[],
     maxRank,
     ducats: nullableNonNegative(data.ducats),
     tradingTax: nullableNonNegative(data.tradingTax),
     masteryRank: nullableNonNegative(data.reqMasteryRank),
+    setRoot: data.setRoot === true,
+    setParts,
+    quantityInSet,
+    image: parseImage(object(i18n?.en)),
+    description: parseDescription(i18n),
   };
 }
 
@@ -242,6 +332,15 @@ function parseOrder(entry: unknown, side: MarketOrderSide): MarketOrder {
   const status = rawStatus === 'ingame' || rawStatus === 'online' || rawStatus === 'offline' ? rawStatus : 'unknown';
   const rawCrossplay = user?.crossplay;
   const crossplay = typeof rawCrossplay === 'boolean' ? rawCrossplay : null;
+  // Reputation/locale are display metadata in the shared contract bounds; values
+  // outside those bounds or of the wrong type are treated as unknown (null),
+  // never as fabricated numbers or languages.
+  const rawReputation = user?.reputation;
+  const reputation = typeof rawReputation === 'number' && Number.isFinite(rawReputation)
+    && rawReputation >= -1_000_000 && rawReputation <= 1_000_000 ? rawReputation : null;
+  const rawLocale = user?.locale;
+  const locale = typeof rawLocale === 'string' && rawLocale.length <= 40
+    && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(rawLocale) ? rawLocale : null;
   return {
     side,
     platinum,
@@ -251,6 +350,8 @@ function parseOrder(entry: unknown, side: MarketOrderSide): MarketOrder {
     platform: platform as MarketPlatform,
     crossplay,
     rank,
+    reputation,
+    locale,
     updatedAt,
   };
 }
@@ -268,7 +369,9 @@ function parseOrders(payload: unknown, limit: number): { sellOrders: MarketOrder
   return { sellOrders, buyOrders };
 }
 
-function parseStatistics(payload: unknown, rank: number, ranked: boolean): ClosedTradeStatistics | undefined {
+type ParsedStatistics = Omit<ClosedTradeStatistics, 'deviationPct'>;
+
+function parseStatistics(payload: unknown, rank: number, ranked: boolean): ParsedStatistics | undefined {
   const closed = object(object(object(payload)?.payload)?.statistics_closed)?.['90days'];
   if (!Array.isArray(closed)) return undefined;
   const rows = closed.map((entry) => object(entry)).filter((entry): entry is Record<string, unknown> => entry !== null)
@@ -293,6 +396,12 @@ function parseStatistics(payload: unknown, rank: number, ranked: boolean): Close
   };
 }
 
+/** Current lowest sell vs 90-day median, in whole percent (same rule as the legacy template). */
+function deviationPctFor(lowestSell: number | null, median: number | null): number | null {
+  if (lowestSell === null || median === null || median <= 0) return null;
+  return Math.round(((lowestSell - median) / median) * 100);
+}
+
 export class WarframeMarketQueryService {
   readonly #fetch: MarketFetch;
   readonly #now: () => Date;
@@ -315,7 +424,7 @@ export class WarframeMarketQueryService {
     }
   }
 
-  async #json(path: string, request: MarketQueryRequest): Promise<unknown> {
+  async #json(path: string, request: MarketQueryRequest, externalSignal?: AbortSignal): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
     try {
@@ -326,7 +435,8 @@ export class WarframeMarketQueryService {
           Crossplay: String(request.crossplay),
           Language: 'zh-hans',
         },
-        signal: controller.signal,
+        // Agent run 的取消信号与自身的请求超时合并：两者任一触发都会中止底层 fetch。
+        signal: externalSignal ? AbortSignal.any([controller.signal, externalSignal]) : controller.signal,
       });
       if (response.status === 429) {
         throw new UpstreamFailure(
@@ -353,7 +463,78 @@ export class WarframeMarketQueryService {
     }
   }
 
-  async query(input: unknown): Promise<MarketQueryResult> {
+  /**
+   * Set component pricing: catalog id → part slug, then per-part detail +
+   * current sell quotes in small bounded batches. Every fetch is read-only and
+   * individually timed out; a failing part only loses its own quote (null
+   * lowestSell, counted as missing) and the whole step silently degrades to
+   * `set: undefined` + SET_COMPONENTS_UNAVAILABLE without touching the valid
+   * current-order snapshot.
+   */
+  async #resolveSetParts(
+    detail: ParsedDetail,
+    catalog: MarketCatalogItem[],
+    request: MarketQueryRequest,
+    externalSignal?: AbortSignal,
+  ): Promise<MarketSetComparison> {
+    const byId = new Map<string, MarketCatalogItem>();
+    for (const entry of catalog) if (entry.id) byId.set(entry.id, entry);
+    const parts: MarketCatalogItem[] = [];
+    for (const id of detail.setParts) {
+      if (detail.id !== null && id === detail.id) continue;
+      const part = byId.get(id);
+      if (part && !parts.some((existing) => existing.slug === part.slug)) parts.push(part);
+      if (parts.length >= SET_PART_LIMIT) break;
+    }
+    if (parts.length === 0) throw new UpstreamFailure('UPSTREAM_BAD_RESPONSE');
+    const components: MarketSetComponent[] = [];
+    for (let offset = 0; offset < parts.length; offset += SET_PART_BATCH) {
+      const batch = parts.slice(offset, offset + SET_PART_BATCH);
+      const rows = await Promise.all(batch.map(async (part) => {
+        const [detailResult, ordersResult] = await Promise.allSettled([
+          this.#json(`/v2/item/${encodeURIComponent(part.slug)}`, request, externalSignal),
+          this.#json(`/v2/orders/item/${encodeURIComponent(part.slug)}/top`, request, externalSignal),
+        ]);
+        if (detailResult.status !== 'fulfilled') {
+          // A quote cannot be totalled without authoritative quantity metadata.
+          return { slug: part.slug, name: part.name, quantity: 1, lowestSell: null };
+        }
+        try {
+          const partDetail = parseDetail(detailResult.value, part);
+          const quantity = partDetail.quantityInSet !== null && partDetail.quantityInSet > 0
+            ? partDetail.quantityInSet
+            : 1;
+          let lowestSell: number | null = null;
+          if (ordersResult.status === 'fulfilled') {
+            try { lowestSell = parseOrders(ordersResult.value, 1).sellOrders[0]?.platinum ?? null; } catch { /* quote remains unavailable */ }
+          }
+          return { slug: part.slug, name: partDetail.name, quantity, lowestSell };
+        } catch {
+          return { slug: part.slug, name: part.name, quantity: 1, lowestSell: null };
+        }
+      }));
+      components.push(...rows);
+    }
+    const priced = components.filter((component) => component.lowestSell !== null);
+    const pricedCount = priced.length;
+    const missingCount = components.length - pricedCount;
+    return {
+      root: true,
+      components,
+      componentsTotal: pricedCount > 0
+        ? Math.round(priced.reduce((sum, component) => sum + component.lowestSell! * component.quantity, 0) * 10) / 10
+        : null,
+      pricedCount,
+      missingCount,
+      setLowest: null,
+    };
+  }
+
+  /**
+   * 执行一次只读市场查询。`signal` 为可选的取消信号（Agent run 统一信号）；
+   * 与内部请求超时合并，取消即中止底层网络请求。
+   */
+  async query(input: unknown, signal?: AbortSignal): Promise<MarketQueryResult> {
     try {
       assertMarketQueryRequest(input);
     } catch (error) {
@@ -362,7 +543,7 @@ export class WarframeMarketQueryService {
     }
     const request = input;
     try {
-      const catalog = parseCatalog(await this.#json('/v2/items', request));
+      const catalog = parseCatalog(await this.#json('/v2/items', request, signal));
       const resolution = resolveMarketItem(catalog, request.item);
       if (!resolution.match) {
         if (resolution.candidates.length === 0) return failure('ITEM_NOT_FOUND', '没有找到匹配物品。');
@@ -372,7 +553,7 @@ export class WarframeMarketQueryService {
       }
 
       const detail = parseDetail(
-        await this.#json(`/v2/item/${encodeURIComponent(resolution.match.slug)}`, request),
+        await this.#json(`/v2/item/${encodeURIComponent(resolution.match.slug)}`, request, signal),
         resolution.match,
       );
       const resolvedRank = request.rank === 'max' ? detail.maxRank : request.rank;
@@ -380,16 +561,35 @@ export class WarframeMarketQueryService {
         return failure('INVALID_RANK', `等级超出物品范围（最高 ${detail.maxRank} 级）。`, { field: 'rank' });
       }
       const rankQuery = detail.maxRank > 0 ? `?rank=${encodeURIComponent(resolvedRank)}` : '';
-      const ordersPromise = this.#json(`/v2/orders/item/${encodeURIComponent(resolution.match.slug)}/top${rankQuery}`, request);
-      const statisticsPromise = this.#json(`/v1/items/${encodeURIComponent(resolution.match.slug)}/statistics`, request)
+      const ordersPromise = this.#json(`/v2/orders/item/${encodeURIComponent(resolution.match.slug)}/top${rankQuery}`, request, signal);
+      const statisticsPromise = this.#json(`/v1/items/${encodeURIComponent(resolution.match.slug)}/statistics`, request, signal)
         .then((payload) => parseStatistics(payload, resolvedRank, detail.maxRank > 0))
         .catch(() => undefined);
       const orders = parseOrders(await ordersPromise, this.#orderLimit);
-      const statistics = await statisticsPromise;
+      const parsedStatistics = await statisticsPromise;
       const warnings: MarketWarning[] = [];
       if (orders.sellOrders.length === 0) warnings.push({ code: 'NO_SELL_ORDERS', message: '本次快照没有可见卖单。' });
       if (orders.buyOrders.length === 0) warnings.push({ code: 'NO_BUY_ORDERS', message: '本次快照没有可见买单。' });
-      if (!statistics) warnings.push({ code: 'STATISTICS_UNAVAILABLE', message: '90 天成交统计不可用，当前订单查询仍然成功。' });
+      if (!parsedStatistics) warnings.push({ code: 'STATISTICS_UNAVAILABLE', message: '90 天成交统计不可用，当前订单查询仍然成功。' });
+      const statistics: ClosedTradeStatistics | undefined = parsedStatistics
+        ? {
+          ...parsedStatistics,
+          deviationPct: deviationPctFor(orders.sellOrders[0]?.platinum ?? null, parsedStatistics.median),
+        }
+        : undefined;
+
+      // Set-vs-components comparison: purely additive, never fatal. A failure
+      // keeps the current-order snapshot valid and marks the section unavailable.
+      let set: MarketSetComparison | undefined;
+      if (detail.setRoot && detail.setParts.length > 1) {
+        try {
+          set = await this.#resolveSetParts(detail, catalog, request, signal);
+          set = { ...set, setLowest: orders.sellOrders[0]?.platinum ?? null };
+        } catch {
+          warnings.push({ code: 'SET_COMPONENTS_UNAVAILABLE', message: '散件单价不可用；整套当前挂单仍然有效。' });
+        }
+      }
+
       const snapshotTime = this.#now();
       const result: MarketQuerySuccess = {
         contractVersion: MARKET_QUERY_CONTRACT_VERSION,
@@ -404,10 +604,13 @@ export class WarframeMarketQueryService {
             ducats: detail.ducats,
             tradingTax: tradingTaxForRank(detail, resolvedRank),
             masteryRank: detail.masteryRank,
+            image: detail.image,
+            description: detail.description,
           },
           sellOrders: orders.sellOrders,
           buyOrders: orders.buyOrders,
           ...(statistics ? { statistics } : {}),
+          ...(set ? { set } : {}),
         },
         evidence: evidence(
           snapshotTime,

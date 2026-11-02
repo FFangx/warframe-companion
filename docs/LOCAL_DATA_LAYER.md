@@ -62,3 +62,7 @@ Reopen this decision if at least one real workload needs transactional user-owne
 state, multi-table joins/aggregations, safe delta updates across several datasets,
 or the snapshot/index fails an agreed startup-memory or query-latency budget. The
 typed service contract must stay stable when the storage backend changes.
+
+## 聊天存储边界
+
+公共掉落缓存继续使用现有JSON/索引；D2b2聊天历史单独采用主进程版本化会话JSON，容量/恢复/删除见 [产品行为合同](PRODUCT_BEHAVIOR.md)。领域订阅和周常写入必须有独立提交回执，不借用聊天文件假装事务；实现该领域时再按真实事务需求选择存储。

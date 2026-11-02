@@ -79,9 +79,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-002",
@@ -163,9 +165,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-003",
@@ -247,9 +251,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-004",
@@ -331,9 +337,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-005",
@@ -415,9 +423,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-006",
@@ -499,9 +509,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-007",
@@ -583,9 +595,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "route-008",
@@ -600,7 +614,9 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
-    "adapterVersion": 1
+    "toolAttempts": 0,
+    "modelRequests": 1,
+    "adapterVersion": 2
   },
   {
     "caseId": "route-009",
@@ -615,7 +631,9 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
-    "adapterVersion": 1
+    "toolAttempts": 0,
+    "modelRequests": 1,
+    "adapterVersion": 2
   },
   {
     "caseId": "route-010",
@@ -630,7 +648,9 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
-    "adapterVersion": 1
+    "toolAttempts": 0,
+    "modelRequests": 1,
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-001",
@@ -712,9 +732,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-002",
@@ -796,9 +818,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-003",
@@ -841,9 +865,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-004",
@@ -938,9 +964,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-005",
@@ -1022,9 +1050,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-006",
@@ -1106,9 +1136,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-007",
@@ -1190,9 +1222,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "evidence-008",
@@ -1274,9 +1308,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "failure-001",
@@ -1319,9 +1355,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "failure-002",
@@ -1368,9 +1406,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "failure-003",
@@ -1413,9 +1453,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "failure-004",
@@ -1445,9 +1487,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "failure-005",
@@ -1481,9 +1525,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "failure-006",
@@ -1513,9 +1559,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "permission-001",
@@ -1525,8 +1573,10 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 0,
+    "modelRequests": 0,
     "refusalReason": "identity_untrusted",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "permission-002",
@@ -1536,8 +1586,10 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 0,
+    "modelRequests": 0,
     "refusalReason": "private_scope",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "permission-003",
@@ -1547,8 +1599,10 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 0,
+    "modelRequests": 0,
     "refusalReason": "identity_untrusted",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "permission-004",
@@ -1558,8 +1612,10 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 0,
+    "modelRequests": 0,
     "refusalReason": "write_forbidden",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "permission-005",
@@ -1569,8 +1625,10 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 0,
+    "modelRequests": 0,
     "refusalReason": "write_forbidden",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "permission-006",
@@ -1580,8 +1638,10 @@
     "latencyMs": 1,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 0,
+    "modelRequests": 0,
     "refusalReason": "private_scope",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-route-001",
@@ -1724,9 +1784,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-route-002",
@@ -1869,9 +1931,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-route-003",
@@ -2014,9 +2078,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-evidence-001",
@@ -2159,9 +2225,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-evidence-002",
@@ -2304,9 +2372,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-evidence-003",
@@ -2449,9 +2519,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-failure-001",
@@ -2505,9 +2577,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "drops-failure-002",
@@ -2530,9 +2604,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "account-001",
@@ -2601,9 +2677,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "account-002",
@@ -2667,9 +2745,11 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "answered",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   },
   {
     "caseId": "account-failure-001",
@@ -2708,8 +2788,10 @@
     "latencyMs": 2,
     "modelProfileId": "warframe-local-balanced",
     "terminalReason": "completed",
+    "toolAttempts": 1,
+    "modelRequests": 1,
     "conclusion": "insufficient_data",
     "conclusionSource": "harness",
-    "adapterVersion": 1
+    "adapterVersion": 2
   }
 ]
